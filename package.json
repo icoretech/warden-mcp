@@ -1,4 +1,5 @@
 {
+  "private": false,
   "name": "@icoretech/warden-mcp",
   "version": "0.1.0",
   "type": "module",

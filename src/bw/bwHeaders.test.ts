@@ -89,4 +89,27 @@ describe('bwEnvFromHeadersOrEnv', () => {
 
     Object.assign(process.env, saved);
   });
+
+  it('headers take priority over env vars when both present', () => {
+    const saved = { ...process.env };
+    // Set env vars
+    process.env.BW_HOST = 'https://env.example.com';
+    process.env.BW_PASSWORD = 'envpassword';
+    process.env.BW_CLIENTID = 'user.env';
+    process.env.BW_CLIENTSECRET = 'envsecret';
+
+    // Also provide X-BW-* headers — these should win
+    const result = bwEnvFromHeadersOrEnv(mockReq({
+      'x-bw-host': 'https://headers.example.com',
+      'x-bw-password': 'headerpassword',
+      'x-bw-clientid': 'user.headers',
+      'x-bw-clientsecret': 'headersecret',
+    }));
+
+    assert.ok(result);
+    assert.equal(result.host, 'https://headers.example.com');
+    assert.equal(result.password, 'headerpassword');
+
+    Object.assign(process.env, saved);
+  });
 });
