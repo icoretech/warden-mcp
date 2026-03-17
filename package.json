@@ -7,12 +7,7 @@
   "bin": {
     "warden-mcp": "bin/warden-mcp.js"
   },
-  "files": [
-    "dist/",
-    "bin/",
-    "!dist/**/*.test.js",
-    "!dist/integration/"
-  ],
+  "files": ["dist/", "bin/", "!dist/**/*.test.js", "!dist/integration/"],
   "scripts": {
     "dev": "tsx watch --clear-screen=false src/server.ts",
     "build": "tsc -p .",

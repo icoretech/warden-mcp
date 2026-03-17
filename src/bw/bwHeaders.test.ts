@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
-import test from 'node:test';
+import test, { describe, it } from 'node:test';
 import type express from 'express';
 
 import { bwEnvFromExpressHeaders, bwEnvFromHeadersOrEnv } from './bwHeaders.js';
@@ -99,12 +98,14 @@ describe('bwEnvFromHeadersOrEnv', () => {
     process.env.BW_CLIENTSECRET = 'envsecret';
 
     // Also provide X-BW-* headers — these should win
-    const result = bwEnvFromHeadersOrEnv(mockReq({
-      'x-bw-host': 'https://headers.example.com',
-      'x-bw-password': 'headerpassword',
-      'x-bw-clientid': 'user.headers',
-      'x-bw-clientsecret': 'headersecret',
-    }));
+    const result = bwEnvFromHeadersOrEnv(
+      mockReq({
+        'x-bw-host': 'https://headers.example.com',
+        'x-bw-password': 'headerpassword',
+        'x-bw-clientid': 'user.headers',
+        'x-bw-clientsecret': 'headersecret',
+      }),
+    );
 
     assert.ok(result);
     assert.equal(result.host, 'https://headers.example.com');

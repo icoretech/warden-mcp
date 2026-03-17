@@ -1,12 +1,12 @@
 #!/usr/bin/env node
+
 // bin/warden-mcp.js — CLI entry for @icoretech/warden-mcp
 
-import { createRequire } from 'node:module';
-import { existsSync, accessSync, constants } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { accessSync, constants, existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -39,8 +39,8 @@ if (!process.env.BW_BIN) {
   if (probe.error) {
     console.error(
       '[warden-mcp] ERROR: bw CLI not found.\n' +
-      'Install it with:  npm install -g @bitwarden/cli\n' +
-      'Or set the BW_BIN environment variable to the path of the bw binary.',
+        'Install it with:  npm install -g @bitwarden/cli\n' +
+        'Or set the BW_BIN environment variable to the path of the bw binary.',
     );
     process.exit(1);
   }

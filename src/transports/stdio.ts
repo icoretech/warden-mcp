@@ -1,7 +1,7 @@
 // src/transports/stdio.ts
 
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { BwSessionPool } from '../bw/bwPool.js';
 import { readBwEnv } from '../bw/bwSession.js';
 import { KeychainSdk } from '../sdk/keychainSdk.js';
@@ -34,8 +34,9 @@ export async function runStdioTransport(): Promise<void> {
 
   // Assign onclose BEFORE connect() to avoid a race where stdin is already
   // EOF when the process starts (connect() calls transport.start() internally).
-  await new Promise<void>(async (resolve) => {
+  const closed = new Promise<void>((resolve) => {
     transport.onclose = resolve;
-    await server.connect(transport);
   });
+  await server.connect(transport);
+  await closed;
 }
