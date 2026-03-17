@@ -1,0 +1,60 @@
+#!/usr/bin/env node
+// bin/warden-mcp.js — CLI entry for @icoretech/warden-mcp
+
+import { createRequire } from 'node:module';
+import { existsSync, accessSync, constants } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
+import { resolve } from 'node:path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Resolve bw binary: optional dep → system PATH
+if (!process.env.BW_BIN) {
+  try {
+    const require = createRequire(import.meta.url);
+    // @bitwarden/cli installs the binary at <pkg>/dist/bw (the npm bin shim
+    // lives at node_modules/.bin/bw, but we resolve to the actual package).
+    const pkgManifest = require.resolve('@bitwarden/cli/package.json');
+    const pkgDir = dirname(pkgManifest);
+    // The CLI binary is published as `bw` (no extension) inside the package.
+    const candidate = join(pkgDir, 'dist', 'bw');
+    if (existsSync(candidate)) {
+      try {
+        accessSync(candidate, constants.X_OK);
+        process.env.BW_BIN = candidate;
+      } catch {
+        // Not executable — fall through to system bw
+      }
+    }
+  } catch {
+    // @bitwarden/cli optional dep not installed — fall through to system bw
+  }
+}
+
+// Verify bw is available (either from optional dep or system PATH)
+if (!process.env.BW_BIN) {
+  const probe = spawnSync('bw', ['--version'], { encoding: 'utf8' });
+  if (probe.error) {
+    console.error(
+      '[warden-mcp] ERROR: bw CLI not found.\n' +
+      'Install it with:  npm install -g @bitwarden/cli\n' +
+      'Or set the BW_BIN environment variable to the path of the bw binary.',
+    );
+    process.exit(1);
+  }
+  // System bw is available — bwCli.ts will find it via PATH
+}
+
+// Delegate to the compiled server entry, forwarding all arguments.
+const serverPath = resolve(__dirname, '../dist/server.js');
+if (!existsSync(serverPath)) {
+  console.error(
+    '[warden-mcp] ERROR: dist/server.js not found. Run `npm run build` first.',
+  );
+  process.exit(1);
+}
+
+// Use dynamic import to run the server module (it has top-level await).
+await import(serverPath);
