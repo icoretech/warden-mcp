@@ -1,0 +1,14 @@
+# Test-only HTTPS reverse proxy for Vaultwarden's bundled web vault.
+#
+# The Vaultwarden web vault requires a "secure context" to use SubtleCrypto for
+# registration/login flows. When accessed over plain HTTP via a non-localhost
+# hostname (e.g. http://vaultwarden in docker-compose), Chromium will block it.
+#
+# We use Caddy's internal CA here and let Playwright ignore TLS errors.
+
+# Serve on both the docker-compose hostname (inside the network) and localhost
+# (from the host machine via port mapping).
+vaultwarden-https:443, localhost:443, 127.0.0.1:443 {
+  tls internal
+  reverse_proxy vaultwarden:80
+}

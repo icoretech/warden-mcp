@@ -1,0 +1,72 @@
+name: session-flood-guardrail
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  session-flood:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: install deps
+        run: npm ci
+
+      - name: build
+        run: npm run build
+
+      - name: start server
+        env:
+          KEYCHAIN_SESSION_MAX_COUNT: "16"
+          KEYCHAIN_SESSION_TTL_MS: "60000"
+          KEYCHAIN_MAX_HEAP_USED_MB: "512"
+        run: |
+          node dist/server.js > /tmp/keychain-mcp.log 2>&1 &
+          echo $! > /tmp/keychain-mcp.pid
+
+      - name: wait for health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3005/healthz >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "server did not become healthy"
+          exit 1
+
+      - name: run session flood regression
+        env:
+          KEYCHAIN_FLOOD_REQUESTS: "500"
+          KEYCHAIN_FLOOD_CONCURRENCY: "40"
+          KEYCHAIN_FLOOD_TIMEOUT_MS: "5000"
+        run: npm run test:session-regression
+        continue-on-error: true
+
+      - name: dump diagnostics
+        if: always()
+        run: |
+          echo "=== metricsz ==="
+          curl -fsS http://127.0.0.1:3005/metricsz || true
+          echo
+          echo "=== server log tail ==="
+          tail -n 200 /tmp/keychain-mcp.log || true
+
+      - name: stop server
+        if: always()
+        run: |
+          if [ -f /tmp/keychain-mcp.pid ]; then
+            kill "$(cat /tmp/keychain-mcp.pid)" || true
+          fi

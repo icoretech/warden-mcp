@@ -1,0 +1,105 @@
+name: keychain-mcp
+
+services:
+  vaultwarden:
+    image: vaultwarden/server:1.35.3-alpine
+    ports:
+      - "8080:80"
+    environment:
+      # Use the internal service name for consistency across containers.
+      # (Host access via http://localhost:8080 still works for local testing.)
+      DOMAIN: https://vaultwarden-https
+      SIGNUPS_ALLOWED: "true"
+      WEBSOCKET_ENABLED: "false"
+      # Test/dev only. Use an Argon2 PHC string in any real environment.
+      ADMIN_TOKEN: devtoken
+    volumes:
+      - vaultwarden-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/api/alive >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 2s
+      retries: 30
+
+  vaultwarden-https:
+    image: caddy:2.10.2-alpine
+    ports:
+      - "8443:443"
+    volumes:
+      - ./Caddyfile.test:/etc/caddy/Caddyfile:ro
+    depends_on:
+      vaultwarden:
+        condition: service_healthy
+
+  mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    env_file:
+      - .env
+    ports:
+      - "3005:3005"
+    volumes:
+      - .:/app
+      - node-modules:/app/node_modules
+      - bw-data:/data
+    environment:
+      HOME: /data
+      NODE_ENV: development
+      # Dev-only: allow bw CLI to talk to the local Caddy self-signed HTTPS endpoint.
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
+      KEYCHAIN_DEBUG_HTTP: "${KEYCHAIN_DEBUG_HTTP:-false}"
+    # Dev-only: allow npm to write to the node-modules volume.
+    user: "0:0"
+    command: sh -lc "npm install && npm run dev"
+    depends_on:
+      vaultwarden:
+        condition: service_healthy
+
+  bootstrap:
+    image: mcr.microsoft.com/playwright:v1.58.2-jammy
+    working_dir: /work
+    volumes:
+      - .:/work
+    environment:
+      VW_BASE_URL: https://vaultwarden-https
+    env_file:
+      - .env.test
+    depends_on:
+      vaultwarden-https:
+        condition: service_started
+    command: node scripts/vaultwarden-bootstrap.mjs
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    env_file:
+      - .env.test
+    volumes:
+      - .:/app
+      - node-modules:/app/node_modules
+      - bw-test-data:/data
+    environment:
+      HOME: /data
+      NODE_ENV: test
+      # In compose network; target the bundled vaultwarden via HTTPS proxy.
+      BW_HOST: https://vaultwarden-https
+      # Test-only: trust Caddy's internal/self-signed certificate.
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
+      # Faster integration tests; create/update already force server-side writes.
+      KEYCHAIN_SYNC_ON_WRITE: "false"
+    # Dev-only: allow npm to write to the node-modules volume.
+    user: "0:0"
+    depends_on:
+      vaultwarden:
+        condition: service_healthy
+      vaultwarden-https:
+        condition: service_started
+    command: sh -lc "npm install && npm run test:integration"
+
+volumes:
+  bw-data: {}
+  bw-test-data: {}
+  vaultwarden-data: {}
+  node-modules: {}

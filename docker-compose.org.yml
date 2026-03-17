@@ -1,0 +1,69 @@
+# Dedicated compose stack for org-focused integration tests.
+name: keychain-mcp-org
+
+services:
+  vaultwarden-org:
+    image: vaultwarden/server:1.35.3-alpine
+    environment:
+      DOMAIN: https://vaultwarden-org-https
+      SIGNUPS_ALLOWED: "true"
+      WEBSOCKET_ENABLED: "false"
+      ADMIN_TOKEN: devtoken
+    volumes:
+      - vaultwarden-org-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/api/alive >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 2s
+      retries: 30
+
+  vaultwarden-org-https:
+    image: caddy:2.10.2-alpine
+    volumes:
+      - ./Caddyfile.org.test:/etc/caddy/Caddyfile:ro
+    depends_on:
+      vaultwarden-org:
+        condition: service_healthy
+
+  bootstrap-org:
+    image: mcr.microsoft.com/playwright:v1.58.2-jammy
+    working_dir: /work
+    volumes:
+      - .:/work
+    env_file:
+      - .env.test-org
+    environment:
+      VW_BASE_URL: https://vaultwarden-org-https
+    depends_on:
+      vaultwarden-org-https:
+        condition: service_started
+    command: node scripts/vaultwarden-bootstrap.mjs
+
+  tests-org:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    env_file:
+      - .env.test-org
+    volumes:
+      - .:/app
+      - node-modules-org:/app/node_modules
+      - bw-org-test-data:/data
+    environment:
+      HOME: /data
+      NODE_ENV: test
+      BW_HOST: https://vaultwarden-org-https
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
+      KEYCHAIN_SYNC_ON_WRITE: "false"
+    user: "0:0"
+    depends_on:
+      vaultwarden-org:
+        condition: service_healthy
+      vaultwarden-org-https:
+        condition: service_started
+    command: sh -lc "npm install && npm run test:integration"
+
+volumes:
+  vaultwarden-org-data: {}
+  bw-org-test-data: {}
+  node-modules-org: {}

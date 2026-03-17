@@ -1,0 +1,5 @@
+# Org-only HTTPS reverse proxy for the org-focused integration stack.
+vaultwarden-org-https:443 {
+  tls internal
+  reverse_proxy vaultwarden-org:80
+}
