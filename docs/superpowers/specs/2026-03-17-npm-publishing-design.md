@@ -20,6 +20,7 @@ Package `warden-mcp` as `@icoretech/warden-mcp` published to GitHub Packages, st
 - Publishing to npmjs.org
 - Bundling or shipping Docker images via this workflow
 - stdio multi-vault support (one stdio process = one vault by design)
+- Programmatic API — CLI-only package, no `main`/`exports` entry point
 
 ---
 
@@ -27,7 +28,7 @@ Package `warden-mcp` as `@icoretech/warden-mcp` published to GitHub Packages, st
 
 ### Transport Modes
 
-**HTTP mode** (default when running as a server):
+**HTTP mode** (default when running as a server, or `--http` flag):
 - Existing Express/SSE server, unchanged behavior
 - Credentials via `X-BW-*` request headers per connection
 - Multi-tenant: one server, many vaults
@@ -40,20 +41,23 @@ Package `warden-mcp` as `@icoretech/warden-mcp` published to GitHub Packages, st
 
 ### Credential Resolution
 
-`bwHeaders.ts` gains a fallback: if `X-BW-*` headers are absent, read from env vars. Same `BwEnv` type throughout — no new credential types.
+`bwHeaders.ts` gains a fallback using the **existing** `readBwEnv()` function already defined in `bwSession.ts`. This function already reads `BW_HOST`, `BW_PASSWORD`, `BW_CLIENTID`, `BW_CLIENTSECRET`, `BW_USER`/`BW_USERNAME` from `process.env`. No new env var scheme is introduced.
 
+Resolution order:
 ```
 1. X-BW-* HTTP headers       (HTTP mode, per-request)
-2. process.env X_BW_*        (stdio mode fallback, or headerless HTTP)
+2. readBwEnv()               (stdio fallback via BW_* env vars, or headerless HTTP)
 ```
 
-Env var mapping:
+Env vars (already defined in `bwSession.ts`, no changes needed):
 ```
-X_BW_HOST            → X-BW-Host
-X_BW_PASSWORD        → X-BW-Password
-X_BW_CLIENT_ID       → X-BW-ClientId
-X_BW_CLIENT_SECRET   → X-BW-ClientSecret
-X_BW_USER            → X-BW-User
+BW_HOST             → host
+BW_PASSWORD         → password
+BW_CLIENTID         → clientId
+BW_CLIENTSECRET     → clientSecret
+BW_USER             → user (alternative to client id/secret)
+BW_USERNAME         → alias for BW_USER
+BW_UNLOCK_INTERVAL  → optional, seconds between keepalive unlock; default 300
 ```
 
 ### Source Changes
@@ -64,21 +68,43 @@ src/
     http.ts       ← Express/SSE server extracted from app.ts
     stdio.ts      ← new: StdioServerTransport, single-session
   app.ts          ← thin: imports transport, registers tools
-  server.ts       ← reads --stdio / WARDEN_MCP_STDIO, picks transport
+  server.ts       ← reads --stdio flag via node:util parseArgs, picks transport
   bw/
-    bwHeaders.ts  ← add env var fallback (small addition)
+    bwHeaders.ts  ← add readBwEnv() fallback when headers absent
 
 bin/
   warden-mcp.js   ← CLI entry point (ESM, #!/usr/bin/env node shebang)
 ```
 
+**Flag parsing in `server.ts`** uses `node:util` `parseArgs` (Node 24+ built-in):
+```ts
+import { parseArgs } from 'node:util';
+const { values } = parseArgs({ options: { stdio: { type: 'boolean', default: false } } });
+const useStdio = values.stdio || process.env.WARDEN_MCP_STDIO === 'true';
+```
+
 ### bw CLI Dependency
 
-`@bitwarden/cli` added as `optionalDependencies`. The `bwCli.ts` resolver checks:
-1. `node_modules/@bitwarden/cli/...` (bundled optional dep)
-2. System `bw` in PATH
+`@bitwarden/cli` added as `optionalDependencies`. `bwCli.ts` already resolves via `process.env.BW_BIN ?? 'bw'`.
 
-Fallback ensures the server works whether or not the optional dep installed successfully.
+`bin/warden-mcp.js` bridges the optional dep to `BW_BIN` before starting the server:
+
+```js
+import { createRequire } from 'node:module';
+import { existsSync } from 'node:fs';
+
+if (!process.env.BW_BIN) {
+  try {
+    const require = createRequire(import.meta.url);
+    const bwPkg = require.resolve('@bitwarden/cli/package.json');
+    const candidate = new URL('../node_modules/@bitwarden/cli/dist/bw.js',
+      import.meta.url).pathname;
+    if (existsSync(candidate)) process.env.BW_BIN = candidate;
+  } catch { /* optional dep not installed, fall back to system bw */ }
+}
+```
+
+If neither the optional dep nor system `bw` is found, the server fails fast with a clear error message ("bw CLI not found — install @bitwarden/cli or set BW_BIN") rather than an opaque `ENOENT`.
 
 ---
 
@@ -90,7 +116,7 @@ Fallback ensures the server works whether or not the optional dep installed succ
   "name": "@icoretech/warden-mcp",
   "private": false,
   "bin": { "warden-mcp": "bin/warden-mcp.js" },
-  "files": ["dist/", "bin/"],
+  "files": ["dist/", "bin/", "!dist/**/*.test.js", "!dist/integration/"],
   "publishConfig": {
     "registry": "https://npm.pkg.github.com",
     "access": "public"
@@ -100,6 +126,8 @@ Fallback ensures the server works whether or not the optional dep installed succ
   }
 }
 ```
+
+Note: pin `@bitwarden/cli` version to the same version used in `Dockerfile` — update when upgrading the Dockerfile.
 
 **`.npmrc`:**
 ```
@@ -123,10 +151,11 @@ command = "npx"
 args = ["-y", "@icoretech/warden-mcp", "--stdio"]
 
 [mcp_servers.keychain-bsmart.env]
-X_BW_HOST = "https://bitwarden.bsmart.it"
-X_BW_PASSWORD = "..."
-X_BW_CLIENT_ID = "user.c71..."
-X_BW_CLIENT_SECRET = "..."
+BW_HOST = "https://bitwarden.bsmart.it"
+BW_PASSWORD = "..."
+BW_CLIENTID = "user.c71..."
+BW_CLIENTSECRET = "..."
+# Alternative: BW_USER + BW_PASSWORD without client id/secret
 ```
 
 **Codex — HTTP (existing):**
@@ -147,7 +176,8 @@ X-BW-Password = "..."
 - Confirm `.env.icoretech` is not tracked (gitignored via `.env.*` ✓)
 - `rotations/` and `scripts/` already gitignored ✓
 - Add `LICENSE` (MIT, copyright icoretech)
-- Add `CHANGELOG.md` (empty, release-please populates)
+- Add `CHANGELOG.md` (empty file — must exist before first release-please run)
+- Add `SECURITY.md` with private vulnerability disclosure instructions
 - Remove `"private": true` from `package.json`
 
 **Keep as-is:**
@@ -171,47 +201,50 @@ Steps:
 5. `biome check` (lint)
 6. `npm run build`
 7. `node --test "dist/**/*.test.js"` (unit tests)
-8. `actionlint` (lint the workflow itself)
+8. `rhysd/actionlint@v1` action (lints all workflow files — no manual install needed)
 
 ### `.github/workflows/release-please.yml`
 
 Trigger: push to main.
 
+Combines release detection and publish in one workflow to avoid `workflow_call` / `workflow_run` complexity:
+
 ```yaml
 permissions:
   contents: write
   pull-requests: write
+  packages: write
 
 jobs:
   release-please:
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: googleapis/release-please-action@v4
+        id: release
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-        outputs:
-          release_created, tag_name
+
+  publish:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://npm.pkg.github.com
+          scope: '@icoretech'
+      - run: npm ci
+      - run: npm run build
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
-
-### `.github/workflows/npm-publish.yml`
-
-Trigger: `workflow_call` from release-please when `release_created == true`.
-
-```yaml
-permissions:
-  contents: read
-  packages: write
-
-steps:
-  - checkout at tag
-  - setup Node 24 with registry-url: https://npm.pkg.github.com
-  - npm ci
-  - npm run build
-  - npm publish
-    env: NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-No extra secrets required — `GITHUB_TOKEN` with `packages: write` is sufficient.
 
 ### `release-please-config.json`
 
@@ -230,6 +263,13 @@ No extra secrets required — `GITHUB_TOKEN` with `packages: write` is sufficien
 }
 ```
 
+### `.release-please-manifest.json`
+
+Initial content (must match `package.json` version):
+```json
+{ ".": "0.1.0" }
+```
+
 ---
 
 ## GitHub Repository
@@ -244,13 +284,13 @@ No extra secrets required — `GITHUB_TOKEN` with `packages: write` is sufficien
 ## Implementation Order
 
 1. Create GitHub repo `icoretech/warden-mcp`, push current code
-2. Open source readiness: LICENSE, CHANGELOG, package.json cleanup, `.npmrc`
-3. Refactor transports: extract `http.ts`, add `stdio.ts`
-4. Update `bwHeaders.ts` with env var fallback
-5. Add `bin/warden-mcp.js` CLI entry
-6. Add `@bitwarden/cli` optional dep + resolver update in `bwCli.ts`
-7. Add CI workflow (ci.yml) with actionlint
-8. Add release-please workflow + config + manifest
-9. Add npm-publish workflow
-10. Verify build, lint, tests pass
-11. Trigger first release
+2. Open source readiness: `LICENSE`, `CHANGELOG.md`, `SECURITY.md`, package.json cleanup, `.npmrc`
+3. Refactor transports: extract `src/transports/http.ts`, add `src/transports/stdio.ts`
+4. Update `bwHeaders.ts` with `readBwEnv()` fallback
+5. Update `server.ts` with `parseArgs` flag handling
+6. Add `bin/warden-mcp.js` CLI entry
+7. Add `@bitwarden/cli` to `optionalDependencies`
+8. Add `ci.yml` with actionlint via `rhysd/actionlint@v1`
+9. Add `release-please.yml` (combined release + publish), `release-please-config.json`, `.release-please-manifest.json`
+10. Verify build, lint, tests pass locally
+11. Push, confirm CI green, trigger first release
