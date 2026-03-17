@@ -32,4 +32,6 @@ jobs:
         run: node --test "dist/**/*.test.js"
 
       - name: Lint workflows
-        uses: rhysd/actionlint-action@v1
+        uses: docker://rhysd/actionlint:latest
+        with:
+          args: -color
