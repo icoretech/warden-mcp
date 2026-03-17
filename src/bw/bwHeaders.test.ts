@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
 import test from 'node:test';
 import type express from 'express';
 
-import { bwEnvFromExpressHeaders } from './bwHeaders.js';
+import { bwEnvFromExpressHeaders, bwEnvFromHeadersOrEnv } from './bwHeaders.js';
 
 function makeReq(headers: Record<string, string>) {
   return {
@@ -46,5 +47,46 @@ test('accepts a minimal https header set', () => {
       method: 'userpass',
       user: 'user@example.com',
     },
+  });
+});
+
+function mockReq(headers: Record<string, string>) {
+  return {
+    header: (name: string) => headers[name.toLowerCase()],
+    headers,
+  } as unknown as express.Request;
+}
+
+describe('bwEnvFromHeadersOrEnv', () => {
+  it('returns null when no headers and no env vars', () => {
+    const saved = { ...process.env };
+    delete process.env.BW_HOST;
+    delete process.env.BW_PASSWORD;
+    delete process.env.BW_CLIENTID;
+    delete process.env.BW_CLIENTSECRET;
+    delete process.env.BW_USER;
+    delete process.env.BW_USERNAME;
+
+    const result = bwEnvFromHeadersOrEnv(mockReq({}));
+    assert.equal(result, null);
+
+    Object.assign(process.env, saved);
+  });
+
+  it('returns BwEnv from env vars when headers absent', () => {
+    const saved = { ...process.env };
+    process.env.BW_HOST = 'https://vault.example.com';
+    process.env.BW_PASSWORD = 'secret';
+    process.env.BW_CLIENTID = 'user.abc';
+    process.env.BW_CLIENTSECRET = 'clientsecret';
+    delete process.env.BW_USER;
+    delete process.env.BW_USERNAME;
+
+    const result = bwEnvFromHeadersOrEnv(mockReq({}));
+    assert.ok(result);
+    assert.equal(result.host, 'https://vault.example.com');
+    assert.equal(result.login.method, 'apikey');
+
+    Object.assign(process.env, saved);
   });
 });

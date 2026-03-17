@@ -7,7 +7,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import express from 'express';
-import { bwEnvFromExpressHeaders } from '../bw/bwHeaders.js';
+import { bwEnvFromHeadersOrEnv } from '../bw/bwHeaders.js';
 import { BwSessionPool } from '../bw/bwPool.js';
 import { KeychainSdk } from '../sdk/keychainSdk.js';
 import { registerTools } from '../tools/registerTools.js';
@@ -87,7 +87,7 @@ export function createKeychainApp(opts: CreateKeychainAppOptions = {}) {
   }
 
   async function withBwHeaders(req: express.Request) {
-    const bwEnv = bwEnvFromExpressHeaders(req);
+    const bwEnv = bwEnvFromHeadersOrEnv(req);
     (req as unknown as { auth?: AuthInfo }).auth = bwEnv
       ? {
           token: 'x-bw-headers',

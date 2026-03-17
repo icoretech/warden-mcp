@@ -2,6 +2,7 @@
 
 import type express from 'express';
 import type { BwEnv } from './bwSession.js';
+import { readBwEnv } from './bwSession.js';
 
 function header(req: express.Request, name: string): string | undefined {
   const v = req.header(name);
@@ -86,4 +87,20 @@ export function bwEnvFromExpressHeaders(req: express.Request): BwEnv | null {
       : 300,
     login,
   };
+}
+
+/**
+ * Resolve BwEnv from Express request headers (X-BW-*) first.
+ * Falls back to environment variables (BW_HOST, BW_PASSWORD, etc.) if no
+ * BW headers are present. Returns null if neither source provides credentials.
+ */
+export function bwEnvFromHeadersOrEnv(req: express.Request): BwEnv | null {
+  const fromHeaders = bwEnvFromExpressHeaders(req);
+  if (fromHeaders) return fromHeaders;
+
+  try {
+    return readBwEnv();
+  } catch {
+    return null;
+  }
 }
