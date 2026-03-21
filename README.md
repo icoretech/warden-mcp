@@ -1,8 +1,8 @@
 # warden-mcp
 
 [![npm version](https://img.shields.io/npm/v/%40icoretech%2Fwarden-mcp?logo=npm)](https://www.npmjs.com/package/@icoretech/warden-mcp)
-[![CI](https://github.com/icoretech/warden-mcp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/icoretech/warden-mcp/actions/workflows/ci.yml)
-[![release](https://github.com/icoretech/warden-mcp/actions/workflows/release-please.yml/badge.svg?branch=main)](https://github.com/icoretech/warden-mcp/actions/workflows/release-please.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/icoretech/warden-mcp/ci.yml?branch=main&label=ci)](https://github.com/icoretech/warden-mcp/actions/workflows/ci.yml)
+[![license](https://img.shields.io/github/license/icoretech/warden-mcp)](LICENSE)
 
 Programmatic Vaultwarden/Bitwarden vault management over MCP (Model Context Protocol), backed by the official Bitwarden CLI (`bw`).
 
