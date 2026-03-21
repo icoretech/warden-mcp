@@ -5,6 +5,16 @@
   "type": "module",
   "license": "MIT",
   "description": "Vaultwarden/Bitwarden MCP server backed by Bitwarden CLI (bw).",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "bitwarden",
+    "vaultwarden",
+    "password-manager",
+    "secrets",
+    "automation",
+    "sse"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/icoretech/warden-mcp.git"
