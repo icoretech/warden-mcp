@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.9](https://github.com/icoretech/warden-mcp/compare/v0.1.8...v0.1.9) (2026-03-21)
+
+
+### Features
+
+* add NOREVEAL env var to force-disable secret reveals ([034286c](https://github.com/icoretech/warden-mcp/commit/034286c2c17e3442f7a6456fd3e6068f7fbfcd8f))
+
+
+### Bug Fixes
+
+* **security:** validate receive URL is HTTPS before passing to bw CLI ([3932c5d](https://github.com/icoretech/warden-mcp/commit/3932c5dc27f71a73d49bc02fc7a5db35048dade0))
+
 ## [0.1.8](https://github.com/icoretech/warden-mcp/compare/v0.1.7...v0.1.8) (2026-03-21)
 
 
