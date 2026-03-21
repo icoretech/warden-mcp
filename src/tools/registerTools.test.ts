@@ -292,6 +292,14 @@ if echo "$*" | grep -q 'get totp'; then printf '123456'; exit 0; fi
 if echo "$*" | grep -q 'get uri'; then printf 'https://example.com'; exit 0; fi
 if echo "$*" | grep -q 'get notes'; then printf 'my notes'; exit 0; fi
 if echo "$*" | grep -q 'get exposed'; then printf '3'; exit 0; fi
+if echo "$*" | grep -q 'get attachment'; then
+  for arg in "$@"; do
+    case "$prev" in --output) outdir="$arg";; esac
+    prev="$arg"
+  done
+  if [ -n "$outdir" ]; then printf 'file-data' > "$outdir/downloaded.bin"; fi
+  exit 0
+fi
 if echo "$*" | grep -q 'get folder'; then printf '{"id":"f1","name":"Folder1"}'; exit 0; fi
 if echo "$*" | grep -q 'get collection'; then printf '{"id":"c1","name":"Col1"}'; exit 0; fi
 if echo "$*" | grep -q 'get organization'; then printf '{"id":"org1","name":"Org1"}'; exit 0; fi

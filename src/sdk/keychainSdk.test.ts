@@ -2156,4 +2156,28 @@ describe('KeychainSdk additional coverage', () => {
       else process.env.KEYCHAIN_SYNC_ON_WRITE = saved;
     }
   });
+
+  test('createNote with collectionIds calls item-collections edit', async () => {
+    const note = { id: 'note-col', type: 2 };
+    const { mock, calls } = createMockBw({
+      runResponses: new Map([
+        ['create item', { stdout: JSON.stringify(note), stderr: '' }],
+        ['edit item-collections', { stdout: '{}', stderr: '' }],
+        ['sync', { stdout: '', stderr: '' }],
+      ]),
+    });
+
+    const sdk = new KeychainSdk(mock);
+    await sdk.createNote({
+      name: 'Note with cols',
+      organizationId: 'org1',
+      collectionIds: ['c1'],
+    });
+
+    assert.ok(
+      calls.some(
+        (c) => c.args.includes('edit') && c.args.includes('item-collections'),
+      ),
+    );
+  });
 });

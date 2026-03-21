@@ -546,4 +546,109 @@ printf '{}'; exit 0
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  test('getTemplateItem throws on non-JSON output', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const fakeBw = await createFakeBw(dir, {
+        responses: {
+          'config server': '',
+          unlock: 'tpl-session',
+          'unlock --check': '',
+          'get template item': 'NOT-JSON-AT-ALL',
+        },
+      });
+      process.env.BW_BIN = fakeBw;
+      const manager = new BwSessionManager(makeEnv(dir));
+      await assert.rejects(
+        () => manager.getTemplateItem(),
+        /Failed to parse bw template output/,
+      );
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('status throws on non-JSON output', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const fakeBw = await createFakeBw(dir, {
+        responses: {
+          'config server': '',
+          unlock: 'status-session',
+          'unlock --check': '',
+          status: 'INVALID-JSON',
+        },
+      });
+      process.env.BW_BIN = fakeBw;
+      const manager = new BwSessionManager(makeEnv(dir));
+      await assert.rejects(
+        () => manager.status(),
+        /Failed to parse bw status output/,
+      );
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('tryUnlock failure falls through to tryLogin', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      // unlock exits non-zero (failure), login succeeds
+      const fakeBw = await createFakeBw(dir, {
+        responses: {
+          'config server': '',
+          'login test@test.com': 'login-fallback-session',
+        },
+        exitCodes: {
+          unlock: 1,
+        },
+      });
+      process.env.BW_BIN = fakeBw;
+      const manager = new BwSessionManager(makeEnv(dir));
+      const session = await manager.withSession(async (s) => s);
+      assert.equal(session, 'login-fallback-session');
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('both tryUnlock and tryLogin fail falls through to second tryUnlock', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      // First unlock fails, login fails, second unlock succeeds
+      const counterFile = join(dir, 'unlock-count');
+      await writeFile(counterFile, '0');
+      const scriptPath = join(dir, 'fake-bw');
+      const script = `#!/bin/sh
+if echo "$*" | grep -q 'config server'; then exit 0; fi
+if echo "$*" | grep -q 'logout'; then exit 0; fi
+if echo "$*" | grep -q 'unlock'; then
+  count=$(cat "${counterFile}")
+  count=$((count + 1))
+  echo "$count" > "${counterFile}"
+  if [ "$count" -le 1 ]; then exit 1; fi
+  printf 'second-unlock-session'
+  exit 0
+fi
+if echo "$*" | grep -q 'login'; then exit 1; fi
+printf '{}'; exit 0
+`;
+      await writeFile(scriptPath, script, { mode: 0o755 });
+      process.env.BW_BIN = scriptPath;
+      const manager = new BwSessionManager(makeEnv(dir));
+      const session = await manager.withSession(async (s) => s);
+      assert.equal(session, 'second-unlock-session');
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });
