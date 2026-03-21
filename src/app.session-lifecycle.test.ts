@@ -198,3 +198,131 @@ test('memory fuse rejects new sessions with 503', async () => {
     await rm(bwHomeRoot, { recursive: true, force: true });
   }
 });
+
+test('DELETE /sse returns 405 Method Not Allowed', async () => {
+  const bwHomeRoot = await mkdtemp(join(tmpdir(), 'keychain-delete-'));
+  const app = createKeychainApp({ bwHomeRoot });
+  const httpServer = app.listen(0, '127.0.0.1');
+  await new Promise<void>((resolve) => httpServer.once('listening', resolve));
+  const addr = httpServer.address();
+  if (!addr || typeof addr === 'string') throw new Error('bad addr');
+  const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+  try {
+    const res = await fetch(`${baseUrl}/sse`, { method: 'DELETE' });
+    assert.equal(res.status, 405);
+    const body = (await res.json()) as { error: { message: string } };
+    assert.ok(body.error.message.includes('not allowed'));
+  } finally {
+    await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+    await rm(bwHomeRoot, { recursive: true, force: true });
+  }
+});
+
+test('POST /sse without session id or initialize returns 400', async () => {
+  const bwHomeRoot = await mkdtemp(join(tmpdir(), 'keychain-badreq-'));
+  const app = createKeychainApp({ bwHomeRoot });
+  const httpServer = app.listen(0, '127.0.0.1');
+  await new Promise<void>((resolve) => httpServer.once('listening', resolve));
+  const addr = httpServer.address();
+  if (!addr || typeof addr === 'string') throw new Error('bad addr');
+  const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+  try {
+    const res = await fetch(`${baseUrl}/sse`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/list',
+        params: {},
+      }),
+    });
+    assert.equal(res.status, 400);
+    const body = (await res.json()) as { error: { message: string } };
+    assert.ok(body.error.message.includes('session'));
+  } finally {
+    await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+    await rm(bwHomeRoot, { recursive: true, force: true });
+  }
+});
+
+test('initialize with client-supplied session id is accepted', async () => {
+  const bwHomeRoot = await mkdtemp(join(tmpdir(), 'keychain-clientsid-'));
+  const app = createKeychainApp({ bwHomeRoot });
+  const httpServer = app.listen(0, '127.0.0.1');
+  await new Promise<void>((resolve) => httpServer.once('listening', resolve));
+  const addr = httpServer.address();
+  if (!addr || typeof addr === 'string') throw new Error('bad addr');
+  const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+  try {
+    // Send initialize with a pre-set session id (like Codex does)
+    const res = await initializeOverSse(baseUrl, 'custom-session-id');
+    assert.equal(res.status, 200);
+    // The server should accept the client-supplied session id
+    assert.equal(res.sessionId, 'custom-session-id');
+  } finally {
+    await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+    await rm(bwHomeRoot, { recursive: true, force: true });
+  }
+});
+
+test('stale session id with non-init request does not crash server', async () => {
+  const bwHomeRoot = await mkdtemp(join(tmpdir(), 'keychain-stale-'));
+  const app = createKeychainApp({ bwHomeRoot });
+  const httpServer = app.listen(0, '127.0.0.1');
+  await new Promise<void>((resolve) => httpServer.once('listening', resolve));
+  const addr = httpServer.address();
+  if (!addr || typeof addr === 'string') throw new Error('bad addr');
+  const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+  try {
+    // Send a tools/list request with a session id that doesn't exist.
+    // The transport may reject with 406 (not acceptable) since the session
+    // hack bypasses normal init, but the server must NOT return 500.
+    const res = await fetch(`${baseUrl}/sse`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+        'mcp-session-id': 'stale-session-id',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/list',
+        params: {},
+      }),
+    });
+    // Accept any non-500 status — the recovery path was exercised.
+    assert.ok(res.status < 500, `Expected non-500, got ${res.status}`);
+  } finally {
+    await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+    await rm(bwHomeRoot, { recursive: true, force: true });
+  }
+});
+
+test('GET /healthz returns 200', async () => {
+  const bwHomeRoot = await mkdtemp(join(tmpdir(), 'keychain-health-'));
+  const app = createKeychainApp({ bwHomeRoot });
+  const httpServer = app.listen(0, '127.0.0.1');
+  await new Promise<void>((resolve) => httpServer.once('listening', resolve));
+  const addr = httpServer.address();
+  if (!addr || typeof addr === 'string') throw new Error('bad addr');
+  const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+  try {
+    const res = await fetch(`${baseUrl}/healthz`);
+    assert.equal(res.status, 200);
+    const text = await res.text();
+    assert.equal(text, 'ok');
+  } finally {
+    await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+    await rm(bwHomeRoot, { recursive: true, force: true });
+  }
+});
