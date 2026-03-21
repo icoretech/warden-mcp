@@ -53,5 +53,13 @@
         "organizeImports": "on"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["package.json"],
+      "formatter": {
+        "enabled": false
+      }
+    }
+  ]
 }
