@@ -339,7 +339,7 @@ npm install -g @bitwarden/cli
 
 The server executes `bw` commands on your behalf:
 
-- In HTTP mode, Bitwarden/Vaultwarden connection + credentials are provided via **HTTP headers** per request.
+- In HTTP mode, Bitwarden/Vaultwarden connection + credentials are provided via **HTTP headers** per request. Env-var fallback is disabled by default; set `KEYCHAIN_ALLOW_ENV_FALLBACK=true` to enable it for single-tenant HTTP deployments.
 - In stdio mode, Bitwarden/Vaultwarden credentials are loaded once from `BW_*` env vars at startup.
 - The server maintains per-profile `bw` state under `KEYCHAIN_BW_HOME_ROOT` to avoid session/config clashes.
 - Writes can optionally call `bw sync` (internal; not exposed as an MCP tool).
@@ -358,6 +358,12 @@ The server executes `bw` commands on your behalf:
 
 There is **no built-in auth** layer in v1. Run it only on a trusted network boundary (localhost, private subnet, VPN, etc.).
 
+Credential resolution:
+
+- **HTTP mode** requires `X-BW-*` headers on every request by default. Without them, tools return an error.
+- **Stdio mode** reads `BW_*` env vars at startup (single-tenant).
+- To allow HTTP mode to fall back to server env vars when headers are absent (single-tenant HTTP), set `KEYCHAIN_ALLOW_ENV_FALLBACK=true`. **Security warning:** this means any client that can reach the HTTP endpoint gets full vault access without providing credentials. Only use this behind network-level access control.
+
 Mutation control:
 
 - Set `READONLY=true` to block all write operations (create/edit/delete/move/restore/attachments).
@@ -367,6 +373,7 @@ Mutation control:
   - `KEYCHAIN_SESSION_SWEEP_INTERVAL_MS` (default `60000`)
   - `KEYCHAIN_MAX_HEAP_USED_MB` (default `1536`, set `0` to disable memory fuse)
   - `KEYCHAIN_METRICS_LOG_INTERVAL_MS` (default `0`, disabled)
+  - `KEYCHAIN_ALLOW_ENV_FALLBACK` (default `false`; HTTP env-var credential fallback)
 
 Redaction defaults (item reads):
 
