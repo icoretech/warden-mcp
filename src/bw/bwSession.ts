@@ -93,7 +93,7 @@ export class BwSessionManager {
       parsed = JSON.parse(stdout);
     } catch (err) {
       throw new Error(
-        `Failed to parse bw template output: ${stdout.slice(0, 200)}`,
+        `Failed to parse bw template output (${stdout.length} bytes)`,
         { cause: err },
       );
     }
@@ -146,7 +146,7 @@ export class BwSessionManager {
         parsed = JSON.parse(stdout) as Record<string, unknown>;
       } catch (err) {
         throw new Error(
-          `Failed to parse bw status output: ${stdout.slice(0, 200)}`,
+          `Failed to parse bw status output (${stdout.length} bytes)`,
           { cause: err },
         );
       }

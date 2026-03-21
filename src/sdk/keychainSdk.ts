@@ -253,8 +253,13 @@ export class KeychainSdk {
     try {
       return JSON.parse(stdout) as T;
     } catch (err) {
+      // Do not include raw stdout — it may contain unredacted secrets.
+      const length = stdout.length;
+      const preview = stdout.startsWith('{')
+        ? '{...}'
+        : stdout.slice(0, 8).replace(/[^\x20-\x7E]/g, '?');
       throw new Error(
-        `Failed to parse bw CLI output: ${stdout.slice(0, 200)}`,
+        `Failed to parse bw CLI output (${length} bytes, starts with: ${preview})`,
         { cause: err },
       );
     }
