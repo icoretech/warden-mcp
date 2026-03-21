@@ -4,6 +4,7 @@
   "enabledManagers": ["custom.regex", "github-actions", "npm"],
   "dependencyDashboard": true,
   "labels": ["dependencies"],
+  "ignoreTests": false,
   "platformAutomerge": false,
   "prHourlyLimit": 0,
   "prConcurrentLimit": 10,
