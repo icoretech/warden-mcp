@@ -16,6 +16,8 @@ jobs:
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}
+      major_minor: ${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
@@ -73,8 +75,8 @@ jobs:
             org.opencontainers.image.title=Warden MCP
             org.opencontainers.image.vendor=iCoreTech, Inc.
           tags: |
-            type=match,pattern=warden-mcp-v(.*),group=1
-            type=match,pattern=warden-mcp-v(\d+\.\d+),group=1
+            type=raw,value=${{ needs.release-please.outputs.version }}
+            type=raw,value=${{ needs.release-please.outputs.major_minor }}
             type=raw,value=latest
 
       - name: Login to GitHub Container Registry
