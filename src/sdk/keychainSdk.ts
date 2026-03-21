@@ -493,7 +493,7 @@ export class KeychainSdk {
           throw new Error('Missing text for text send');
         const { stdout } = await this.bw.runForSession(
           session,
-          ['--raw', ...args, input.text],
+          ['--raw', ...args, '--', input.text],
           { timeoutMs: 60_000 },
         );
         return this.tryParseJson(stdout);
@@ -512,7 +512,7 @@ export class KeychainSdk {
         await writeFile(filePath, Buffer.from(input.contentBase64, 'base64'));
         const { stdout } = await this.bw.runForSession(
           session,
-          ['--raw', ...args, filePath],
+          ['--raw', ...args, '--', filePath],
           { timeoutMs: 120_000 },
         );
         return this.tryParseJson(stdout);
@@ -562,7 +562,9 @@ export class KeychainSdk {
           args.push('--file', filePath);
         }
 
-        if (typeof encodedJson === 'string') args.push(encodedJson);
+        if (typeof encodedJson === 'string') {
+          args.push('--', encodedJson);
+        }
         const { stdout } = await this.bw.runForSession(session, args, {
           timeoutMs: 120_000,
         });
@@ -590,7 +592,7 @@ export class KeychainSdk {
 
       const args: string[] = ['send', 'edit'];
       if (typeof input.itemId === 'string') args.push('--itemid', input.itemId);
-      args.push(encodedJson);
+      args.push('--', encodedJson);
 
       const { stdout } = await this.bw.runForSession(session, args, {
         timeoutMs: 120_000,
@@ -606,14 +608,14 @@ export class KeychainSdk {
     downloadFile?: boolean;
   }): Promise<unknown> {
     return this.bw.withSession(async (session) => {
-      const args: string[] = ['receive', input.url];
+      const opts: string[] = ['receive'];
       if (typeof input.password === 'string')
-        args.push('--password', input.password);
+        opts.push('--password', input.password);
 
       if (input.obj) {
         const { stdout } = await this.bw.runForSession(
           session,
-          ['--raw', ...args, '--obj'],
+          ['--raw', ...opts, '--obj', '--', input.url],
           { timeoutMs: 60_000 },
         );
         return this.tryParseJson(stdout);
@@ -623,9 +625,11 @@ export class KeychainSdk {
         const dir = await mkdtemp(join(tmpdir(), 'keychain-receive-'));
         const outPath = join(dir, 'received');
         try {
-          await this.bw.runForSession(session, [...args, '--output', outPath], {
-            timeoutMs: 120_000,
-          });
+          await this.bw.runForSession(
+            session,
+            [...opts, '--output', outPath, '--', input.url],
+            { timeoutMs: 120_000 },
+          );
           const buf = await readFile(outPath);
           return {
             file: {
@@ -641,7 +645,7 @@ export class KeychainSdk {
 
       const { stdout } = await this.bw.runForSession(
         session,
-        ['--raw', ...args],
+        ['--raw', ...opts, '--', input.url],
         {
           timeoutMs: 60_000,
         },
