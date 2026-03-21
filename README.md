@@ -390,6 +390,26 @@ Reveal rules:
 - Secret helper tools (`get_password`, `get_totp`, `get_notes`, `generate`, `get_password_history`) return `structuredContent.result = { kind, value, revealed }`.
   - When `reveal` is omitted/false, `value` is `null` (or historic passwords are `null`) and `revealed: false`.
 
+## Production Deployment Checklist
+
+If you run `warden-mcp` beyond local development, review these items:
+
+1. **TLS everywhere.** Always terminate TLS in front of the HTTP endpoint. `X-BW-*` headers carry master passwords in cleartext — without TLS they are visible to anyone on the network.
+
+2. **Network isolation.** Bind the server to `127.0.0.1` or place it behind an authenticated reverse proxy. The service has no built-in authentication; anyone who can reach `/sse` can issue vault operations.
+
+3. **Do not enable `KEYCHAIN_ALLOW_ENV_FALLBACK` on shared networks.** This flag makes the server's own vault credentials available to any HTTP client that omits headers. Only use it in single-tenant setups where the network is fully trusted.
+
+4. **Enable `READONLY=true` when writes are not needed.** This blocks all mutating tools at the MCP layer, limiting blast radius if an agent or client is compromised.
+
+5. **Restrict filesystem access to `/data/bw-profiles`.** The `bw` CLI stores decrypted state under its HOME directory. Ensure the profile directory is not world-readable and is mounted with appropriate permissions (the Docker image runs as non-root by default).
+
+6. **Disable debug logging in production.** `KEYCHAIN_DEBUG_BW` and `KEYCHAIN_DEBUG_HTTP` emit request details and CLI invocations to stdout. Debug logs may include session metadata and request structure. Keep them off unless actively troubleshooting.
+
+7. **Control `reveal: true` at the MCP host level.** The server gates secrets correctly, but the decision to reveal is made by the calling agent. If you use an LLM host, ensure your prompt policy restricts when `reveal` is allowed — prompt injection can trick an agent into requesting secrets.
+
+8. **Monitor `/metricsz`.** The endpoint is intentionally unauthenticated (for scraper compatibility) but exposes session counts, heap usage, and rejection counters. If this data is sensitive in your environment, restrict access at the network level.
+
 ## Quick Start
 
 ### Minimal local run
