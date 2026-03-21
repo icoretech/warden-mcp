@@ -3,6 +3,7 @@
   "name": "@icoretech/warden-mcp",
   "version": "0.1.0",
   "type": "module",
+  "license": "MIT",
   "description": "Vaultwarden/Bitwarden MCP server backed by Bitwarden CLI (bw).",
   "repository": {
     "type": "git",
