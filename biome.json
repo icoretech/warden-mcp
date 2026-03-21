@@ -57,14 +57,18 @@
   "overrides": [
     {
       "includes": ["package.json"],
-      "json": {
-        "formatter": {
-          "expand": "auto"
-        }
+      "formatter": {
+        "enabled": false
       }
     },
     {
       "includes": ["renovate.json"],
+      "formatter": {
+        "enabled": false
+      }
+    },
+    {
+      "includes": [".release-please-manifest.json"],
       "formatter": {
         "enabled": false
       }
