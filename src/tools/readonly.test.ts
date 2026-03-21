@@ -7,7 +7,7 @@ import test from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
-import { createKeychainApp } from '../app.js';
+import { createKeychainApp } from '../transports/http.js';
 
 test('READONLY=true blocks mutating tools before BW headers are required', async () => {
   const prev = process.env.READONLY;

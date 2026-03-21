@@ -693,7 +693,9 @@ describe('KeychainSdk CRUD', () => {
     });
 
     const sdk = new KeychainSdk(mock);
-    const result = (await sdk.createFolder('new-folder')) as { id: string };
+    const result = (await sdk.createFolder({ name: 'new-folder' })) as {
+      id: string;
+    };
     assert.equal(result.id, 'f1');
     // Verify sync was called before create
     const syncIdx = calls.findIndex((c) => c.args.includes('sync'));

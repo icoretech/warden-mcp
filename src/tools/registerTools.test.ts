@@ -7,7 +7,7 @@ import { describe, test } from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
-import { createKeychainApp } from '../app.js';
+import { createKeychainApp } from '../transports/http.js';
 
 // ---------------------------------------------------------------------------
 // We test tool registration and behavior through an HTTP integration layer

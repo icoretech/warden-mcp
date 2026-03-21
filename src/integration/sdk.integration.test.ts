@@ -45,7 +45,7 @@ test('integration: can create/search/get/update note via bw + vaultwarden', {
   // Create a folder and place a note into it.
   const folderName = `keychain-itest-folder-${Date.now()}`;
   console.log(`[itest] creating folder ${folderName}`);
-  const createdFolder = await sdk.createFolder(folderName);
+  const createdFolder = await sdk.createFolder({ name: folderName });
   const folderId =
     createdFolder &&
     typeof createdFolder === 'object' &&

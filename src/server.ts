@@ -1,7 +1,7 @@
 // src/server.ts
 
 import { parseArgs } from 'node:util';
-import { createKeychainApp } from './app.js';
+import { createKeychainApp } from './transports/http.js';
 import { runStdioTransport } from './transports/stdio.js';
 
 const { values } = parseArgs({

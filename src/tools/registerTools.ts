@@ -241,7 +241,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       if (isReadOnly) return readonlyBlocked();
       const sdk = await deps.getSdk(extra.authInfo);
-      const folder = await sdk.createFolder(input.name);
+      const folder = await sdk.createFolder({ name: input.name });
       return {
         structuredContent: { folder },
         content: [{ type: 'text', text: 'Created.' }],

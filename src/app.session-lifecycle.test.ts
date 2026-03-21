@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { createKeychainApp } from './app.js';
+import { createKeychainApp } from './transports/http.js';
 
 async function initializeOverSse(baseUrl: string, sessionId?: string) {
   const headers: Record<string, string> = {

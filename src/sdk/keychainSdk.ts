@@ -793,7 +793,7 @@ export class KeychainSdk {
     return typeof limit === 'number' ? orgs.slice(0, limit) : orgs;
   }
 
-  async createFolder(name: string): Promise<unknown> {
+  async createFolder(input: { name: string }): Promise<unknown> {
     return this.bw.withSession(async (session) => {
       if (this.syncOnWrite()) {
         await this.bw
@@ -801,7 +801,7 @@ export class KeychainSdk {
           .catch(() => {});
       }
 
-      const encoded = encodeJsonForBw({ name });
+      const encoded = encodeJsonForBw({ name: input.name });
       const { stdout } = await this.bw.runForSession(
         session,
         ['create', 'folder', encoded],
@@ -1135,6 +1135,7 @@ export class KeychainSdk {
     });
   }
 
+  /** Always reveals — username is not considered a secret by Bitwarden. */
   async getUsername(input: {
     term: string;
   }): Promise<{ value: string | null; revealed: boolean }> {
@@ -1148,6 +1149,7 @@ export class KeychainSdk {
     });
   }
 
+  /** Requires opts.reveal=true; returns {value: null, revealed: false} when ungated. */
   async getPassword(
     input: { term: string },
     opts: { reveal?: boolean } = {},
@@ -1180,6 +1182,7 @@ export class KeychainSdk {
     });
   }
 
+  /** Always reveals — URIs are not considered secrets by Bitwarden. */
   async getUri(input: {
     term: string;
   }): Promise<{ value: string | null; revealed: boolean }> {
@@ -1209,6 +1212,7 @@ export class KeychainSdk {
     });
   }
 
+  /** Always reveals — exposure count is public information from haveibeenpwned. */
   async getExposed(input: {
     term: string;
   }): Promise<{ value: string | null; revealed: boolean }> {

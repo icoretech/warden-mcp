@@ -7,7 +7,7 @@ import test from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
-import { createKeychainApp } from '../app.js';
+import { createKeychainApp } from '../transports/http.js';
 
 test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', {
   timeout: 120_000,

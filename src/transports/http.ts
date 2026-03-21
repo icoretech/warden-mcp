@@ -408,12 +408,8 @@ export function createKeychainApp(opts: CreateKeychainAppOptions = {}) {
         return;
       }
 
-      // Initialize a new session
-      if (
-        !sessionId &&
-        req.method === 'POST' &&
-        isInitializeRequest(req.body)
-      ) {
+      // No session id — start fresh session
+      if (req.method === 'POST' && isInitializeRequest(req.body)) {
         if (rejectIfMemoryFuseTripped(res)) return;
         if (rejectIfSessionCapacityReached(res)) return;
         const server = createMcpServer();
