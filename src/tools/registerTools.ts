@@ -14,12 +14,25 @@ export interface RegisterToolsDeps {
 
 export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
   const toolMeta = {};
-  const isReadOnly = (() => {
-    const v = (process.env.READONLY ?? process.env.KEYCHAIN_READONLY ?? 'false')
-      .trim()
-      .toLowerCase();
-    return v === '1' || v === 'true' || v === 'yes' || v === 'on';
-  })();
+  function parseBoolEnv(...names: string[]): boolean {
+    for (const name of names) {
+      const v = process.env[name];
+      if (v !== undefined) {
+        const lower = v.trim().toLowerCase();
+        if (
+          lower === '1' ||
+          lower === 'true' ||
+          lower === 'yes' ||
+          lower === 'on'
+        )
+          return true;
+      }
+    }
+    return false;
+  }
+
+  const isReadOnly = parseBoolEnv('READONLY', 'KEYCHAIN_READONLY');
+  const isNoReveal = parseBoolEnv('NOREVEAL', 'KEYCHAIN_NOREVEAL');
 
   function readonlyBlocked() {
     return {
@@ -27,6 +40,18 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       content: [{ type: 'text' as const, text: 'Blocked: READONLY=true' }],
       isError: true,
     };
+  }
+
+  /** Strip reveal from input when NOREVEAL is set. */
+  function clampReveal<T extends { reveal?: boolean }>(input: T): T {
+    if (isNoReveal && input.reveal) {
+      return { ...input, reveal: false };
+    }
+    return input;
+  }
+
+  function effectiveReveal(input: { reveal?: boolean }): boolean {
+    return isNoReveal ? false : (input.reveal ?? false);
   }
 
   function toolResult<T>(kind: string, value: T, revealed: boolean) {
@@ -150,7 +175,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
     async (input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
-      const result = await sdk.generate(input);
+      const result = await sdk.generate(clampReveal(input));
       return {
         structuredContent: toolResult(
           'generated',
@@ -188,7 +213,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
     async (input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
-      const result = await sdk.generateUsername(input);
+      const result = await sdk.generateUsername(clampReveal(input));
       return {
         structuredContent: toolResult(
           'generated',
@@ -532,7 +557,9 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
     async (input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
-      const item = await sdk.getItem(input.id, { reveal: input.reveal });
+      const item = await sdk.getItem(input.id, {
+        reveal: effectiveReveal(input),
+      });
       return {
         structuredContent: { item },
         content: [{ type: 'text', text: 'OK' }],
@@ -577,7 +604,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const sdk = await deps.getSdk(extra.authInfo);
       const notes = await sdk.getNotes(
         { term: input.term },
-        { reveal: input.reveal },
+        { reveal: effectiveReveal(input) },
       );
       return {
         structuredContent: toolResult('notes', notes.value, notes.revealed),
@@ -784,7 +811,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       if (isReadOnly) return readonlyBlocked();
       const sdk = await deps.getSdk(extra.authInfo);
-      const item = await sdk.createAttachment(input);
+      const item = await sdk.createAttachment(clampReveal(input));
       return {
         structuredContent: { item },
         content: [{ type: 'text', text: 'Attached.' }],
@@ -808,7 +835,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       if (isReadOnly) return readonlyBlocked();
       const sdk = await deps.getSdk(extra.authInfo);
-      const item = await sdk.deleteAttachment(input);
+      const item = await sdk.deleteAttachment(clampReveal(input));
       return {
         structuredContent: { item },
         content: [{ type: 'text', text: 'Deleted.' }],
@@ -1124,7 +1151,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const sdk = await deps.getSdk(extra.authInfo);
       const password = await sdk.getPassword(
         { term: input.term },
-        { reveal: input.reveal },
+        { reveal: effectiveReveal(input) },
       );
       return {
         structuredContent: toolResult(
@@ -1154,7 +1181,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const sdk = await deps.getSdk(extra.authInfo);
       const totp = await sdk.getTotp(
         { term: input.term },
-        { reveal: input.reveal },
+        { reveal: effectiveReveal(input) },
       );
       return {
         structuredContent: toolResult('totp', totp.value, totp.revealed),
@@ -1179,7 +1206,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
       const history = await sdk.getPasswordHistory(input.id, {
-        reveal: input.reveal,
+        reveal: effectiveReveal(input),
       });
       return {
         structuredContent: toolResult(
@@ -1342,7 +1369,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
         id: input.id,
         mode: input.mode,
         uris: normalizeUrisInput(input.uris) ?? [],
-        reveal: input.reveal,
+        reveal: effectiveReveal(input),
       });
       return {
         structuredContent: { item: updated },

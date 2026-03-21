@@ -367,12 +367,14 @@ Credential resolution:
 Mutation control:
 
 - Set `READONLY=true` to block all write operations (create/edit/delete/move/restore/attachments).
+- Set `NOREVEAL=true` to force all `reveal` parameters to `false` server-side. Clients can still request `reveal: true`, but the server will silently downgrade to redacted output. This prevents prompt injection from tricking an LLM agent into exfiltrating secrets.
 - Session guardrails:
   - `KEYCHAIN_SESSION_MAX_COUNT` (default `32`)
   - `KEYCHAIN_SESSION_TTL_MS` (default `900000`)
   - `KEYCHAIN_SESSION_SWEEP_INTERVAL_MS` (default `60000`)
   - `KEYCHAIN_MAX_HEAP_USED_MB` (default `1536`, set `0` to disable memory fuse)
   - `KEYCHAIN_METRICS_LOG_INTERVAL_MS` (default `0`, disabled)
+  - `NOREVEAL` / `KEYCHAIN_NOREVEAL` (default `false`; force all reveals to false)
   - `KEYCHAIN_ALLOW_ENV_FALLBACK` (default `false`; HTTP env-var credential fallback)
 
 Redaction defaults (item reads):
@@ -406,7 +408,7 @@ If you run `warden-mcp` beyond local development, review these items:
 
 6. **Disable debug logging in production.** `KEYCHAIN_DEBUG_BW` and `KEYCHAIN_DEBUG_HTTP` emit request details and CLI invocations to stdout. Debug logs may include session metadata and request structure. Keep them off unless actively troubleshooting.
 
-7. **Control `reveal: true` at the MCP host level.** The server gates secrets correctly, but the decision to reveal is made by the calling agent. If you use an LLM host, ensure your prompt policy restricts when `reveal` is allowed — prompt injection can trick an agent into requesting secrets.
+7. **Set `NOREVEAL=true` when secrets should never leave the server.** This forces all `reveal` parameters to `false` server-side, regardless of what the client requests. Use this when the MCP host is an LLM agent that could be influenced by prompt injection — it prevents tricked agents from exfiltrating passwords or TOTP codes.
 
 8. **Monitor `/metricsz`.** The endpoint is intentionally unauthenticated (for scraper compatibility) but exposes session counts, heap usage, and rejection counters. If this data is sensitive in your environment, restrict access at the network level.
 
