@@ -18,6 +18,21 @@ Published package: [`@icoretech/warden-mcp`](https://www.npmjs.com/package/@icor
 - Attachments: create/delete/download
 - Organization + collection helpers (list + org-collection CRUD)
 - Safe-by-default: item reads are **redacted** unless explicitly revealed; secret helper tools return `null` unless `reveal: true`
+- Strong fit for LLM automation: pair it with a browser-capable MCP host so an agent can fetch credentials, complete sign-in flows, read TOTP codes, and keep automating after login
+
+## LLM Automation Use Case
+
+`warden-mcp` is not only useful for vault administration. A very practical use case is pairing it with an LLM that can also drive a browser.
+
+That lets the agent do end-to-end authenticated workflows such as:
+
+- open a site or backoffice in the browser
+- read the right login from Vaultwarden or Bitwarden
+- fill username and password without hardcoding secrets in prompts or config
+- retrieve a current TOTP code with `keychain.get_totp` for TOTP-based MFA
+- continue the real task after login, such as navigation, data entry, exports, or routine admin work
+
+In practice, this is what makes the server useful for full automation, not just secret lookup. The same MCP session that gives the model browser control can also give it scoped access to the credentials and MFA material needed to finish the workflow.
 
 ## Runtime Requirement
 
