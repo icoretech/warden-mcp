@@ -91,12 +91,23 @@ export function bwEnvFromExpressHeaders(req: express.Request): BwEnv | null {
 
 /**
  * Resolve BwEnv from Express request headers (X-BW-*) first.
- * Falls back to environment variables (BW_HOST, BW_PASSWORD, etc.) if no
- * BW headers are present. Returns null if neither source provides credentials.
+ * When `allowEnvFallback` is true, falls back to environment variables
+ * (BW_HOST, BW_PASSWORD, etc.) if no BW headers are present.
+ * Returns null if no credentials can be resolved.
+ *
+ * **Security note:** enabling `allowEnvFallback` in HTTP mode means any
+ * client that omits X-BW-* headers will inherit the server's own vault
+ * credentials. Only enable this in single-tenant deployments behind
+ * network-level access control.
  */
-export function bwEnvFromHeadersOrEnv(req: express.Request): BwEnv | null {
+export function bwEnvFromHeadersOrEnv(
+  req: express.Request,
+  opts: { allowEnvFallback?: boolean } = {},
+): BwEnv | null {
   const fromHeaders = bwEnvFromExpressHeaders(req);
   if (fromHeaders) return fromHeaders;
+
+  if (!opts.allowEnvFallback) return null;
 
   try {
     return readBwEnv();

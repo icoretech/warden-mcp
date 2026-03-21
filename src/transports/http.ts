@@ -21,6 +21,18 @@ export interface CreateKeychainAppOptions {
   sessionSweepIntervalMs?: number;
   maxHeapUsedBytesFuse?: number;
   metricsLogIntervalMs?: number;
+  /**
+   * When true, HTTP requests without X-BW-* headers fall back to server
+   * environment variables (BW_HOST, BW_PASSWORD, etc.) for vault credentials.
+   *
+   * **Security warning:** this means any unauthenticated HTTP client inherits
+   * the server operator's vault access. Only enable for single-tenant
+   * deployments behind network-level access control.
+   *
+   * Env: KEYCHAIN_ALLOW_ENV_FALLBACK=true
+   * Default: false
+   */
+  allowEnvFallback?: boolean;
 }
 
 export function createKeychainApp(opts: CreateKeychainAppOptions = {}) {
@@ -59,6 +71,10 @@ export function createKeychainApp(opts: CreateKeychainAppOptions = {}) {
   const metricsLogIntervalMs =
     opts.metricsLogIntervalMs ??
     parseNonNegativeInt(process.env.KEYCHAIN_METRICS_LOG_INTERVAL_MS, 0);
+  const allowEnvFallback =
+    opts.allowEnvFallback ??
+    (process.env.KEYCHAIN_ALLOW_ENV_FALLBACK ?? 'false').toLowerCase() ===
+      'true';
 
   const pool = new BwSessionPool({
     rootDir:
@@ -89,7 +105,7 @@ export function createKeychainApp(opts: CreateKeychainAppOptions = {}) {
   const BW_HEADERS_SENTINEL = 'x-bw-headers' as const;
 
   function withBwHeaders(req: express.Request): void {
-    const bwEnv = bwEnvFromHeadersOrEnv(req);
+    const bwEnv = bwEnvFromHeadersOrEnv(req, { allowEnvFallback });
     (req as unknown as { auth?: AuthInfo }).auth = bwEnv
       ? {
           token: BW_HEADERS_SENTINEL,

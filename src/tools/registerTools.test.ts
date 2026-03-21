@@ -23,7 +23,7 @@ async function startTestServer(envOverrides?: Record<string, string>) {
   }
 
   const bwHomeRoot = await mkdtemp(join(tmpdir(), 'keychain-tools-test-'));
-  const app = createKeychainApp({ bwHomeRoot });
+  const app = createKeychainApp({ bwHomeRoot, allowEnvFallback: true });
   const httpServer = app.listen(0, '127.0.0.1');
   await new Promise<void>((resolve) => httpServer.once('listening', resolve));
 

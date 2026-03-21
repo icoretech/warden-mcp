@@ -72,7 +72,7 @@ describe('bwEnvFromHeadersOrEnv', () => {
     Object.assign(process.env, saved);
   });
 
-  it('returns BwEnv from env vars when headers absent', () => {
+  it('returns null when no headers and env fallback disabled (default)', () => {
     const saved = { ...process.env };
     process.env.BW_HOST = 'https://vault.example.com';
     process.env.BW_PASSWORD = 'secret';
@@ -82,6 +82,23 @@ describe('bwEnvFromHeadersOrEnv', () => {
     delete process.env.BW_USERNAME;
 
     const result = bwEnvFromHeadersOrEnv(mockReq({}));
+    assert.equal(result, null, 'should NOT fall back to env vars by default');
+
+    Object.assign(process.env, saved);
+  });
+
+  it('returns BwEnv from env vars when headers absent and fallback enabled', () => {
+    const saved = { ...process.env };
+    process.env.BW_HOST = 'https://vault.example.com';
+    process.env.BW_PASSWORD = 'secret';
+    process.env.BW_CLIENTID = 'user.abc';
+    process.env.BW_CLIENTSECRET = 'clientsecret';
+    delete process.env.BW_USER;
+    delete process.env.BW_USERNAME;
+
+    const result = bwEnvFromHeadersOrEnv(mockReq({}), {
+      allowEnvFallback: true,
+    });
     assert.ok(result);
     assert.equal(result.host, 'https://vault.example.com');
     assert.equal(result.login.method, 'apikey');
