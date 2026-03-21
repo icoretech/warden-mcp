@@ -4,6 +4,14 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Vaultwarden/Bitwarden MCP server backed by Bitwarden CLI (bw).",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/icoretech/warden-mcp.git"
+  },
+  "homepage": "https://github.com/icoretech/warden-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/icoretech/warden-mcp/issues"
+  },
   "bin": {
     "warden-mcp": "bin/warden-mcp.js"
   },
@@ -35,7 +43,7 @@
     "typescript": "^5.9.3"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
+    "registry": "https://registry.npmjs.org",
     "access": "public"
   },
   "engines": {

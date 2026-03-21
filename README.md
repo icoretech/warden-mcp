@@ -1,8 +1,10 @@
-# Keychain MCP
+# warden-mcp
 
 Programmatic Vaultwarden/Bitwarden vault management over MCP (Model Context Protocol), backed by the official Bitwarden CLI (`bw`).
 
 This project exists to let agents and automation **create/search/read/update/move** vault items without re-implementing Bitwarden’s client-side crypto.
+
+Published package: `@icoretech/warden-mcp`
 
 ## Highlights
 
@@ -90,6 +92,13 @@ npm run test:session-regression
 npm install
 cp .env.example .env
 npm run dev
+```
+
+### Run via npx
+
+```bash
+npx -y @icoretech/warden-mcp
+npx -y @icoretech/warden-mcp --stdio
 ```
 
 ## Tool Reference (v1)

@@ -7,6 +7,7 @@ node_modules
 dist
 .DS_Store
 tmp
+docs/
 
 rotations/
 scripts/
