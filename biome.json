@@ -72,6 +72,12 @@
       "formatter": {
         "enabled": false
       }
+    },
+    {
+      "includes": ["glama.json"],
+      "formatter": {
+        "enabled": false
+      }
     }
   ]
 }
