@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.7](https://github.com/icoretech/warden-mcp/compare/v0.1.6...v0.1.7) (2026-03-21)
+
+
+### Bug Fixes
+
+* **ci:** scope GitHub Actions permissions to least privilege ([6837214](https://github.com/icoretech/warden-mcp/commit/6837214bb8d60008f5d9852782d1c72a302ff1d4))
+* **security:** disable env credential fallback in HTTP mode by default ([7c061ee](https://github.com/icoretech/warden-mcp/commit/7c061ee433edc0454a0f5848c3213fd87f7247c4))
+* **security:** prevent CLI option injection in send/receive commands ([284ef75](https://github.com/icoretech/warden-mcp/commit/284ef75a6f44d508938526fcfd3ff688bf6ab20d))
+
 ## [0.1.6](https://github.com/icoretech/warden-mcp/compare/v0.1.5...v0.1.6) (2026-03-21)
 
 
