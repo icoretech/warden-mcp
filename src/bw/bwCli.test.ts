@@ -195,4 +195,56 @@ describe('runBw', () => {
     assert.equal(err.stderr, 'err');
     assert.ok(err.message.includes('test error'));
   });
+
+  test('redacts --session value in debug error messages', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-cli-test-'));
+    const savedBin = process.env.BW_BIN;
+    const savedDebug = process.env.KEYCHAIN_DEBUG_BW;
+    try {
+      const bw = await createScript(dir, 'bw', '#!/bin/sh\nexit 1\n');
+      process.env.BW_BIN = bw;
+      process.env.KEYCHAIN_DEBUG_BW = 'true';
+      try {
+        await runBw(['--session', 'super-secret-token', 'status'], {
+          timeoutMs: 5000,
+        });
+        assert.fail('should have thrown');
+      } catch (err) {
+        const msg = (err as Error).message;
+        assert.ok(
+          !msg.includes('super-secret-token'),
+          'error message must not contain session token',
+        );
+        assert.ok(msg.includes('<redacted>'));
+      }
+    } finally {
+      process.env.BW_BIN = savedBin;
+      process.env.KEYCHAIN_DEBUG_BW = savedDebug;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('redacts long arguments in error messages', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-cli-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const bw = await createScript(dir, 'bw', '#!/bin/sh\nexit 1\n');
+      process.env.BW_BIN = bw;
+      const longArg = 'x'.repeat(100);
+      try {
+        await runBw(['create', 'item', longArg], { timeoutMs: 5000 });
+        assert.fail('should have thrown');
+      } catch (err) {
+        const msg = (err as Error).message;
+        assert.ok(
+          !msg.includes(longArg),
+          'error message must not contain long argument',
+        );
+        assert.ok(msg.includes('<redacted>'));
+      }
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });

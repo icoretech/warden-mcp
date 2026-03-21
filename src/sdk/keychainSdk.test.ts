@@ -1850,3 +1850,213 @@ describe('KeychainSdk security', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Coverage: setLoginUris, createSshKey, getExposed error paths
+// ---------------------------------------------------------------------------
+
+describe('KeychainSdk additional coverage', () => {
+  test('setLoginUris replace mode', async () => {
+    const currentItem = {
+      id: 'u1',
+      type: 1,
+      login: { uris: [{ uri: 'https://old.com', match: 0 }] },
+    };
+    const updatedItem = { ...currentItem };
+    const { mock, calls } = createMockBw({
+      runResponses: new Map([
+        ['get item', { stdout: JSON.stringify(currentItem), stderr: '' }],
+        ['edit item', { stdout: JSON.stringify(updatedItem), stderr: '' }],
+        ['sync', { stdout: '', stderr: '' }],
+      ]),
+    });
+
+    const sdk = new KeychainSdk(mock);
+    await sdk.setLoginUris({
+      id: 'u1',
+      mode: 'replace',
+      uris: [{ uri: 'https://new.com', match: 'exact' }],
+    });
+
+    const editCall = calls.find(
+      (c) => c.args.includes('edit') && c.args.includes('item'),
+    );
+    assert.ok(editCall);
+  });
+
+  test('setLoginUris merge mode merges and deduplicates', async () => {
+    const currentItem = {
+      id: 'u1',
+      type: 1,
+      login: {
+        uris: [
+          { uri: 'https://existing.com', match: 0 },
+          { uri: 'https://shared.com', match: 1 },
+        ],
+      },
+    };
+    const updatedItem = { ...currentItem };
+    const { mock } = createMockBw({
+      runResponses: new Map([
+        ['get item', { stdout: JSON.stringify(currentItem), stderr: '' }],
+        ['edit item', { stdout: JSON.stringify(updatedItem), stderr: '' }],
+        ['sync', { stdout: '', stderr: '' }],
+      ]),
+    });
+
+    const sdk = new KeychainSdk(mock);
+    await sdk.setLoginUris({
+      id: 'u1',
+      mode: 'merge',
+      uris: [
+        { uri: 'https://shared.com', match: 'exact' },
+        { uri: 'https://brand-new.com', match: 'domain' },
+      ],
+    });
+    // merge should deduplicate by URI
+  });
+
+  test('setLoginUris rejects invalid mode', async () => {
+    const { mock } = createMockBw();
+    const sdk = new KeychainSdk(mock);
+    await assert.rejects(
+      () =>
+        sdk.setLoginUris({
+          id: 'u1',
+          mode: 'invalid' as 'replace',
+          uris: [],
+        }),
+      /Invalid mode/,
+    );
+  });
+
+  test('createSshKey creates note with SSH key fields', async () => {
+    const createdNote = { id: 'ssh-1', type: 2 };
+    const { mock, calls } = createMockBw({
+      runResponses: new Map([
+        ['create item', { stdout: JSON.stringify(createdNote), stderr: '' }],
+        ['sync', { stdout: '', stderr: '' }],
+      ]),
+    });
+
+    const sdk = new KeychainSdk(mock);
+    const result = (await sdk.createSshKey({
+      name: 'My SSH Key',
+      publicKey: 'ssh-ed25519 AAAA...',
+      privateKey: '-----BEGIN OPENSSH PRIVATE KEY-----\n...',
+      fingerprint: 'SHA256:abc123',
+      comment: 'work laptop',
+    })) as { id: string };
+
+    assert.equal(result.id, 'ssh-1');
+    const createCall = calls.find((c) => c.args.includes('create'));
+    assert.ok(createCall);
+    const encoded = createCall.args.at(-1) ?? '';
+    const decoded = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
+    assert.equal(decoded.type, 2); // note
+    const fieldNames = decoded.fields.map((f: { name: string }) => f.name);
+    assert.ok(fieldNames.includes('public_key'));
+    assert.ok(fieldNames.includes('private_key'));
+    assert.ok(fieldNames.includes('fingerprint'));
+    assert.ok(fieldNames.includes('comment'));
+  });
+
+  test('getExposed returns null for BwCliError not-found', async () => {
+    const { BwCliError: BwCliErrorClass } = await import('../bw/bwCli.js');
+    const bw = {
+      withSession: async (fn: (s: string) => Promise<unknown>) => fn('s'),
+      runForSession: async () => {
+        throw new BwCliErrorClass('bw get exposed failed with exit code 1', {
+          exitCode: 1,
+          stdout: 'Not found.',
+          stderr: '',
+        });
+      },
+    } as unknown as BwSessionManager;
+
+    const sdk = new KeychainSdk(bw);
+    const result = await sdk.getExposed({ term: 'nonexistent' });
+    assert.equal(result.value, null);
+    assert.equal(result.revealed, false);
+  });
+
+  test('getExposed rethrows on connection errors', async () => {
+    const { BwCliError: BwCliErrorClass } = await import('../bw/bwCli.js');
+    const bw = {
+      withSession: async (fn: (s: string) => Promise<unknown>) => fn('s'),
+      runForSession: async () => {
+        throw new BwCliErrorClass('bw failed', {
+          exitCode: 1,
+          stdout: '',
+          stderr: 'could not connect to server',
+        });
+      },
+    } as unknown as BwSessionManager;
+
+    const sdk = new KeychainSdk(bw);
+    await assert.rejects(() => sdk.getExposed({ term: 'test' }));
+  });
+
+  test('getExposed rethrows on multiple results error', async () => {
+    const { BwCliError: BwCliErrorClass } = await import('../bw/bwCli.js');
+    const bw = {
+      withSession: async (fn: (s: string) => Promise<unknown>) => fn('s'),
+      runForSession: async () => {
+        throw new BwCliErrorClass('bw failed', {
+          exitCode: 1,
+          stdout: 'More than one result was found.',
+          stderr: '',
+        });
+      },
+    } as unknown as BwSessionManager;
+
+    const sdk = new KeychainSdk(bw);
+    await assert.rejects(() => sdk.getExposed({ term: 'test' }));
+  });
+
+  test('createIdentity with collectionIds calls item-collections edit', async () => {
+    const identity = { id: 'id-col', type: 4 };
+    const { mock, calls } = createMockBw({
+      runResponses: new Map([
+        ['create item', { stdout: JSON.stringify(identity), stderr: '' }],
+        ['edit item-collections', { stdout: '{}', stderr: '' }],
+        ['sync', { stdout: '', stderr: '' }],
+      ]),
+    });
+
+    const sdk = new KeychainSdk(mock);
+    await sdk.createIdentity({
+      name: 'ID with cols',
+      organizationId: 'org1',
+      collectionIds: ['c1'],
+    });
+
+    assert.ok(
+      calls.some(
+        (c) => c.args.includes('edit') && c.args.includes('item-collections'),
+      ),
+    );
+  });
+
+  test('updateItem with collectionIds calls item-collections edit', async () => {
+    const currentItem = { id: 'u1', type: 1, name: 'test', login: {} };
+    const updatedItem = { ...currentItem };
+    const { mock, calls } = createMockBw({
+      runResponses: new Map([
+        ['get item', { stdout: JSON.stringify(currentItem), stderr: '' }],
+        ['edit item', { stdout: JSON.stringify(updatedItem), stderr: '' }],
+        ['edit item-collections', { stdout: '{}', stderr: '' }],
+        ['sync', { stdout: '', stderr: '' }],
+      ]),
+    });
+
+    const sdk = new KeychainSdk(mock);
+    await sdk.updateItem('u1', { collectionIds: ['c1', 'c2'] });
+
+    assert.ok(
+      calls.some(
+        (c) => c.args.includes('edit') && c.args.includes('item-collections'),
+      ),
+    );
+  });
+});

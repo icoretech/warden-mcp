@@ -37,6 +37,7 @@
     "build": "tsc -p .",
     "start": "node dist/server.js",
     "test": "npm run build && node --test \"dist/**/*.test.js\"",
+    "test:coverage": "npm run build && node --test --experimental-test-coverage \"dist/**/*.test.js\"",
     "test:integration": "npm run build && node --test --test-timeout=45000 \"dist/integration/**/*.test.js\"",
     "test:session-regression": "node scripts/session-flood-regression.mjs",
     "lint": "biome check --write --assist-enabled=true . && tsc --noEmit"
