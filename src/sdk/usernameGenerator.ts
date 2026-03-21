@@ -96,9 +96,7 @@ const CODAS = [
 ] as const;
 
 function titleCase(s: string): string {
-  if (!s) return s;
-  const first = s.charAt(0);
-  return first.toUpperCase() + s.slice(1);
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function randomWord(
@@ -107,26 +105,27 @@ function randomWord(
 ): string {
   // "Word-like" usernames without pulling a large word list dependency.
   // Produces a pronounceable-ish token such as "cravon" or "Plenast7".
-  for (let i = 0; i < 12; i++) {
-    const syllables = 2 + deps.randInt(2); // 2-3
-    let s = '';
-    for (let j = 0; j < syllables; j++) {
-      s += ONSETS[deps.randInt(ONSETS.length)] ?? 'k';
-      s += VOWELS[deps.randInt(VOWELS.length)] ?? 'a';
-      const coda = CODAS[deps.randInt(CODAS.length)] ?? '';
-      // Avoid overly long tokens by preferring empty coda on earlier syllables.
-      s += j === syllables - 1 ? coda : coda.length > 1 ? '' : coda;
+  // With the current arrays, minimum output is 4 chars ("baba") and maximum
+  // is ~14 chars, so the length check always passes on the first iteration.
+  const syllables = 2 + deps.randInt(2); // 2-3
+  let s = '';
+  for (let j = 0; j < syllables; j++) {
+    const onset = ONSETS[deps.randInt(ONSETS.length)];
+    const vowel = VOWELS[deps.randInt(VOWELS.length)];
+    const coda = CODAS[deps.randInt(CODAS.length)];
+    s += onset;
+    s += vowel;
+    // Avoid overly long tokens by preferring empty coda on earlier syllables.
+    if (j === syllables - 1) {
+      s += coda;
+    } else if (coda.length <= 1) {
+      s += coda;
     }
-
-    if (s.length < 4 || s.length > 18) continue;
-    if (opts.capitalize) s = titleCase(s);
-    if (opts.includeNumber) s += String(deps.randInt(10));
-    return s;
   }
 
-  // Fallback: still deterministic with deps.randInt in tests.
-  const fallback = `user${deps.randInt(1_000_000)}`;
-  return opts.capitalize ? titleCase(fallback) : fallback;
+  if (opts.capitalize) s = titleCase(s);
+  if (opts.includeNumber) s += String(deps.randInt(10));
+  return s;
 }
 
 function parseEmail(email: string): { local: string; domain: string } {
@@ -173,7 +172,7 @@ export function generateUsername(
       throw new Error('email is required for plus_addressed_email');
     }
     const { local, domain } = parseEmail(input.email);
-    const baseLocal = local.split('+')[0] ?? local;
+    const baseLocal = local.split('+')[0];
     return `${baseLocal}+${word}@${domain}`;
   }
 
@@ -185,7 +184,8 @@ export function generateUsername(
     return `${word}@${domain}`;
   }
 
-  // Exhaustive check.
-  const _never: never = type;
-  return _never;
+  // Exhaustive check — TypeScript errors here if a new type is added without a handler.
+  throw new Error(
+    `Unsupported username generator type: ${type satisfies never}`,
+  );
 }
