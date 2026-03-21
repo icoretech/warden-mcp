@@ -67,6 +67,33 @@ test('generateUsername: random_word fallback when all iterations too short', () 
   assert.ok(typeof v === 'string' && v.length > 0);
 });
 
+test('generateUsername: random_word fallback with capitalize', () => {
+  const v = generateUsername(
+    { type: 'random_word', capitalize: true },
+    {
+      randInt: (max: number) => max - 1,
+    },
+  );
+  assert.ok(/^[A-Z]/.test(v), 'fallback should be capitalized');
+});
+
+test('generateUsername: random_word length-continue branch via alternating randInt', () => {
+  // Use a pattern that sometimes produces too-short or too-long words
+  // to exercise the s.length < 4 || s.length > 18 continue branch
+  let call = 0;
+  const v = generateUsername(
+    { type: 'random_word', capitalize: true, includeNumber: true },
+    {
+      randInt: (max: number) => {
+        call++;
+        // Alternate between 0 and max-1 to hit different branches
+        return call % 3 === 0 ? max - 1 : 0;
+      },
+    },
+  );
+  assert.ok(typeof v === 'string' && v.length > 0);
+});
+
 test('generateUsername: plus_addressed_email throws on invalid email', () => {
   assert.throws(
     () =>

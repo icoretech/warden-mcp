@@ -326,3 +326,122 @@ test('GET /healthz returns 200', async () => {
     await rm(bwHomeRoot, { recursive: true, force: true });
   }
 });
+
+test('tool call without BW credentials returns error', async () => {
+  const bwHomeRoot = await mkdtemp(join(tmpdir(), 'keychain-nocreds-'));
+  const app = createKeychainApp({ bwHomeRoot });
+  const httpServer = app.listen(0, '127.0.0.1');
+  await new Promise<void>((resolve) => httpServer.once('listening', resolve));
+  const addr = httpServer.address();
+  if (!addr || typeof addr === 'string') throw new Error('bad addr');
+  const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+  try {
+    // Initialize a session (no BW headers needed for init)
+    const init = await initializeOverSse(baseUrl);
+    assert.equal(init.status, 200);
+    assert.ok(init.sessionId);
+
+    // Call a tool that requires BW credentials (without providing any)
+    const res = await fetch(`${baseUrl}/sse`, {
+      method: 'POST',
+      headers: {
+        accept: 'application/json, text/event-stream',
+        'content-type': 'application/json',
+        'mcp-session-id': init.sessionId,
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/call',
+        params: { name: 'keychain.status', arguments: {} },
+      }),
+    });
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as {
+      result?: { content?: Array<{ text: string }>; isError?: boolean };
+    };
+    // The tool should return an error about missing credentials
+    assert.ok(body.result?.isError);
+  } finally {
+    await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+    await rm(bwHomeRoot, { recursive: true, force: true });
+  }
+});
+
+test('debug HTTP logging does not crash', async () => {
+  const saved = process.env.KEYCHAIN_DEBUG_HTTP;
+  process.env.KEYCHAIN_DEBUG_HTTP = 'true';
+
+  const bwHomeRoot = await mkdtemp(join(tmpdir(), 'keychain-debug-'));
+  const app = createKeychainApp({ bwHomeRoot });
+  const httpServer = app.listen(0, '127.0.0.1');
+  await new Promise<void>((resolve) => httpServer.once('listening', resolve));
+  const addr = httpServer.address();
+  if (!addr || typeof addr === 'string') throw new Error('bad addr');
+  const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+  try {
+    // Should log without crashing
+    const init = await initializeOverSse(baseUrl);
+    assert.equal(init.status, 200);
+  } finally {
+    process.env.KEYCHAIN_DEBUG_HTTP = saved;
+    await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+    await rm(bwHomeRoot, { recursive: true, force: true });
+  }
+});
+
+test('metrics log interval creates timer without crashing', async () => {
+  const bwHomeRoot = await mkdtemp(join(tmpdir(), 'keychain-metricslog-'));
+  const app = createKeychainApp({
+    bwHomeRoot,
+    metricsLogIntervalMs: 100_000,
+  });
+  const httpServer = app.listen(0, '127.0.0.1');
+  await new Promise<void>((resolve) => httpServer.once('listening', resolve));
+  const addr = httpServer.address();
+  if (!addr || typeof addr === 'string') throw new Error('bad addr');
+  const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+  try {
+    const res = await fetch(`${baseUrl}/healthz`);
+    assert.equal(res.status, 200);
+  } finally {
+    await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+    await rm(bwHomeRoot, { recursive: true, force: true });
+  }
+});
+
+test('session sweep runs on /sse request', async () => {
+  const bwHomeRoot = await mkdtemp(join(tmpdir(), 'keychain-sweep-'));
+  const app = createKeychainApp({
+    bwHomeRoot,
+    sessionTtlMs: 1,
+    sessionSweepIntervalMs: 100_000,
+  });
+  const httpServer = app.listen(0, '127.0.0.1');
+  await new Promise<void>((resolve) => httpServer.once('listening', resolve));
+  const addr = httpServer.address();
+  if (!addr || typeof addr === 'string') throw new Error('bad addr');
+  const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+  try {
+    // Create a session
+    const init = await initializeOverSse(baseUrl);
+    assert.equal(init.status, 200);
+
+    // Wait for session to expire (TTL=1ms)
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Next request triggers sweep — the old session will be evicted
+    const init2 = await initializeOverSse(baseUrl);
+    assert.equal(init2.status, 200);
+
+    const metrics = await getMetrics(baseUrl);
+    assert.ok(metrics.counters.session_ttl_evictions >= 1);
+  } finally {
+    await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+    await rm(bwHomeRoot, { recursive: true, force: true });
+  }
+});
