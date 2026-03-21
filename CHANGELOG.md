@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.2](https://github.com/icoretech/warden-mcp/compare/warden-mcp-v0.1.1...warden-mcp-v0.1.2) (2026-03-21)
+
+
+### Bug Fixes
+
+* **biome:** ignore package.json formatting ([1d916f4](https://github.com/icoretech/warden-mcp/commit/1d916f4d2d3159cc1d1b327a8266d9a935c2bf5c))
+* **biome:** ignore release-managed json formatting ([7dbf5e8](https://github.com/icoretech/warden-mcp/commit/7dbf5e85170d9fccd40d60810a25a0e2afad4792))
+* **biome:** use package.json expand override ([1eb7a2c](https://github.com/icoretech/warden-mcp/commit/1eb7a2c6345a6b536fc783ca76a7bea54fc1234d))
+* **renovate:** keep config PRs lint-clean ([e510d94](https://github.com/icoretech/warden-mcp/commit/e510d94c6e97df7946808710d3363e6ebb4166db))
+
 ## [0.1.1](https://github.com/icoretech/warden-mcp/compare/warden-mcp-v0.1.0...warden-mcp-v0.1.1) (2026-03-21)
 
 
