@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/icoretech/warden-mcp/compare/warden-mcp-v0.1.3...warden-mcp-v0.1.4) (2026-03-21)
+
+
+### Bug Fixes
+
+* **docker:** use release-please version outputs for image tags ([0c2b6a9](https://github.com/icoretech/warden-mcp/commit/0c2b6a93ad332bb458028c4b3ea99583bca42d9f))
+
 ## [0.1.3](https://github.com/icoretech/warden-mcp/compare/warden-mcp-v0.1.2...warden-mcp-v0.1.3) (2026-03-21)
 
 
