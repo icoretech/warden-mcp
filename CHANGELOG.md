@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.8](https://github.com/icoretech/warden-mcp/compare/v0.1.7...v0.1.8) (2026-03-21)
+
+
+### Bug Fixes
+
+* **security:** remove raw CLI output from JSON parse error messages ([97e59e8](https://github.com/icoretech/warden-mcp/commit/97e59e86be065025bc372d1fcf60fbdc36e85786))
+
 ## [0.1.7](https://github.com/icoretech/warden-mcp/compare/v0.1.6...v0.1.7) (2026-03-21)
 
 
