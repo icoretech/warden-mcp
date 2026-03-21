@@ -90,6 +90,57 @@ test('redactItem redacts attachment urls', () => {
   assert.equal(redacted.attachments[0].url, REDACTED);
 });
 
+test('redactItem returns non-object values unchanged', () => {
+  assert.equal(redactItem(null), null);
+  assert.equal(redactItem(undefined), undefined);
+  assert.equal(redactItem('string'), 'string');
+  assert.equal(redactItem(42), 42);
+});
+
+test('redactItem handles item with no sensitive sections', () => {
+  const item = { id: 'x', name: 'plain', type: 2 };
+  const redacted = redactItem(item) as unknown as { id: string; name: string };
+  assert.equal(redacted.id, 'x');
+  assert.equal(redacted.name, 'plain');
+});
+
+test('redactItem handles passwordHistory with non-object entries', () => {
+  const item = {
+    id: 'x',
+    passwordHistory: [null, 'not-an-object', { password: 'old' }],
+  };
+  const redacted = redactItem(item) as unknown as {
+    passwordHistory: unknown[];
+  };
+  assert.equal(redacted.passwordHistory[0], null);
+  assert.equal(redacted.passwordHistory[1], 'not-an-object');
+  assert.equal(
+    (redacted.passwordHistory[2] as { password: string }).password,
+    REDACTED,
+  );
+});
+
+test('redactItem handles fields with non-object entries', () => {
+  const item = {
+    id: 'x',
+    fields: [null, { name: 'ok', value: 'v', type: 0 }],
+  };
+  const redacted = redactItem(item) as unknown as { fields: unknown[] };
+  assert.equal(redacted.fields[0], null);
+});
+
+test('redactItem handles attachments with non-object entries', () => {
+  const item = {
+    id: 'x',
+    attachments: [null, { id: 'a', url: 'https://x.com/token' }],
+  };
+  const redacted = redactItem(item) as unknown as {
+    attachments: unknown[];
+  };
+  assert.equal(redacted.attachments[0], null);
+  assert.equal((redacted.attachments[1] as { url: string }).url, REDACTED);
+});
+
 test('redactItem redacts passwordHistory passwords', () => {
   const item = {
     id: 'x',

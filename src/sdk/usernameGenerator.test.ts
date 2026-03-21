@@ -54,3 +54,46 @@ test('generateUsername: forwarded_email_alias not supported', () => {
     generateUsername({ type: 'forwarded_email_alias' }, { randInt: () => 0 }),
   );
 });
+
+test('generateUsername: random_word fallback when all iterations too short', () => {
+  // randInt always returns max-1, producing very long or very short strings
+  // that fail the length check, triggering the fallback path
+  const v = generateUsername(
+    { type: 'random_word' },
+    {
+      randInt: (max: number) => max - 1,
+    },
+  );
+  assert.ok(typeof v === 'string' && v.length > 0);
+});
+
+test('generateUsername: plus_addressed_email throws on invalid email', () => {
+  assert.throws(
+    () =>
+      generateUsername(
+        { type: 'plus_addressed_email', email: 'invalid' },
+        { randInt: () => 0 },
+      ),
+    /Invalid email/,
+  );
+});
+
+test('generateUsername: catch_all_email with domain starting with @', () => {
+  const v = generateUsername(
+    { type: 'catch_all_email', domain: '@example.com' },
+    { randInt: () => 0 },
+  );
+  assert.ok(v.endsWith('@example.com'));
+  assert.ok(!v.includes('@@'));
+});
+
+test('generateUsername: catch_all_email throws on invalid domain', () => {
+  assert.throws(
+    () =>
+      generateUsername(
+        { type: 'catch_all_email', domain: 'has spaces' },
+        { randInt: () => 0 },
+      ),
+    /Invalid domain/,
+  );
+});

@@ -17,6 +17,50 @@ test('returns null when no bw headers are present', () => {
   assert.equal(bwEnvFromExpressHeaders(req), null);
 });
 
+test('rejects invalid URL in x-bw-host', () => {
+  const req = makeReq({
+    'x-bw-host': 'not-a-url',
+    'x-bw-password': 'pw',
+    'x-bw-user': 'user@example.com',
+  });
+  assert.throws(
+    () => bwEnvFromExpressHeaders(req),
+    /x-bw-host must be an https url/i,
+  );
+});
+
+test('rejects x-bw-host with embedded credentials', () => {
+  const req = makeReq({
+    'x-bw-host': 'https://user:pass@vaultwarden.local',
+    'x-bw-password': 'pw',
+    'x-bw-user': 'user@example.com',
+  });
+  assert.throws(
+    () => bwEnvFromExpressHeaders(req),
+    /must not include credentials/i,
+  );
+});
+
+test('rejects x-bw-host with path', () => {
+  const req = makeReq({
+    'x-bw-host': 'https://vaultwarden.local/api',
+    'x-bw-password': 'pw',
+    'x-bw-user': 'user@example.com',
+  });
+  assert.throws(() => bwEnvFromExpressHeaders(req), /origin without path/i);
+});
+
+test('throws when x-bw-password is missing but other headers present', () => {
+  const req = makeReq({
+    'x-bw-host': 'https://vaultwarden.local',
+    'x-bw-user': 'user@example.com',
+  });
+  assert.throws(
+    () => bwEnvFromExpressHeaders(req),
+    /Missing required header.*x-bw-password/i,
+  );
+});
+
 test('rejects non-https x-bw-host values', () => {
   const req = makeReq({
     'x-bw-host': 'http://vaultwarden.local',
