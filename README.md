@@ -1,6 +1,7 @@
 # warden-mcp
 
 [![npm version](https://img.shields.io/npm/v/%40icoretech%2Fwarden-mcp?logo=npm)](https://www.npmjs.com/package/@icoretech/warden-mcp)
+[![ghcr](https://img.shields.io/badge/ghcr.io-icoretech%2Fwarden--mcp-blue?logo=docker)](https://ghcr.io/icoretech/warden-mcp)
 [![CI](https://img.shields.io/github/actions/workflow/status/icoretech/warden-mcp/ci.yml?branch=main&label=ci)](https://github.com/icoretech/warden-mcp/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/icoretech/warden-mcp)](LICENSE)
 
@@ -110,6 +111,12 @@ This mode is what makes `warden-mcp` different from a simple local wrapper:
 - Bitwarden/Vaultwarden credentials are sent per request via `X-BW-*` headers
 - one running server can front different vault hosts or different identities without restarting
 - it fits shared-agent and gateway setups much better than per-client local processes
+
+### Docker
+
+```bash
+docker run --rm -p 3005:3005 ghcr.io/icoretech/warden-mcp
+```
 
 ### Global install
 
