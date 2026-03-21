@@ -11,3 +11,6 @@ docs/
 
 rotations/
 scripts/
+.desloppify/
+.claude/
+scorecard.png
