@@ -1,0 +1,58 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["custom.regex", "github-actions", "npm"],
+  "dependencyDashboard": true,
+  "labels": ["dependencies"],
+  "platformAutomerge": false,
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 10,
+  "rebaseWhen": "conflicted",
+  "rangeStrategy": "bump",
+  "timezone": "Europe/Rome",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^biome\\.json$/"],
+      "matchStrings": [
+        "\"\\$schema\"\\s*:\\s*\"https://biomejs\\.dev/schemas/(?<currentValue>[^/]+)/schema\\.json\""
+      ],
+      "depNameTemplate": "@biomejs/biome",
+      "datasourceTemplate": "npm",
+      "versioningTemplate": "npm"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Keep Biome package and schema updates together",
+      "matchManagers": ["npm", "custom.regex"],
+      "matchPackageNames": ["@biomejs/biome"],
+      "groupName": "biome tooling",
+      "groupSlug": "biome-tooling"
+    },
+    {
+      "description": "Group TypeScript-related tooling",
+      "matchManagers": ["npm"],
+      "matchPackageNames": [
+        "/^typescript$/",
+        "/^tsx$/",
+        "/^@types\\/node$/",
+        "/^@types\\/express$/"
+      ],
+      "groupName": "typescript tooling",
+      "groupSlug": "typescript-tooling"
+    },
+    {
+      "description": "Group GitHub Actions updates",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "groupSlug": "github-actions"
+    },
+    {
+      "description": "Automerge non-major updates after checks pass",
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "automerge": true,
+      "automergeType": "pr"
+    }
+  ]
+}
