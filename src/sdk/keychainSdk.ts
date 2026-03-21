@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { BwCliError } from '../bw/bwCli.js';
 import type { BwSessionManager } from '../bw/bwSession.js';
+import { deepClone } from './clone.js';
 import { buildBwGenerateArgs } from './generateArgs.js';
 import { applyItemPatch, type UpdatePatch } from './patch.js';
 import { redactItem } from './redact.js';
@@ -37,10 +38,6 @@ const URI_MATCH_REVERSE: Record<number, UriMatch> = {
   4: 'regex',
   5: 'never',
 };
-
-function deepClone<T>(obj: T): T {
-  return JSON.parse(JSON.stringify(obj)) as T;
-}
 
 function encodeJsonForBw(value: unknown): string {
   return Buffer.from(JSON.stringify(value), 'utf8').toString('base64');
@@ -1693,18 +1690,9 @@ export class KeychainSdk {
       );
       const current = JSON.parse(stdout) as AnyRecord;
 
-      // Convert uri match strings to bw enum numbers if needed.
-      const normalizedPatch: UpdatePatch = deepClone(patch);
-      if (normalizedPatch.login?.uris) {
-        normalizedPatch.login.uris = normalizedPatch.login.uris.map((u) => ({
-          uri: u.uri,
-          match: u.match,
-        }));
-      }
+      const next = applyItemPatch(current, deepClone(patch));
 
-      const next = applyItemPatch(current, normalizedPatch);
-
-      // If uris were provided, convert match strings to numbers now.
+      // If uris were provided, convert match strings to bw enum numbers.
       if (patch.login?.uris) {
         const login = (
           next.login && typeof next.login === 'object'

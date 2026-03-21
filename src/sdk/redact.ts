@@ -1,12 +1,10 @@
 // src/sdk/redact.ts
 
+import { deepClone } from './clone.js';
+
 type AnyRecord = Record<string, unknown>;
 
 export const REDACTED = '[REDACTED]';
-
-function deepClone<T>(obj: T): T {
-  return JSON.parse(JSON.stringify(obj)) as T;
-}
 
 function redactFields(fields: unknown[]): unknown[] {
   return fields.map((f) => {

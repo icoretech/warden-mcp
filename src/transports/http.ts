@@ -1,4 +1,4 @@
-// src/app.ts
+// src/transports/http.ts
 
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -86,12 +86,14 @@ export function createKeychainApp(opts: CreateKeychainAppOptions = {}) {
     return server;
   }
 
-  async function withBwHeaders(req: express.Request) {
+  const BW_HEADERS_SENTINEL = 'x-bw-headers' as const;
+
+  function withBwHeaders(req: express.Request): void {
     const bwEnv = bwEnvFromHeadersOrEnv(req);
     (req as unknown as { auth?: AuthInfo }).auth = bwEnv
       ? {
-          token: 'x-bw-headers',
-          clientId: 'x-bw-headers',
+          token: BW_HEADERS_SENTINEL,
+          clientId: BW_HEADERS_SENTINEL,
           scopes: [],
           extra: { bwEnv },
         }
@@ -299,7 +301,7 @@ export function createKeychainApp(opts: CreateKeychainAppOptions = {}) {
       return;
     }
 
-    await withBwHeaders(req);
+    withBwHeaders(req);
 
     const sessionIdHeader = req.headers['mcp-session-id'];
     const sessionId =
