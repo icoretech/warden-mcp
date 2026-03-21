@@ -19,7 +19,14 @@ export interface BwEnv {
 
 function requiredEnv(name: string): string {
   const v = process.env[name];
-  if (!v) throw new Error(`Missing required env var: ${name}`);
+  if (!v) {
+    throw new Error(
+      `Missing required env var for stdio mode: ${name}. ` +
+        'For --stdio, set BW_HOST, BW_PASSWORD, and either ' +
+        'BW_CLIENTID+BW_CLIENTSECRET or BW_USER/BW_USERNAME. ' +
+        'For HTTP mode, omit --stdio and send X-BW-* headers per request.',
+    );
+  }
   return v;
 }
 

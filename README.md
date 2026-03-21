@@ -45,6 +45,24 @@ BW_BIN=/absolute/path/to/bw npx -y @icoretech/warden-mcp
 
 ```bash
 npx -y @icoretech/warden-mcp
+```
+
+For stdio mode, you must provide Bitwarden credentials up front via env vars:
+
+```bash
+BW_HOST=https://vaultwarden.example.com \
+BW_USER=user@example.com \
+BW_PASSWORD='your-master-password' \
+npx -y @icoretech/warden-mcp --stdio
+```
+
+API key login works too:
+
+```bash
+BW_HOST=https://vaultwarden.example.com \
+BW_CLIENTID=user.xxxxx \
+BW_CLIENTSECRET=xxxxx \
+BW_PASSWORD='your-master-password' \
 npx -y @icoretech/warden-mcp --stdio
 ```
 
@@ -53,7 +71,6 @@ npx -y @icoretech/warden-mcp --stdio
 ```bash
 npm install -g @icoretech/warden-mcp
 warden-mcp
-warden-mcp --stdio
 ```
 
 ### Verify bw is available
@@ -119,7 +136,7 @@ Reveal rules:
 
 ### Minimal local run
 
-Run the published package and verify the server is up:
+Run the published package in HTTP mode and verify the server is up:
 
 ```bash
 npx -y @icoretech/warden-mcp
