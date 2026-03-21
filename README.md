@@ -15,6 +15,59 @@ Published package: `@icoretech/warden-mcp`
 - Organization + collection helpers (list + org-collection CRUD)
 - Safe-by-default: item reads are **redacted** unless explicitly revealed; secret helper tools return `null` unless `reveal: true`
 
+## Runtime Requirement
+
+This package shells out to the official Bitwarden CLI, `bw`.
+
+Runtime resolution order:
+
+- `BW_BIN` if you set it explicitly
+- bundled `@bitwarden/cli` optional dependency if it is present
+- system `bw` from `PATH`
+
+That means package installation can succeed even when the optional dependency is skipped by the environment. In that case you must install `bw` separately or point `BW_BIN` to it.
+
+Explicit fallback install:
+
+```bash
+npm install -g @bitwarden/cli
+```
+
+Or run with an explicit binary path:
+
+```bash
+BW_BIN=/absolute/path/to/bw npx -y @icoretech/warden-mcp
+```
+
+## Install And Run
+
+### Run via npx
+
+```bash
+npx -y @icoretech/warden-mcp
+npx -y @icoretech/warden-mcp --stdio
+```
+
+### Global install
+
+```bash
+npm install -g @icoretech/warden-mcp
+warden-mcp
+warden-mcp --stdio
+```
+
+### Verify bw is available
+
+```bash
+bw --version
+```
+
+If that fails after install, your environment likely skipped the optional `@bitwarden/cli` dependency. Install it explicitly:
+
+```bash
+npm install -g @bitwarden/cli
+```
+
 ## How It Works
 
 The server executes `bw` commands on your behalf:
@@ -64,7 +117,18 @@ Reveal rules:
 
 ## Quick Start
 
-### Docker Compose (recommended)
+### Minimal local run
+
+Run the published package and verify the server is up:
+
+```bash
+npx -y @icoretech/warden-mcp
+curl -fsS http://localhost:3005/healthz
+```
+
+## Local Development
+
+### Docker Compose
 
 Starts a local Vaultwarden + HTTPS proxy (for `bw`), bootstraps a test user, and runs the MCP server.
 
@@ -86,19 +150,12 @@ Run session flood regression locally (guardrail sanity):
 npm run test:session-regression
 ```
 
-### Local Dev (host)
+### Local dev (host)
 
 ```bash
 npm install
 cp .env.example .env
 npm run dev
-```
-
-### Run via npx
-
-```bash
-npx -y @icoretech/warden-mcp
-npx -y @icoretech/warden-mcp --stdio
 ```
 
 ## Tool Reference (v1)
