@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6](https://github.com/icoretech/warden-mcp/compare/v0.1.5...v0.1.6) (2026-03-21)
+
+
+### Bug Fixes
+
+* **biome:** ignore glama.json formatting ([a7e55e1](https://github.com/icoretech/warden-mcp/commit/a7e55e1e2b72fd2c4db3b1783cb274bad5e338c4))
+
 ## [0.1.5](https://github.com/icoretech/warden-mcp/compare/v0.1.4...v0.1.5) (2026-03-21)
 
 
