@@ -88,7 +88,15 @@ export class BwSessionManager {
         timeoutMs: 60_000,
       },
     );
-    const parsed = JSON.parse(stdout);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(stdout);
+    } catch (err) {
+      throw new Error(
+        `Failed to parse bw template output: ${stdout.slice(0, 200)}`,
+        { cause: err },
+      );
+    }
     this.templateItem = parsed;
     return parsed;
   }
@@ -133,7 +141,15 @@ export class BwSessionManager {
         env: this.baseEnv(),
         timeoutMs: 60_000,
       });
-      const parsed = JSON.parse(stdout) as Record<string, unknown>;
+      let parsed: Record<string, unknown>;
+      try {
+        parsed = JSON.parse(stdout) as Record<string, unknown>;
+      } catch (err) {
+        throw new Error(
+          `Failed to parse bw status output: ${stdout.slice(0, 200)}`,
+          { cause: err },
+        );
+      }
       const serverUrl =
         typeof parsed.serverUrl === 'string' ? parsed.serverUrl : this.env.host;
       const userEmail =

@@ -6,11 +6,14 @@ import { basename, join } from 'node:path';
 import { BwCliError } from '../bw/bwCli.js';
 import type { BwSessionManager } from '../bw/bwSession.js';
 import { deepClone } from './clone.js';
-import { buildBwGenerateArgs } from './generateArgs.js';
+import { buildBwGenerateArgs, type GenerateInput } from './generateArgs.js';
 import { applyItemPatch, type UpdatePatch } from './patch.js';
 import { redactItem } from './redact.js';
 import type { ItemFieldInput, ItemKind, UriInput, UriMatch } from './types.js';
-import { generateUsername } from './usernameGenerator.js';
+import {
+  generateUsername,
+  type UsernameGeneratorType,
+} from './usernameGenerator.js';
 
 type AnyRecord = Record<string, unknown>;
 
@@ -177,7 +180,7 @@ export class KeychainSdk {
       ['create', 'item', encoded],
       { timeoutMs: 120_000 },
     );
-    const created = JSON.parse(stdout) as AnyRecord;
+    const created = this.parseBwJson<AnyRecord>(stdout);
 
     if (input.attachments?.length) {
       const dir = await mkdtemp(join(tmpdir(), 'keychain-attach-'));
@@ -246,6 +249,17 @@ export class KeychainSdk {
     return { value, revealed };
   }
 
+  private parseBwJson<T = unknown>(stdout: string): T {
+    try {
+      return JSON.parse(stdout) as T;
+    } catch (err) {
+      throw new Error(
+        `Failed to parse bw CLI output: ${stdout.slice(0, 200)}`,
+        { cause: err },
+      );
+    }
+  }
+
   private tryParseJson(stdout: string): unknown {
     const trimmed = stdout.trim();
     if (!trimmed) return '';
@@ -303,22 +317,7 @@ export class KeychainSdk {
   }
 
   async generate(
-    input: {
-      uppercase?: boolean;
-      lowercase?: boolean;
-      number?: boolean;
-      special?: boolean;
-      passphrase?: boolean;
-      length?: number;
-      words?: number;
-      minNumber?: number;
-      minSpecial?: number;
-      separator?: string;
-      capitalize?: boolean;
-      includeNumber?: boolean;
-      ambiguous?: boolean;
-      reveal?: boolean;
-    } = {},
+    input: GenerateInput & { reveal?: boolean } = {},
   ): Promise<{ value: string | null; revealed: boolean }> {
     if (!input.reveal) return this.valueResult(null, false);
 
@@ -331,11 +330,7 @@ export class KeychainSdk {
 
   async generateUsername(
     input: {
-      type?:
-        | 'random_word'
-        | 'plus_addressed_email'
-        | 'catch_all_email'
-        | 'forwarded_email_alias';
+      type?: UsernameGeneratorType;
       capitalize?: boolean;
       includeNumber?: boolean;
       email?: string;
@@ -700,7 +695,7 @@ export class KeychainSdk {
         const { stdout } = await this.bw.runForSession(session, args, {
           timeoutMs: 120_000,
         });
-        const results = JSON.parse(stdout) as unknown[];
+        const results = this.parseBwJson<unknown[]>(stdout);
         for (const raw of results) {
           if (!raw || typeof raw !== 'object') continue;
           const id = (raw as { id?: unknown }).id;
@@ -761,7 +756,7 @@ export class KeychainSdk {
       const { stdout } = await this.bw.runForSession(session, args, {
         timeoutMs: 60_000,
       });
-      return JSON.parse(stdout) as unknown[];
+      return this.parseBwJson<unknown[]>(stdout);
     });
     return typeof limit === 'number' ? folders.slice(0, limit) : folders;
   }
@@ -776,7 +771,7 @@ export class KeychainSdk {
       const { stdout } = await this.bw.runForSession(session, args, {
         timeoutMs: 60_000,
       });
-      return JSON.parse(stdout) as unknown[];
+      return this.parseBwJson<unknown[]>(stdout);
     });
     return typeof limit === 'number'
       ? collections.slice(0, limit)
@@ -793,7 +788,7 @@ export class KeychainSdk {
       const { stdout } = await this.bw.runForSession(session, args, {
         timeoutMs: 60_000,
       });
-      return JSON.parse(stdout) as unknown[];
+      return this.parseBwJson<unknown[]>(stdout);
     });
     return typeof limit === 'number' ? orgs.slice(0, limit) : orgs;
   }
@@ -812,7 +807,7 @@ export class KeychainSdk {
         ['create', 'folder', encoded],
         { timeoutMs: 60_000 },
       );
-      return JSON.parse(stdout) as unknown;
+      return this.parseBwJson(stdout);
     });
   }
 
@@ -830,7 +825,7 @@ export class KeychainSdk {
         ['edit', 'folder', input.id, encoded],
         { timeoutMs: 60_000 },
       );
-      return JSON.parse(stdout) as unknown;
+      return this.parseBwJson(stdout);
     });
   }
 
@@ -865,7 +860,7 @@ export class KeychainSdk {
       const { stdout } = await this.bw.runForSession(session, args, {
         timeoutMs: 60_000,
       });
-      return JSON.parse(stdout) as unknown[];
+      return this.parseBwJson<unknown[]>(stdout);
     });
     return typeof limit === 'number' ? cols.slice(0, limit) : cols;
   }
@@ -897,7 +892,7 @@ export class KeychainSdk {
         ],
         { timeoutMs: 60_000 },
       );
-      return JSON.parse(stdout) as unknown;
+      return this.parseBwJson(stdout);
     });
   }
 
@@ -931,7 +926,7 @@ export class KeychainSdk {
         ],
         { timeoutMs: 60_000 },
       );
-      return JSON.parse(stdout) as unknown;
+      return this.parseBwJson(stdout);
     });
   }
 
@@ -980,7 +975,7 @@ export class KeychainSdk {
       const { stdout } = await this.bw.runForSession(session, args, {
         timeoutMs: 120_000,
       });
-      const moved = JSON.parse(stdout) as AnyRecord;
+      const moved = this.parseBwJson<AnyRecord>(stdout);
       return this.maybeRedact(moved, input.reveal);
     });
   }
@@ -992,7 +987,7 @@ export class KeychainSdk {
         ['get', 'item', id],
         { timeoutMs: 60_000 },
       );
-      return JSON.parse(stdout) as unknown;
+      return this.parseBwJson(stdout);
     });
 
     return this.maybeRedact(item, opts.reveal);
@@ -1269,7 +1264,7 @@ export class KeychainSdk {
         ['get', 'folder', input.id],
         { timeoutMs: 60_000 },
       );
-      return JSON.parse(stdout) as unknown;
+      return this.parseBwJson(stdout);
     });
   }
 
@@ -1284,7 +1279,7 @@ export class KeychainSdk {
       const { stdout } = await this.bw.runForSession(session, args, {
         timeoutMs: 60_000,
       });
-      return JSON.parse(stdout) as unknown;
+      return this.parseBwJson(stdout);
     });
   }
 
@@ -1295,7 +1290,7 @@ export class KeychainSdk {
         ['get', 'organization', input.id],
         { timeoutMs: 60_000 },
       );
-      return JSON.parse(stdout) as unknown;
+      return this.parseBwJson(stdout);
     });
   }
 
@@ -1310,7 +1305,7 @@ export class KeychainSdk {
       const { stdout } = await this.bw.runForSession(session, args, {
         timeoutMs: 60_000,
       });
-      return JSON.parse(stdout) as unknown;
+      return this.parseBwJson(stdout);
     });
   }
 
@@ -1324,7 +1319,7 @@ export class KeychainSdk {
         ['get', 'item', id],
         { timeoutMs: 60_000 },
       );
-      return JSON.parse(stdout) as AnyRecord;
+      return this.parseBwJson<AnyRecord>(stdout);
     });
 
     const history = Array.isArray(item.passwordHistory)
@@ -1451,7 +1446,7 @@ export class KeychainSdk {
         ['create', 'item', encoded],
         { timeoutMs: 120_000 },
       );
-      const created = JSON.parse(stdout) as AnyRecord;
+      const created = this.parseBwJson<AnyRecord>(stdout);
 
       if (input.collectionIds?.length) {
         const encodedCols = encodeJsonForBw(input.collectionIds);
@@ -1564,7 +1559,7 @@ export class KeychainSdk {
         ['create', 'item', encoded],
         { timeoutMs: 120_000 },
       );
-      const created = JSON.parse(stdout) as AnyRecord;
+      const created = this.parseBwJson<AnyRecord>(stdout);
 
       if (input.collectionIds?.length) {
         const encodedCols = encodeJsonForBw(input.collectionIds);
@@ -1652,7 +1647,7 @@ export class KeychainSdk {
         ['create', 'item', encoded],
         { timeoutMs: 120_000 },
       );
-      const created = JSON.parse(stdout) as AnyRecord;
+      const created = this.parseBwJson<AnyRecord>(stdout);
 
       if (input.collectionIds?.length) {
         const encodedCols = encodeJsonForBw(input.collectionIds);
@@ -1688,7 +1683,7 @@ export class KeychainSdk {
         ['get', 'item', id],
         { timeoutMs: 60_000 },
       );
-      const current = JSON.parse(stdout) as AnyRecord;
+      const current = this.parseBwJson<AnyRecord>(stdout);
 
       const next = applyItemPatch(current, deepClone(patch));
 
@@ -1745,7 +1740,7 @@ export class KeychainSdk {
         ['get', 'item', input.id],
         { timeoutMs: 60_000 },
       );
-      return JSON.parse(stdout) as AnyRecord;
+      return this.parseBwJson<AnyRecord>(stdout);
     });
 
     const currentLogin =
