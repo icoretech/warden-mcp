@@ -1792,3 +1792,61 @@ describe('KeychainSdk file I/O', () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// Security: receive URL validation
+// ---------------------------------------------------------------------------
+
+describe('KeychainSdk security', () => {
+  test('receive rejects http:// URLs', async () => {
+    const { mock } = createMockBw();
+    const sdk = new KeychainSdk(mock);
+    await assert.rejects(
+      () => sdk.receive({ url: 'http://send.bw/abc' }),
+      /HTTPS/,
+    );
+  });
+
+  test('receive rejects file:// URLs', async () => {
+    const { mock } = createMockBw();
+    const sdk = new KeychainSdk(mock);
+    await assert.rejects(
+      () => sdk.receive({ url: 'file:///etc/passwd' }),
+      /HTTPS/,
+    );
+  });
+
+  test('receive accepts https:// URLs', async () => {
+    const { mock } = createMockBw({
+      runResponses: new Map([['receive', { stdout: 'ok\n', stderr: '' }]]),
+    });
+    const sdk = new KeychainSdk(mock);
+    const result = (await sdk.receive({ url: 'https://send.bw/abc' })) as {
+      text: string;
+    };
+    assert.equal(result.text, 'ok');
+  });
+
+  test('parseBwJson error does not leak raw stdout', async () => {
+    const bw = {
+      withSession: async (fn: (s: string) => Promise<unknown>) => fn('s'),
+      runForSession: async () => ({
+        stdout: '{"password":"super-secret-value',
+        stderr: '',
+      }),
+    } as unknown as BwSessionManager;
+
+    const sdk = new KeychainSdk(bw);
+    try {
+      await sdk.getItem('1');
+      assert.fail('should have thrown');
+    } catch (err) {
+      const msg = (err as Error).message;
+      assert.ok(
+        !msg.includes('super-secret'),
+        'error must not contain secrets',
+      );
+      assert.ok(msg.includes('bytes'), 'error should mention byte count');
+    }
+  });
+});

@@ -666,3 +666,63 @@ describe('registerTools: e2e with fake bw', () => {
     assert.equal(r.isError, undefined);
   });
 });
+
+// ---------------------------------------------------------------------------
+// NOREVEAL tests
+// ---------------------------------------------------------------------------
+
+describe('registerTools: NOREVEAL behavior', () => {
+  test('NOREVEAL=true forces generate reveal to false', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'tools-noreveal-'));
+    const fakeBw = await createFakeBwScript(tmpDir);
+    const { client, cleanup } = await startTestServer({
+      NOREVEAL: 'true',
+      BW_BIN: fakeBw,
+      BW_HOST: 'https://bw.test',
+      BW_PASSWORD: 'pw',
+      BW_USER: 'u@test.com',
+    });
+    try {
+      const result = await client.callTool({
+        name: 'keychain.generate',
+        arguments: { reveal: true, length: 12 },
+      });
+      // With NOREVEAL, the server should downgrade reveal to false,
+      // so the result should have value=null
+      const structured = result.structuredContent as {
+        result?: { value: unknown; revealed: boolean };
+      };
+      assert.equal(structured?.result?.value, null);
+      assert.equal(structured?.result?.revealed, false);
+    } finally {
+      await cleanup();
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('NOREVEAL=true forces get_password reveal to false', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'tools-noreveal-'));
+    const fakeBw = await createFakeBwScript(tmpDir);
+    const { client, cleanup } = await startTestServer({
+      NOREVEAL: 'true',
+      BW_BIN: fakeBw,
+      BW_HOST: 'https://bw.test',
+      BW_PASSWORD: 'pw',
+      BW_USER: 'u@test.com',
+    });
+    try {
+      const result = await client.callTool({
+        name: 'keychain.get_password',
+        arguments: { term: 'test', reveal: true },
+      });
+      const structured = result.structuredContent as {
+        result?: { value: unknown; revealed: boolean };
+      };
+      assert.equal(structured?.result?.value, null);
+      assert.equal(structured?.result?.revealed, false);
+    } finally {
+      await cleanup();
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
