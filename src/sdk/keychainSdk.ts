@@ -609,9 +609,15 @@ export class KeychainSdk {
   async receive(input: {
     url: string;
     password?: string;
+    /** Pass --obj to return the full parsed JSON object instead of raw text. */
     obj?: boolean;
     downloadFile?: boolean;
   }): Promise<unknown> {
+    const parsed = new URL(input.url);
+    if (parsed.protocol !== 'https:') {
+      throw new Error('receive URL must use HTTPS');
+    }
+
     return this.bw.withSession(async (session) => {
       const opts: string[] = ['receive'];
       if (typeof input.password === 'string')
