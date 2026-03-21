@@ -43,13 +43,13 @@ BW_BIN=/absolute/path/to/bw npx -y @icoretech/warden-mcp
 
 ### Choose a transport
 
-- Use default HTTP mode when you want to run `warden-mcp` as a shared service and send `X-BW-*` headers per request
-- Use `--stdio` when you want to plug it directly into a local MCP host like Codex, Claude Code, Cursor, or Qwen Code
+- Use `--stdio` when you want a local MCP host to spawn `warden-mcp` directly with one fixed Bitwarden profile
+- Use default HTTP mode when you want one running `warden-mcp` service to serve multiple clients or multiple Bitwarden profiles via per-request `X-BW-*` headers
 
-### Run via npx
+### Local stdio mode
 
 ```bash
-npx -y @icoretech/warden-mcp
+npx -y @icoretech/warden-mcp --stdio
 ```
 
 For stdio mode, you must provide Bitwarden credentials up front via env vars:
@@ -71,6 +71,27 @@ BW_PASSWORD='your-master-password' \
 npx -y @icoretech/warden-mcp --stdio
 ```
 
+### Shared HTTP mode
+
+Start one long-lived MCP server:
+
+```bash
+npx -y @icoretech/warden-mcp
+```
+
+Verify it is up:
+
+```bash
+curl -fsS http://localhost:3005/healthz
+```
+
+This mode is what makes `warden-mcp` different from a simple local wrapper:
+
+- the server stays stateless at the HTTP boundary
+- Bitwarden/Vaultwarden credentials are sent per request via `X-BW-*` headers
+- one running server can front different vault hosts or different identities without restarting
+- it fits shared-agent and gateway setups much better than per-client local processes
+
 ### Global install
 
 ```bash
@@ -80,7 +101,7 @@ warden-mcp
 
 ## Connect From MCP Hosts
 
-For most local MCP hosts, use stdio mode:
+For local MCP hosts, stdio is the most portable option.
 
 ```bash
 npx -y @icoretech/warden-mcp --stdio
@@ -88,20 +109,60 @@ npx -y @icoretech/warden-mcp --stdio
 
 The examples below use Bitwarden API-key auth. If you prefer username/password login, replace `BW_CLIENTID` + `BW_CLIENTSECRET` with `BW_USER`.
 
-### OpenAI Codex
+### CLI-based hosts
 
-Add the server with the Codex CLI:
+These hosts let you register `warden-mcp` directly from the command line:
 
 ```bash
+# Codex
 codex mcp add warden \
   --env BW_HOST=https://vaultwarden.example.com \
   --env BW_CLIENTID=user.xxxxx \
   --env BW_CLIENTSECRET=xxxxx \
   --env BW_PASSWORD='your-master-password' \
   -- npx -y @icoretech/warden-mcp --stdio
+
+# Claude Code
+claude mcp add-json warden '{"command":"npx","args":["-y","@icoretech/warden-mcp","--stdio"],"env":{"BW_HOST":"https://vaultwarden.example.com","BW_CLIENTID":"user.xxxxx","BW_CLIENTSECRET":"xxxxx","BW_PASSWORD":"your-master-password"}}'
+
+# Qwen Code
+qwen mcp add warden \
+  -e BW_HOST=https://vaultwarden.example.com \
+  -e BW_CLIENTID=user.xxxxx \
+  -e BW_CLIENTSECRET=xxxxx \
+  -e BW_PASSWORD=your-master-password \
+  npx -y @icoretech/warden-mcp --stdio
 ```
 
-Or edit `~/.codex/config.toml` directly:
+### JSON config hosts
+
+These hosts all use the same stdio payload shape. Only the config file location changes:
+
+- Codex: `~/.codex/config.toml`
+- Cursor: `~/.cursor/mcp.json` or `.cursor/mcp.json`
+- Claude Desktop: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Qwen Code: `~/.qwen/settings.json` or `.qwen/settings.json`
+
+Shared JSON shape:
+
+```json
+{
+  "mcpServers": {
+    "warden": {
+      "command": "npx",
+      "args": ["-y", "@icoretech/warden-mcp", "--stdio"],
+      "env": {
+        "BW_HOST": "https://vaultwarden.example.com",
+        "BW_CLIENTID": "user.xxxxx",
+        "BW_CLIENTSECRET": "xxxxx",
+        "BW_PASSWORD": "your-master-password"
+      }
+    }
+  }
+}
+```
+
+Codex uses TOML instead of JSON:
 
 ```toml
 [mcp_servers.warden]
@@ -115,70 +176,9 @@ BW_CLIENTSECRET = "xxxxx"
 BW_PASSWORD = "your-master-password"
 ```
 
-### Claude Code
-
-Add the server with `claude mcp add-json`:
-
-```bash
-claude mcp add-json warden '{"command":"npx","args":["-y","@icoretech/warden-mcp","--stdio"],"env":{"BW_HOST":"https://vaultwarden.example.com","BW_CLIENTID":"user.xxxxx","BW_CLIENTSECRET":"xxxxx","BW_PASSWORD":"your-master-password"}}'
-```
-
-### Cursor
-
-Add the following to `~/.cursor/mcp.json` or `.cursor/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "warden": {
-      "command": "npx",
-      "args": ["-y", "@icoretech/warden-mcp", "--stdio"],
-      "env": {
-        "BW_HOST": "https://vaultwarden.example.com",
-        "BW_CLIENTID": "user.xxxxx",
-        "BW_CLIENTSECRET": "xxxxx",
-        "BW_PASSWORD": "your-master-password"
-      }
-    }
-  }
-}
-```
-
-### Qwen Code
-
-Add the following to `~/.qwen/settings.json` or `.qwen/settings.json`:
-
-```json
-{
-  "mcpServers": {
-    "warden": {
-      "command": "npx",
-      "args": ["-y", "@icoretech/warden-mcp", "--stdio"],
-      "env": {
-        "BW_HOST": "${BW_HOST}",
-        "BW_CLIENTID": "${BW_CLIENTID}",
-        "BW_CLIENTSECRET": "${BW_CLIENTSECRET}",
-        "BW_PASSWORD": "${BW_PASSWORD}"
-      }
-    }
-  }
-}
-```
-
-Qwen Code also supports direct CLI registration:
-
-```bash
-qwen mcp add warden \
-  -e BW_HOST=https://vaultwarden.example.com \
-  -e BW_CLIENTID=user.xxxxx \
-  -e BW_CLIENTSECRET=xxxxx \
-  -e BW_PASSWORD=your-master-password \
-  npx -y @icoretech/warden-mcp --stdio
-```
-
 ### Windsurf
 
-Add the following to `~/.codeium/windsurf/mcp_config.json`:
+Windsurf uses the same stdio idea but stores it in `~/.codeium/windsurf/mcp_config.json`:
 
 ```json
 {
@@ -197,26 +197,105 @@ Add the following to `~/.codeium/windsurf/mcp_config.json`:
 }
 ```
 
-### Claude Desktop And Other JSON MCP Hosts
+### Shared HTTP connections
 
-For clients that use an `mcpServers` JSON object, the same stdio shape works with only file-path changes:
+If your MCP host supports Streamable HTTP with custom headers, you can connect to one long-lived `warden-mcp` service instead of spawning a local stdio process.
+
+Start the shared server:
+
+```bash
+npx -y @icoretech/warden-mcp
+```
+
+Every MCP request must include:
+
+- `X-BW-Host`
+- `X-BW-Password`
+- either `X-BW-ClientId` + `X-BW-ClientSecret`, or `X-BW-User`
+
+Example health check:
+
+```bash
+curl -fsS \
+  -H 'X-BW-Host: https://vaultwarden.example.com' \
+  -H 'X-BW-ClientId: user.xxxxx' \
+  -H 'X-BW-ClientSecret: xxxxx' \
+  -H 'X-BW-Password: your-master-password' \
+  http://localhost:3005/healthz
+```
+
+Example MCP endpoint:
+
+```text
+http://localhost:3005/sse?v=2
+```
+
+This shared-server mode is useful when:
+
+- one MCP gateway needs to front multiple Bitwarden profiles
+- you want to rotate vault credentials per request instead of per process
+- you are integrating from a custom client or agent host that can attach HTTP headers
+- you want one always-on service instead of each editor spawning its own `bw`-backed subprocess
+
+Client examples for shared HTTP mode:
+
+```bash
+# Claude Code
+claude mcp add-json warden '{"type":"http","url":"http://localhost:3005/sse?v=2","headers":{"X-BW-Host":"https://vaultwarden.example.com","X-BW-ClientId":"user.xxxxx","X-BW-ClientSecret":"xxxxx","X-BW-Password":"your-master-password"}}'
+```
 
 ```json
+// Cursor (~/.cursor/mcp.json)
 {
   "mcpServers": {
     "warden": {
-      "command": "npx",
-      "args": ["-y", "@icoretech/warden-mcp", "--stdio"],
-      "env": {
-        "BW_HOST": "https://vaultwarden.example.com",
-        "BW_CLIENTID": "user.xxxxx",
-        "BW_CLIENTSECRET": "xxxxx",
-        "BW_PASSWORD": "your-master-password"
+      "url": "http://localhost:3005/sse?v=2",
+      "headers": {
+        "X-BW-Host": "https://vaultwarden.example.com",
+        "X-BW-ClientId": "user.xxxxx",
+        "X-BW-ClientSecret": "xxxxx",
+        "X-BW-Password": "your-master-password"
       }
     }
   }
 }
 ```
+
+```json
+// Qwen Code (~/.qwen/settings.json)
+{
+  "mcpServers": {
+    "warden": {
+      "httpUrl": "http://localhost:3005/sse?v=2",
+      "headers": {
+        "X-BW-Host": "https://vaultwarden.example.com",
+        "X-BW-ClientId": "user.xxxxx",
+        "X-BW-ClientSecret": "xxxxx",
+        "X-BW-Password": "your-master-password"
+      }
+    }
+  }
+}
+```
+
+```json
+// Windsurf (~/.codeium/windsurf/mcp_config.json)
+{
+  "mcpServers": {
+    "warden": {
+      "serverUrl": "http://localhost:3005/sse?v=2",
+      "headers": {
+        "X-BW-Host": "https://vaultwarden.example.com",
+        "X-BW-ClientId": "user.xxxxx",
+        "X-BW-ClientSecret": "xxxxx",
+        "X-BW-Password": "your-master-password"
+      }
+    }
+  }
+}
+```
+
+Codex currently fits better with stdio here, because its MCP config supports a bearer token env var for remote servers but not arbitrary custom `X-BW-*` header injection.
 
 ### Verify bw is available
 
@@ -234,7 +313,8 @@ npm install -g @bitwarden/cli
 
 The server executes `bw` commands on your behalf:
 
-- Bitwarden/Vaultwarden connection + credentials are provided via **HTTP headers** per request.
+- In HTTP mode, Bitwarden/Vaultwarden connection + credentials are provided via **HTTP headers** per request.
+- In stdio mode, Bitwarden/Vaultwarden credentials are loaded once from `BW_*` env vars at startup.
 - The server maintains per-profile `bw` state under `KEYCHAIN_BW_HOME_ROOT` to avoid session/config clashes.
 - Writes can optionally call `bw sync` (internal; not exposed as an MCP tool).
 
