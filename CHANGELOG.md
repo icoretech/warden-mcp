@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/icoretech/warden-mcp/compare/warden-mcp-v0.1.2...warden-mcp-v0.1.3) (2026-03-21)
+
+
+### Features
+
+* **docker:** publish multi-arch image to ghcr.io ([2c2f8c7](https://github.com/icoretech/warden-mcp/commit/2c2f8c7c627ae3efaca506d7a56e80b327de0827))
+
 ## [0.1.2](https://github.com/icoretech/warden-mcp/compare/warden-mcp-v0.1.1...warden-mcp-v0.1.2) (2026-03-21)
 
 
