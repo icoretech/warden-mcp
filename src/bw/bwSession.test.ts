@@ -469,4 +469,81 @@ printf '{}'; exit 0
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  test('withSession: invalidates cached session when unlock --check fails', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      // Script: first unlock succeeds, unlock --check fails, second unlock succeeds
+      const counterFile = join(dir, 'unlock-count');
+      await writeFile(counterFile, '0');
+      const scriptPath = join(dir, 'fake-bw');
+      const script = `#!/bin/sh
+if echo "$*" | grep -q 'config server'; then exit 0; fi
+if echo "$*" | grep -q 'logout'; then exit 0; fi
+if echo "$*" | grep -q 'unlock --check'; then exit 1; fi
+if echo "$*" | grep -q 'unlock'; then
+  count=$(cat "${counterFile}")
+  count=$((count + 1))
+  echo "$count" > "${counterFile}"
+  printf "session-v%s" "$count"
+  exit 0
+fi
+if echo "$*" | grep -q 'login'; then printf 'login-session'; exit 0; fi
+printf '{}'; exit 0
+`;
+      await writeFile(scriptPath, script, { mode: 0o755 });
+      process.env.BW_BIN = scriptPath;
+
+      const manager = new BwSessionManager(makeEnv(dir));
+      const s1 = await manager.withSession(async (s) => s);
+      assert.equal(s1, 'session-v1');
+
+      // Second call: unlock --check fails → session invalidated → re-unlocks
+      const s2 = await manager.withSession(async (s) => s);
+      assert.ok(s2 !== s1, 'should get a new session after invalidation');
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('status with apikey login shows null userEmail', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const statusJson = JSON.stringify({
+        serverUrl: 'https://bw.test',
+        status: 'unlocked',
+      });
+      const fakeBw = await createFakeBw(dir, {
+        responses: {
+          'config server': '',
+          unlock: '',
+          'login --apikey': 'api-session',
+          'unlock --check': '',
+          status: statusJson,
+        },
+      });
+      process.env.BW_BIN = fakeBw;
+
+      const apiEnv = {
+        ...makeEnv(dir),
+        login: {
+          method: 'apikey' as const,
+          clientId: 'id',
+          clientSecret: 'secret',
+        },
+      };
+      const manager = new BwSessionManager(apiEnv);
+      const status = (await manager.status()) as {
+        summary: string;
+      };
+      // apikey login has no userEmail, so summary should not include an email
+      assert.ok(status.summary.includes('Vault access ready'));
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });

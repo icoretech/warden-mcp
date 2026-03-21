@@ -114,6 +114,21 @@ test('generateUsername: catch_all_email with domain starting with @', () => {
   assert.ok(!v.includes('@@'));
 });
 
+test('generateUsername: plus_addressed_email throws without email', () => {
+  assert.throws(
+    () =>
+      generateUsername({ type: 'plus_addressed_email' }, { randInt: () => 0 }),
+    /email is required/,
+  );
+});
+
+test('generateUsername: catch_all_email throws without domain', () => {
+  assert.throws(
+    () => generateUsername({ type: 'catch_all_email' }, { randInt: () => 0 }),
+    /domain is required/,
+  );
+});
+
 test('generateUsername: catch_all_email throws on invalid domain', () => {
   assert.throws(
     () =>

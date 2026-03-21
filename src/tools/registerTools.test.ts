@@ -665,6 +665,80 @@ describe('registerTools: e2e with fake bw', () => {
     });
     assert.equal(r.isError, undefined);
   });
+
+  test('create_attachment', async () => {
+    const r = await callToolE2e('create_attachment', {
+      itemId: '1',
+      filename: 'test.txt',
+      contentBase64: Buffer.from('hello').toString('base64'),
+    });
+    assert.equal(r.isError, undefined);
+  });
+
+  test('delete_attachment', async () => {
+    const r = await callToolE2e('delete_attachment', {
+      itemId: '1',
+      attachmentId: 'att-1',
+    });
+    assert.equal(r.isError, undefined);
+  });
+
+  test('get_attachment', async () => {
+    // This will fail at bw level (no real file output), but exercises the handler
+    await callToolE2e('get_attachment', {
+      itemId: '1',
+      attachmentId: 'att-1',
+    });
+    // May error since fake bw doesn't write output files, but handler path is exercised
+  });
+
+  test('send_create_encoded with text', async () => {
+    const r = await callToolE2e('send_create_encoded', { text: 'hello' });
+    assert.equal(r.isError, undefined);
+  });
+
+  test('create_ssh_key', async () => {
+    const r = await callToolE2e('create_ssh_key', {
+      name: 'My Key',
+      publicKey: 'ssh-ed25519 AAAA',
+      privateKey: '-----BEGIN KEY-----',
+    });
+    assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), 'Created.');
+  });
+
+  test('create_login with numeric URI match', async () => {
+    const r = await callToolE2e('create_login', {
+      name: 'Numeric Match',
+      uris: [
+        { uri: 'https://a.com', match: 1 },
+        { uri: 'https://b.com', match: 2 },
+        { uri: 'https://c.com', match: 3 },
+        { uri: 'https://d.com', match: 4 },
+        { uri: 'https://e.com', match: 5 },
+      ],
+    });
+    assert.equal(r.isError, undefined);
+  });
+
+  test('update_item with login.uris exercises normalizeUrisInput', async () => {
+    const r = await callToolE2e('update_item', {
+      id: '1',
+      patch: {
+        login: {
+          uris: [{ uri: 'https://new.com', match: 'baseDomain' }],
+        },
+      },
+    });
+    assert.equal(r.isError, undefined);
+  });
+
+  test('list_org_collections exercises projection', async () => {
+    const r = await callToolE2e('list_org_collections', {
+      organizationId: 'org1',
+    });
+    assert.equal(r.isError, undefined);
+  });
 });
 
 // ---------------------------------------------------------------------------

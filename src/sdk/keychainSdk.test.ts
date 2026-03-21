@@ -2059,4 +2059,101 @@ describe('KeychainSdk additional coverage', () => {
       ),
     );
   });
+
+  test('searchItems returns card items via kindFromItem', async () => {
+    const { mock } = createMockBw({
+      runResponses: new Map([
+        [
+          'list items',
+          {
+            stdout: JSON.stringify([
+              { id: '1', type: 3 },
+              { id: '2', type: 4 },
+              { id: '3', type: 99 },
+            ]),
+            stderr: '',
+          },
+        ],
+      ]),
+    });
+
+    const sdk = new KeychainSdk(mock);
+    // type=card filters for type 3
+    const cards = await sdk.searchItems({ type: 'card' });
+    assert.equal(cards.length, 1);
+    // type=identity filters for type 4
+    const ids = await sdk.searchItems({ type: 'identity' });
+    assert.equal(ids.length, 1);
+    // unknown type 99 falls through to 'note' default in kindFromItem
+    const all = await sdk.searchItems({});
+    assert.equal(all.length, 3);
+  });
+
+  test('readSingleFileAsBase64 throws when dir has multiple files', async () => {
+    // getAttachment calls readSingleFileAsBase64 internally.
+    // If bw writes multiple files, it should throw.
+    const { mock } = createMockBw({
+      runResponses: new Map([['get attachment', { stdout: '', stderr: '' }]]),
+      sideEffect: async (args) => {
+        const outputIdx = args.indexOf('--output');
+        if (outputIdx >= 0) {
+          const dir = args[outputIdx + 1];
+          if (dir) {
+            await writeFile(join(dir, 'file1.txt'), 'a');
+            await writeFile(join(dir, 'file2.txt'), 'b');
+          }
+        }
+      },
+    });
+
+    const sdk = new KeychainSdk(mock);
+    await assert.rejects(
+      () => sdk.getAttachment({ itemId: '1', attachmentId: 'a1' }),
+      /Expected exactly 1 downloaded file/,
+    );
+  });
+
+  test('createCard with collectionIds calls item-collections edit', async () => {
+    const card = { id: 'card-col2', type: 3 };
+    const { mock, calls } = createMockBw({
+      runResponses: new Map([
+        ['create item', { stdout: JSON.stringify(card), stderr: '' }],
+        ['edit item-collections', { stdout: '{}', stderr: '' }],
+        ['sync', { stdout: '', stderr: '' }],
+      ]),
+    });
+
+    const sdk = new KeychainSdk(mock);
+    await sdk.createCard({
+      name: 'Card Cols',
+      organizationId: 'org1',
+      collectionIds: ['c1'],
+    });
+
+    assert.ok(
+      calls.some(
+        (c) => c.args.includes('edit') && c.args.includes('item-collections'),
+      ),
+    );
+  });
+
+  test('syncOnWrite=false skips sync call', async () => {
+    const saved = process.env.KEYCHAIN_SYNC_ON_WRITE;
+    process.env.KEYCHAIN_SYNC_ON_WRITE = 'false';
+    try {
+      const folder = { id: 'f1', name: 'test' };
+      const { mock, calls } = createMockBw({
+        runResponses: new Map([
+          ['create folder', { stdout: JSON.stringify(folder), stderr: '' }],
+        ]),
+      });
+
+      const sdk = new KeychainSdk(mock);
+      await sdk.createFolder({ name: 'test' });
+      assert.ok(!calls.some((c) => c.args.includes('sync')));
+    } finally {
+      if (saved === undefined) delete process.env.KEYCHAIN_SYNC_ON_WRITE;
+      else process.env.KEYCHAIN_SYNC_ON_WRITE = saved;
+    }
+  });
 });
