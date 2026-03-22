@@ -11,7 +11,10 @@ const baseUrl = (process.env.KEYCHAIN_FLOOD_BASE_URL ?? 'http://127.0.0.1:3005')
 const sseUrl = `${baseUrl}/sse`;
 const metricsUrl = process.env.KEYCHAIN_METRICS_URL ?? `${baseUrl}/metricsz`;
 const requests = parsePositiveInt(process.env.KEYCHAIN_FLOOD_REQUESTS, 500);
-const concurrency = parsePositiveInt(process.env.KEYCHAIN_FLOOD_CONCURRENCY, 25);
+const concurrency = parsePositiveInt(
+  process.env.KEYCHAIN_FLOOD_CONCURRENCY,
+  25,
+);
 const timeoutMs = parsePositiveInt(process.env.KEYCHAIN_FLOOD_TIMEOUT_MS, 5000);
 
 let sent = 0;
@@ -94,12 +97,21 @@ const summary = {
 
 console.log(JSON.stringify(summary, null, 2));
 
-const successes = (counts.get('200') ?? 0) + (counts.get('429') ?? 0) + (counts.get('503') ?? 0);
-const hasGuardrailStatuses = (counts.get('429') ?? 0) + (counts.get('503') ?? 0) > 0;
+const successes =
+  (counts.get('200') ?? 0) +
+  (counts.get('429') ?? 0) +
+  (counts.get('503') ?? 0);
+const hasGuardrailStatuses =
+  (counts.get('429') ?? 0) + (counts.get('503') ?? 0) > 0;
 const hasUnexpectedStatuses = [...counts.keys()].some(
   (key) => !['200', '429', '503'].includes(key),
 );
 
-if (successes === 0 || hasUnexpectedStatuses || requestErrors > 0 || !hasGuardrailStatuses) {
+if (
+  successes === 0 ||
+  hasUnexpectedStatuses ||
+  requestErrors > 0 ||
+  !hasGuardrailStatuses
+) {
   process.exit(1);
 }

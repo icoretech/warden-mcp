@@ -36,7 +36,8 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     env_file:
-      - .env
+      - path: .env
+        required: false
     ports:
       - "3005:3005"
     volumes:
@@ -61,6 +62,7 @@ services:
     working_dir: /work
     volumes:
       - .:/work
+      - node-modules:/work/node_modules
     environment:
       VW_BASE_URL: https://vaultwarden-https
       VW_APIKEY_ENV_FILE: tmp/vaultwarden-bootstrap/apikey.env
@@ -69,7 +71,7 @@ services:
     depends_on:
       vaultwarden-https:
         condition: service_started
-    command: node scripts/vaultwarden-bootstrap.mjs
+    command: sh -lc "npm install && node scripts/vaultwarden-bootstrap.mjs"
 
   tests:
     build:

@@ -30,6 +30,7 @@ services:
     working_dir: /work
     volumes:
       - .:/work
+      - node-modules-org:/work/node_modules
     env_file:
       - .env.test-org
     environment:
@@ -38,7 +39,7 @@ services:
     depends_on:
       vaultwarden-org-https:
         condition: service_started
-    command: node scripts/vaultwarden-bootstrap.mjs
+    command: sh -lc "npm install && node scripts/vaultwarden-bootstrap.mjs"
 
   tests-org:
     build:

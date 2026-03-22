@@ -20,12 +20,12 @@ const artifactsDir = path.resolve(
 );
 const apiKeyEnvFile = (process.env.VW_APIKEY_ENV_FILE ?? '').trim();
 const timeoutMs = Number.parseInt(
-  process.env.VW_BOOTSTRAP_TIMEOUT_MS ?? '3000',
+  process.env.VW_BOOTSTRAP_TIMEOUT_MS ?? '10000',
   10,
 );
 
 function toShLiteral(value) {
-  return `'${value.replace(/'/g, `'\"'\"'`)}'`;
+  return `'${value.replace(/'/g, `'"'"'`)}'`;
 }
 
 async function main() {
@@ -64,9 +64,11 @@ async function main() {
 
   async function clearApiKeyEnvFile() {
     if (!apiKeyEnvFile) return;
-    await fs.rm(path.resolve(process.cwd(), apiKeyEnvFile), {
-      force: true,
-    }).catch(() => {});
+    await fs
+      .rm(path.resolve(process.cwd(), apiKeyEnvFile), {
+        force: true,
+      })
+      .catch(() => {});
   }
 
   async function writeApiKeyEnv(clientId, clientSecret) {
@@ -166,8 +168,8 @@ async function main() {
   async function ensureLoggedIn() {
     await gotoAndWait(`${baseUrl}/#/login`);
 
-    // Some builds redirect away from /#/login when already authenticated.
-    if (/#\/(vault|home|tabs|settings)\b/.test(page.url())) return;
+    const alreadyAuthenticated =
+      /#\/(vault|home|tabs|settings|setup-extension)\b/.test(page.url());
 
     const passwordCandidates = [
       page.locator(
@@ -179,69 +181,71 @@ async function main() {
       page.getByLabel(/^password$/i),
     ];
 
-    // Some builds land directly on the master password step (email pre-filled/hidden).
-    const pwAlreadyVisible = await passwordCandidates[0]
-      .nth(0)
-      .isVisible()
-      .catch(() => false);
+    if (!alreadyAuthenticated) {
+      // Some builds land directly on the master password step (email pre-filled/hidden).
+      const pwAlreadyVisible = await passwordCandidates[0]
+        .nth(0)
+        .isVisible()
+        .catch(() => false);
 
-    // Newer Vaultwarden Web builds split login into two steps:
-    // 1) enter email
-    // 2) click "Log in with master password" and then enter password
-    if (!pwAlreadyVisible) {
-      // Email step
-      const emailOk = await fillFirstVisible(
-        [
-          page.locator("input[formcontrolname='email']"),
-          page.locator('input[autocomplete="email"]'),
-          page.locator('input[type="email"]'),
-          page.locator('input[name="email"]'),
-          page.locator('input#email'),
-          page.getByLabel(/email address/i),
-          page.getByLabel(/email/i),
-        ],
-        email,
-      );
-      if (!emailOk) throw new Error('Could not find login email input');
+      // Newer Vaultwarden Web builds split login into two steps:
+      // 1) enter email
+      // 2) click "Log in with master password" and then enter password
+      if (!pwAlreadyVisible) {
+        // Email step
+        const emailOk = await fillFirstVisible(
+          [
+            page.locator("input[formcontrolname='email']"),
+            page.locator('input[autocomplete="email"]'),
+            page.locator('input[type="email"]'),
+            page.locator('input[name="email"]'),
+            page.locator('input#email'),
+            page.getByLabel(/email address/i),
+            page.getByLabel(/email/i),
+          ],
+          email,
+        );
+        if (!emailOk) throw new Error('Could not find login email input');
 
-      await clickFirstVisible([
-        page.getByRole('button', { name: /log in with master password/i }),
-        page.getByRole('button', { name: /continue|next/i }),
+        await clickFirstVisible([
+          page.getByRole('button', { name: /log in with master password/i }),
+          page.getByRole('button', { name: /continue|next/i }),
+          page.getByRole('button', { name: /log in|login|sign in/i }),
+        ]);
+        await Promise.race([
+          passwordCandidates[0]
+            .nth(0)
+            .waitFor({ state: 'visible' })
+            .catch(() => {}),
+          page.waitForTimeout(timeoutMs),
+        ]);
+      }
+
+      const pwOk = await fillFirstVisible(passwordCandidates, password);
+      if (!pwOk) throw new Error('Could not find login password input');
+
+      const clicked = await clickFirstVisible([
         page.getByRole('button', { name: /log in|login|sign in/i }),
+        page.getByRole('button', { name: /continue/i }),
       ]);
-      await Promise.race([
-        passwordCandidates[0]
-          .nth(0)
-          .waitFor({ state: 'visible' })
-          .catch(() => {}),
-        page.waitForTimeout(timeoutMs),
-      ]);
-    }
+      if (!clicked) throw new Error('Could not find login submit button');
 
-    const pwOk = await fillFirstVisible(passwordCandidates, password);
-    if (!pwOk) throw new Error('Could not find login password input');
-
-    const clicked = await clickFirstVisible([
-      page.getByRole('button', { name: /log in|login|sign in/i }),
-      page.getByRole('button', { name: /continue/i }),
-    ]);
-    if (!clicked) throw new Error('Could not find login submit button');
-
-    const loggedIn = await page
-      .waitForURL(/#\/(vault|home|tabs|settings|setup-extension)/, {
-        timeout: timeoutMs,
-      })
-      .then(() => true)
-      .catch(() => false);
-    if (!loggedIn) {
-      const bodyText = await page
-        .locator('body')
-        .innerText()
-        .catch(() => '');
-      throw new Error(
-        `Login did not complete within ${timeoutMs}ms. Still at ${page.url()}.\n` +
-          bodyText.slice(0, 500),
-      );
+      const loggedIn = await page
+        .waitForURL(/#\/(vault|home|tabs|settings|setup-extension)/, {
+          timeout: timeoutMs,
+        })
+        .then(() => true)
+        .catch(() => false);
+      if (!loggedIn) {
+        const bodyText = await page
+          .locator('body')
+          .innerText()
+          .catch(() => '');
+        throw new Error(
+          `Login did not complete within ${timeoutMs}ms. Still at ${page.url()}.\n` +
+            bodyText.slice(0, 500),
+        );
+      }
     }
 
     // Some first-login flows land on setup-extension and block settings routes
@@ -421,7 +425,10 @@ async function main() {
       page.waitForTimeout(timeoutMs),
     ]);
 
-    const bodyText = await page.locator('body').innerText().catch(() => '');
+    const bodyText = await page
+      .locator('body')
+      .innerText()
+      .catch(() => '');
     const clientIdMatch = bodyText.match(/client_id:\s*([^\s]+)/i);
     const clientSecretMatch = bodyText.match(/client_secret:\s*([^\s]+)/i);
 
