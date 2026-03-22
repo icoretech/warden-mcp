@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.20](https://github.com/icoretech/warden-mcp/compare/v0.1.19...v0.1.20) (2026-03-22)
+
+
+### Bug Fixes
+
+* reset stale macos bw cli state ([4520fcb](https://github.com/icoretech/warden-mcp/commit/4520fcb620cedc667b8f053f03df76136486b440))
+
 ## [0.1.19](https://github.com/icoretech/warden-mcp/compare/v0.1.18...v0.1.19) (2026-03-22)
 
 
