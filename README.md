@@ -121,7 +121,7 @@ docker run --rm -p 3005:3005 ghcr.io/icoretech/warden-mcp
 ### Global install
 
 ```bash
-npm install -g @icoretech/warden-mcp
+npm install -g @icoretech/warden-mcp@latest
 warden-mcp
 ```
 
@@ -130,7 +130,7 @@ warden-mcp
 For local MCP hosts, stdio is the most portable option.
 
 ```bash
-npx -y @icoretech/warden-mcp --stdio
+npx -y @icoretech/warden-mcp@latest --stdio
 ```
 
 The examples below use Bitwarden API-key auth. If you prefer username/password login, replace `BW_CLIENTID` + `BW_CLIENTSECRET` with `BW_USER`.
@@ -146,10 +146,10 @@ codex mcp add warden \
   --env BW_CLIENTID=user.xxxxx \
   --env BW_CLIENTSECRET=xxxxx \
   --env BW_PASSWORD='your-master-password' \
-  -- npx -y @icoretech/warden-mcp --stdio
+  -- npx -y @icoretech/warden-mcp@latest --stdio
 
 # Claude Code
-claude mcp add-json warden '{"command":"npx","args":["-y","@icoretech/warden-mcp","--stdio"],"env":{"BW_HOST":"https://vaultwarden.example.com","BW_CLIENTID":"user.xxxxx","BW_CLIENTSECRET":"xxxxx","BW_PASSWORD":"your-master-password"}}'
+claude mcp add-json warden '{"command":"npx","args":["-y","@icoretech/warden-mcp@latest","--stdio"],"env":{"BW_HOST":"https://vaultwarden.example.com","BW_CLIENTID":"user.xxxxx","BW_CLIENTSECRET":"xxxxx","BW_PASSWORD":"your-master-password"}}'
 
 # Qwen Code
 qwen mcp add warden \
@@ -157,7 +157,7 @@ qwen mcp add warden \
   -e BW_CLIENTID=user.xxxxx \
   -e BW_CLIENTSECRET=xxxxx \
   -e BW_PASSWORD=your-master-password \
-  npx -y @icoretech/warden-mcp --stdio
+  npx -y @icoretech/warden-mcp@latest --stdio
 ```
 
 ### JSON config hosts

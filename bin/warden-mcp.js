@@ -3,9 +3,9 @@
 // bin/warden-mcp.js — CLI entry for @icoretech/warden-mcp
 
 import { spawnSync } from 'node:child_process';
-import { accessSync, constants, existsSync } from 'node:fs';
+import { accessSync, constants, existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -14,12 +14,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 if (!process.env.BW_BIN) {
   try {
     const require = createRequire(import.meta.url);
-    // @bitwarden/cli installs the binary at <pkg>/dist/bw (the npm bin shim
-    // lives at node_modules/.bin/bw, but we resolve to the actual package).
+    const { resolveBundledBwCandidate } = await import(
+      resolve(__dirname, '../dist/bw/resolveBwBin.js')
+    );
     const pkgManifest = require.resolve('@bitwarden/cli/package.json');
-    const pkgDir = dirname(pkgManifest);
-    // The CLI binary is published as `bw` (no extension) inside the package.
-    const candidate = join(pkgDir, 'dist', 'bw');
+    const pkgJson = JSON.parse(readFileSync(pkgManifest, 'utf8'));
+    const candidate = resolveBundledBwCandidate(pkgManifest, pkgJson.bin);
     if (existsSync(candidate)) {
       try {
         accessSync(candidate, constants.X_OK);
