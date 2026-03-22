@@ -3,8 +3,7 @@
 // bin/warden-mcp.js — CLI entry for @icoretech/warden-mcp
 
 import { spawnSync } from 'node:child_process';
-import { accessSync, constants, existsSync, readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
+import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -13,20 +12,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Resolve bw binary: optional dep → system PATH
 if (!process.env.BW_BIN) {
   try {
-    const require = createRequire(import.meta.url);
-    const { resolveBundledBwCandidate } = await import(
+    const { resolveBundledBwBin } = await import(
       resolve(__dirname, '../dist/bw/resolveBwBin.js')
     );
-    const pkgManifest = require.resolve('@bitwarden/cli/package.json');
-    const pkgJson = JSON.parse(readFileSync(pkgManifest, 'utf8'));
-    const candidate = resolveBundledBwCandidate(pkgManifest, pkgJson.bin);
-    if (existsSync(candidate)) {
-      try {
-        accessSync(candidate, constants.X_OK);
-        process.env.BW_BIN = candidate;
-      } catch {
-        // Not executable — fall through to system bw
-      }
+    const candidate = resolveBundledBwBin();
+    if (candidate) {
+      process.env.BW_BIN = candidate;
     }
   } catch {
     // @bitwarden/cli optional dep not installed — fall through to system bw

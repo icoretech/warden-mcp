@@ -1,8 +1,7 @@
 FROM node:24-bookworm-slim
 
-# Dev image: Node + Bitwarden CLI.
-# Use the npm-distributed CLI for multi-arch compatibility (arm64/amd64).
-RUN npm install -g @bitwarden/cli@2026.1.0
+# Dev image: Node only. The runtime resolves `bw` from the repo-installed
+# optional dependency so compose and CI exercise the candidate package version.
 
 # The official node image already includes a `node` user (uid/gid 1000).
 RUN mkdir -p /app /data \

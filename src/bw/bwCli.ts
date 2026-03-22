@@ -1,6 +1,7 @@
 // src/bw/bwCli.ts
 
 import { spawn } from 'node:child_process';
+import { resolveBundledBwBin } from './resolveBwBin.js';
 
 export interface BwRunOptions {
   env?: NodeJS.ProcessEnv;
@@ -35,7 +36,7 @@ export async function runBw(
   args: string[],
   opts: BwRunOptions = {},
 ): Promise<BwRunResult> {
-  const bwBin = process.env.BW_BIN ?? 'bw';
+  const bwBin = process.env.BW_BIN ?? resolveBundledBwBin() ?? 'bw';
   // Ensure the CLI never blocks waiting for a prompt (e.g. master password).
   // This is critical for running as an MCP server / in test automation.
   const injectNoInteraction = opts.noInteraction ?? true;

@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { describe, test } from 'node:test';
 
 import { BwCliError, runBw } from './bwCli.js';
+import { resolveBundledBwBin } from './resolveBwBin.js';
 
 async function createScript(
   dir: string,
@@ -126,6 +127,30 @@ describe('runBw', () => {
     } finally {
       process.env.BW_BIN = savedBin;
       await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('prefers bundled optional bw when BW_BIN is unset', async (t) => {
+    const savedBin = process.env.BW_BIN;
+    const savedPath = process.env.PATH;
+    const bundled = resolveBundledBwBin();
+    if (!bundled) {
+      t.skip('bundled @bitwarden/cli is not installed in this environment');
+      return;
+    }
+
+    try {
+      delete process.env.BW_BIN;
+      process.env.PATH = dirname(process.execPath);
+      const result = await runBw(['--version'], { timeoutMs: 30_000 });
+      assert.match(
+        result.stdout,
+        /\d{4}\.\d+\.\d+/,
+        'runBw should resolve the bundled bw binary without relying on PATH',
+      );
+    } finally {
+      process.env.BW_BIN = savedBin;
+      process.env.PATH = savedPath;
     }
   });
 
