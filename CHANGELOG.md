@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.17](https://github.com/icoretech/warden-mcp/compare/v0.1.16...v0.1.17) (2026-03-22)
+
+
+### Bug Fixes
+
+* make compose ci use bundled bw candidate ([eae46f8](https://github.com/icoretech/warden-mcp/commit/eae46f8f208a8c70010cf017f29308dd89845c71))
+* retry post-login unlock for bw auth ([7641433](https://github.com/icoretech/warden-mcp/commit/764143358de2c5c5f4d157fb521f034fa47252ab))
+
 ## [0.1.16](https://github.com/icoretech/warden-mcp/compare/v0.1.15...v0.1.16) (2026-03-22)
 
 
