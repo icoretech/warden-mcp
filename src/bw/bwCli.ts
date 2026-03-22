@@ -6,6 +6,7 @@ export interface BwRunOptions {
   env?: NodeJS.ProcessEnv;
   stdin?: string;
   timeoutMs?: number;
+  noInteraction?: boolean;
 }
 
 export interface BwRunResult {
@@ -37,9 +38,11 @@ export async function runBw(
   const bwBin = process.env.BW_BIN ?? 'bw';
   // Ensure the CLI never blocks waiting for a prompt (e.g. master password).
   // This is critical for running as an MCP server / in test automation.
-  const finalArgs = args.includes('--nointeraction')
-    ? args
-    : ['--nointeraction', ...args];
+  const injectNoInteraction = opts.noInteraction ?? true;
+  const finalArgs =
+    injectNoInteraction && !args.includes('--nointeraction')
+      ? ['--nointeraction', ...args]
+      : args;
   const env: NodeJS.ProcessEnv = { ...process.env, ...(opts.env ?? {}) };
   const debug =
     (process.env.KEYCHAIN_DEBUG_BW ?? 'false').toLowerCase() === 'true';

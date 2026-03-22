@@ -218,7 +218,7 @@ export class BwSessionManager {
       try {
         const { stdout } = await runBw(
           ['unlock', '--passwordenv', 'BW_PASSWORD', '--raw'],
-          { env: unlockEnv, timeoutMs: 60_000 },
+          { env: unlockEnv, timeoutMs: 60_000, noInteraction: false },
         );
         return stdout.trim();
       } catch {
@@ -236,6 +236,7 @@ export class BwSessionManager {
               BW_HOST: this.env.host,
             }),
             timeoutMs: 60_000,
+            noInteraction: false,
           });
           return stdout.trim();
         }
@@ -248,7 +249,7 @@ export class BwSessionManager {
             'BW_PASSWORD',
             '--raw',
           ],
-          { env: unlockEnv, timeoutMs: 60_000 },
+          { env: unlockEnv, timeoutMs: 60_000, noInteraction: false },
         );
         return stdout.trim();
       } catch {

@@ -111,6 +111,24 @@ describe('runBw', () => {
     }
   });
 
+  test('can skip --nointeraction injection when requested', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-cli-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const bw = await createScript(dir, 'bw', '#!/bin/sh\necho "$@"\n');
+      process.env.BW_BIN = bw;
+      const result = await runBw(['login', 'user@example.com'], {
+        timeoutMs: 5000,
+        noInteraction: false,
+      });
+      assert.ok(!result.stdout.includes('--nointeraction'));
+      assert.ok(result.stdout.includes('login user@example.com'));
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   test('timeout kills process and throws', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'bw-cli-test-'));
     const savedBin = process.env.BW_BIN;
