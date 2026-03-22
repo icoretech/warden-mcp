@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.11](https://github.com/icoretech/warden-mcp/compare/v0.1.10...v0.1.11) (2026-03-22)
+
+
+### Bug Fixes
+
+* pin bundled bw cli to 2026.1.0 ([82731c7](https://github.com/icoretech/warden-mcp/commit/82731c7f0bd466d60d3f86e40810d9567d4f5c66))
+
 ## [0.1.10](https://github.com/icoretech/warden-mcp/compare/v0.1.9...v0.1.10) (2026-03-22)
 
 
