@@ -10,7 +10,9 @@ tmp
 docs/
 
 rotations/
-scripts/
+scripts/*
+!scripts/session-flood-regression.mjs
+!scripts/vaultwarden-bootstrap.mjs
 .desloppify/
 .claude/
 scorecard.png

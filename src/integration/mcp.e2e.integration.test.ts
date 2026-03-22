@@ -18,8 +18,14 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
   const bwHost = process.env.BW_HOST;
   const bwPassword = process.env.BW_PASSWORD;
   const bwUser = process.env.BW_USER ?? process.env.BW_USERNAME;
-  if (!bwHost || !bwPassword || !bwUser) {
-    t.skip('Missing BW_HOST/BW_USER/BW_PASSWORD (required for MCP e2e test)');
+  const bwClientId = process.env.BW_CLIENTID;
+  const bwClientSecret = process.env.BW_CLIENTSECRET;
+  const hasUserPass = Boolean(bwUser);
+  const hasApiKey = Boolean(bwClientId && bwClientSecret);
+  if (!bwHost || !bwPassword || (!hasUserPass && !hasApiKey)) {
+    t.skip(
+      'Missing BW_HOST/BW_PASSWORD and either BW_USER/BW_USERNAME or BW_CLIENTID/BW_CLIENTSECRET',
+    );
     return;
   }
 
@@ -40,8 +46,14 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
     requestInit: {
       headers: {
         'X-BW-Host': bwHost,
-        'X-BW-User': bwUser,
         'X-BW-Password': bwPassword,
+        ...(hasUserPass ? { 'X-BW-User': bwUser } : {}),
+        ...(hasApiKey
+          ? {
+              'X-BW-ClientId': bwClientId,
+              'X-BW-ClientSecret': bwClientSecret,
+            }
+          : {}),
       },
     },
   });

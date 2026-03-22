@@ -34,6 +34,7 @@ services:
       - .env.test-org
     environment:
       VW_BASE_URL: https://vaultwarden-org-https
+      VW_APIKEY_ENV_FILE: tmp/vaultwarden-bootstrap/apikey-org.env
     depends_on:
       vaultwarden-org-https:
         condition: service_started

@@ -1,4 +1,4 @@
-.PHONY: build up down bootstrap test logs ps up-org bootstrap-org test-org down-org ps-org
+.PHONY: build up down bootstrap test test-apikey logs ps up-org bootstrap-org test-org down-org ps-org
 
 COMPOSE := docker compose
 COMPOSE_ORG := docker compose -p keychain-mcp-org -f docker-compose.org.yml
@@ -32,7 +32,13 @@ down-org:
 	$(COMPOSE_ORG) down
 
 test:
+	$(COMPOSE) run --rm bootstrap
 	$(COMPOSE) run --rm tests
+	$(COMPOSE) run --rm tests-apikey
+
+test-apikey:
+	$(COMPOSE) run --rm bootstrap
+	$(COMPOSE) run --rm tests-apikey
 
 logs:
 	$(COMPOSE) logs -f

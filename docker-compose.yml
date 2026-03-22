@@ -63,6 +63,7 @@ services:
       - .:/work
     environment:
       VW_BASE_URL: https://vaultwarden-https
+      VW_APIKEY_ENV_FILE: tmp/vaultwarden-bootstrap/apikey.env
     env_file:
       - .env.test
     depends_on:
@@ -97,6 +98,38 @@ services:
       vaultwarden-https:
         condition: service_started
     command: sh -lc "npm install && npm run test:integration"
+
+  tests-apikey:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    env_file:
+      - .env.test
+    volumes:
+      - .:/app
+      - node-modules:/app/node_modules
+      - bw-test-data:/data
+    environment:
+      HOME: /data
+      NODE_ENV: test
+      BW_HOST: https://vaultwarden-https
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
+      KEYCHAIN_SYNC_ON_WRITE: "false"
+    user: "0:0"
+    depends_on:
+      vaultwarden:
+        condition: service_healthy
+      vaultwarden-https:
+        condition: service_started
+    command: >
+      sh -lc "npm install &&
+      test -s tmp/vaultwarden-bootstrap/apikey.env &&
+      set -a &&
+      . ./.env.test &&
+      . ./tmp/vaultwarden-bootstrap/apikey.env &&
+      unset BW_USER BW_USERNAME &&
+      set +a &&
+      npm run test:integration"
 
 volumes:
   bw-data: {}

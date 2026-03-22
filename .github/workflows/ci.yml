@@ -49,6 +49,7 @@ jobs:
           docker compose up -d vaultwarden vaultwarden-https
           docker compose run --rm bootstrap
           docker compose run --rm tests
+          docker compose run --rm tests-apikey
 
       - name: dump compose logs
         if: always()
