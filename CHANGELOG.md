@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.15](https://github.com/icoretech/warden-mcp/compare/v0.1.14...v0.1.15) (2026-03-22)
+
+
+### Bug Fixes
+
+* add api-key compatibility smoke coverage ([c7f0639](https://github.com/icoretech/warden-mcp/commit/c7f063955b3ca369f8c7751203c8cbee58bad10b))
+
 ## [0.1.14](https://github.com/icoretech/warden-mcp/compare/v0.1.13...v0.1.14) (2026-03-22)
 
 
