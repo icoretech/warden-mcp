@@ -20,7 +20,11 @@ if (useStdio) {
 } else {
   const PORT = Number.parseInt(process.env.PORT ?? '3005', 10);
   const app = createKeychainApp();
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`[warden-mcp] listening on http://localhost:${PORT}/sse`);
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once('close', resolve);
+    server.once('error', reject);
   });
 }

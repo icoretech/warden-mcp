@@ -56,8 +56,14 @@ npm install -g @bitwarden/cli
 Or run with an explicit binary path:
 
 ```bash
-BW_BIN=/absolute/path/to/bw npx -y @icoretech/warden-mcp
+BW_BIN=/absolute/path/to/bw npx -y @icoretech/warden-mcp@latest
 ```
+
+`warden-mcp` intentionally bundles a vetted `@bitwarden/cli` version instead of
+blindly following the newest upstream CLI on every release. New `bw` releases
+can change login and unlock behavior in ways that break automation, so `bw`
+upgrades should be smoke-tested against real Vaultwarden and Bitwarden flows
+before bumping the bundled version.
 
 ## Install And Run
 
@@ -69,7 +75,7 @@ BW_BIN=/absolute/path/to/bw npx -y @icoretech/warden-mcp
 ### Local stdio mode
 
 ```bash
-npx -y @icoretech/warden-mcp --stdio
+npx -y @icoretech/warden-mcp@latest --stdio
 ```
 
 For stdio mode, you must provide Bitwarden credentials up front via env vars:
@@ -78,7 +84,7 @@ For stdio mode, you must provide Bitwarden credentials up front via env vars:
 BW_HOST=https://vaultwarden.example.com \
 BW_USER=user@example.com \
 BW_PASSWORD='your-master-password' \
-npx -y @icoretech/warden-mcp --stdio
+npx -y @icoretech/warden-mcp@latest --stdio
 ```
 
 API key login works too:
@@ -88,7 +94,7 @@ BW_HOST=https://vaultwarden.example.com \
 BW_CLIENTID=user.xxxxx \
 BW_CLIENTSECRET=xxxxx \
 BW_PASSWORD='your-master-password' \
-npx -y @icoretech/warden-mcp --stdio
+npx -y @icoretech/warden-mcp@latest --stdio
 ```
 
 ### Shared HTTP mode
@@ -96,7 +102,7 @@ npx -y @icoretech/warden-mcp --stdio
 Start one long-lived MCP server:
 
 ```bash
-npx -y @icoretech/warden-mcp
+npx -y @icoretech/warden-mcp@latest
 ```
 
 Verify it is up:
@@ -115,7 +121,7 @@ This mode is what makes `warden-mcp` different from a simple local wrapper:
 ### Docker
 
 ```bash
-docker run --rm -p 3005:3005 ghcr.io/icoretech/warden-mcp
+docker run --rm -p 3005:3005 ghcr.io/icoretech/warden-mcp:latest
 ```
 
 ### Global install
@@ -176,7 +182,7 @@ Shared JSON shape:
   "mcpServers": {
     "warden": {
       "command": "npx",
-      "args": ["-y", "@icoretech/warden-mcp", "--stdio"],
+      "args": ["-y", "@icoretech/warden-mcp@latest", "--stdio"],
       "env": {
         "BW_HOST": "https://vaultwarden.example.com",
         "BW_CLIENTID": "user.xxxxx",
@@ -193,7 +199,8 @@ Codex uses TOML instead of JSON:
 ```toml
 [mcp_servers.warden]
 command = "npx"
-args = ["-y", "@icoretech/warden-mcp", "--stdio"]
+args = ["-y", "@icoretech/warden-mcp@latest", "--stdio"]
+startup_timeout_sec = 30
 
 [mcp_servers.warden.env]
 BW_HOST = "https://vaultwarden.example.com"
@@ -201,6 +208,10 @@ BW_CLIENTID = "user.xxxxx"
 BW_CLIENTSECRET = "xxxxx"
 BW_PASSWORD = "your-master-password"
 ```
+
+`startup_timeout_sec = 30` is a practical Codex default when using `npx`,
+because a cold first launch can spend several seconds downloading and unpacking
+the package before MCP initialization begins.
 
 ### Windsurf
 
@@ -211,7 +222,7 @@ Windsurf uses the same stdio idea but stores it in `~/.codeium/windsurf/mcp_conf
   "mcpServers": {
     "warden": {
       "command": "npx",
-      "args": ["-y", "@icoretech/warden-mcp", "--stdio"],
+      "args": ["-y", "@icoretech/warden-mcp@latest", "--stdio"],
       "env": {
         "BW_HOST": "https://vaultwarden.example.com",
         "BW_CLIENTID": "user.xxxxx",
@@ -230,7 +241,7 @@ If your MCP host supports Streamable HTTP with custom headers, you can connect t
 Start the shared server:
 
 ```bash
-npx -y @icoretech/warden-mcp
+npx -y @icoretech/warden-mcp@latest
 ```
 
 Every MCP request must include:
@@ -419,7 +430,7 @@ If you run `warden-mcp` beyond local development, review these items:
 Run the published package in HTTP mode and verify the server is up:
 
 ```bash
-npx -y @icoretech/warden-mcp
+npx -y @icoretech/warden-mcp@latest
 curl -fsS http://localhost:3005/healthz
 ```
 
