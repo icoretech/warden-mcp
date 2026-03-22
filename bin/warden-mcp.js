@@ -2,41 +2,21 @@
 
 // bin/warden-mcp.js — CLI entry for @icoretech/warden-mcp
 
-import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Resolve bw binary: optional dep → system PATH
-if (!process.env.BW_BIN) {
-  try {
-    const { resolveBundledBwBin } = await import(
-      resolve(__dirname, '../dist/bw/resolveBwBin.js')
-    );
-    const candidate = resolveBundledBwBin();
-    if (candidate) {
-      process.env.BW_BIN = candidate;
-    }
-  } catch {
-    // @bitwarden/cli optional dep not installed — fall through to system bw
-  }
+const startupPath = resolve(__dirname, '../dist/startup/bwStartup.js');
+if (!existsSync(startupPath)) {
+  console.error(
+    '[warden-mcp] ERROR: dist/startup/bwStartup.js not found. Run `npm run build` first.',
+  );
+  process.exit(1);
 }
-
-// Verify bw is available (either from optional dep or system PATH)
-if (!process.env.BW_BIN) {
-  const probe = spawnSync('bw', ['--version'], { encoding: 'utf8' });
-  if (probe.error) {
-    console.error(
-      '[warden-mcp] ERROR: bw CLI not found.\n' +
-        'Install it with:  npm install -g @bitwarden/cli\n' +
-        'Or set the BW_BIN environment variable to the path of the bw binary.',
-    );
-    process.exit(1);
-  }
-  // System bw is available — bwCli.ts will find it via PATH
-}
+const { prepareBwStartup } = await import(startupPath);
+prepareBwStartup(process.env);
 
 // Delegate to the compiled server entry, forwarding all arguments.
 const serverPath = resolve(__dirname, '../dist/server.js');

@@ -111,7 +111,18 @@ export async function runBw(
   });
 
   const completed = new Promise<BwRunResult>((resolve, reject) => {
-    child.on('error', reject);
+    child.on('error', (error: NodeJS.ErrnoException) => {
+      const safeCmd = `${bwBin} ${safeRenderedArgs(finalArgs)}`;
+      if (error.code === 'ENOENT') {
+        reject(
+          new Error(
+            `bw CLI not available for ${safeCmd}. Install @bitwarden/cli or set BW_BIN to a valid bw binary.`,
+          ),
+        );
+        return;
+      }
+      reject(new Error(`Failed to start ${safeCmd}: ${error.message}`));
+    });
     child.on('close', (code) => {
       if (timeout) clearTimeout(timeout);
       const stdout = Buffer.concat(stdoutChunks).toString('utf8');

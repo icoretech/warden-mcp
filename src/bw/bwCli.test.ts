@@ -36,6 +36,21 @@ describe('runBw', () => {
     }
   });
 
+  test('missing bw binary throws a helpful error', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-cli-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      process.env.BW_BIN = join(dir, 'missing-bw');
+      await assert.rejects(
+        () => runBw(['status'], { timeoutMs: 5_000 }),
+        /bw CLI not available.*Install @bitwarden\/cli.*BW_BIN/s,
+      );
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   test('captures stderr', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'bw-cli-test-'));
     const savedBin = process.env.BW_BIN;
