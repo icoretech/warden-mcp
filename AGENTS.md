@@ -17,6 +17,7 @@ Endpoints: `http://localhost:3005/healthz`, `http://localhost:3005/sse`
 ## Detailed Instructions
 
 - [Architecture & Layout](agent-instructions/architecture.md)
+- [Compatibility & Releases](agent-instructions/compatibility.md)
 - [TypeScript & Naming](agent-instructions/typescript.md)
 - [Testing](agent-instructions/testing.md)
 - [Security & Runtime](agent-instructions/security.md)
