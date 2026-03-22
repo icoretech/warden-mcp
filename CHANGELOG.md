@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.21](https://github.com/icoretech/warden-mcp/compare/v0.1.20...v0.1.21) (2026-03-22)
+
+
+### Bug Fixes
+
+* patch hoisted bw installs correctly ([405621f](https://github.com/icoretech/warden-mcp/commit/405621f5c7ef2291b9fc926a6aa415b9acd04c5a))
+
 ## [0.1.20](https://github.com/icoretech/warden-mcp/compare/v0.1.19...v0.1.20) (2026-03-22)
 
 
