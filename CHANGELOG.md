@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.13](https://github.com/icoretech/warden-mcp/compare/v0.1.12...v0.1.13) (2026-03-22)
+
+
+### Bug Fixes
+
+* keep http transport entrypoint alive ([6223da6](https://github.com/icoretech/warden-mcp/commit/6223da67cea4dfe851a0ce00ba7ee183fd92accd))
+
 ## [0.1.12](https://github.com/icoretech/warden-mcp/compare/v0.1.11...v0.1.12) (2026-03-22)
 
 
