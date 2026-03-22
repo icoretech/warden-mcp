@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.19](https://github.com/icoretech/warden-mcp/compare/v0.1.18...v0.1.19) (2026-03-22)
+
+
+### Bug Fixes
+
+* **docker:** ship patched bw cli in image ([325d744](https://github.com/icoretech/warden-mcp/commit/325d7449e1371888a93d228822a164ed1522e9bf))
+
 ## [0.1.18](https://github.com/icoretech/warden-mcp/compare/v0.1.17...v0.1.18) (2026-03-22)
 
 
