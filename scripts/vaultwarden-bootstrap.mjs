@@ -147,8 +147,9 @@ async function main() {
           .first()
           .isVisible()
           .catch(() => false))
-      )
-        return;
+      ) {
+        return 'register';
+      }
     }
 
     // Fallback: login page -> click create/register link/button.
@@ -163,6 +164,31 @@ async function main() {
     ]);
 
     await page.waitForLoadState('networkidle').catch(() => {});
+
+    for (const loc of emailCandidates) {
+      if (
+        (await loc.count()) &&
+        (await loc
+          .first()
+          .isVisible()
+          .catch(() => false))
+      ) {
+        return 'register';
+      }
+    }
+
+    const loginPasswordVisible = await page
+      .locator(
+        "input[formcontrolname='masterPassword'], input[formcontrolname='password'], input[autocomplete='current-password']",
+      )
+      .first()
+      .isVisible()
+      .catch(() => false);
+    if (loginPasswordVisible || /#\/login\b/.test(page.url())) {
+      return 'login';
+    }
+
+    throw new Error('Could not reach Vaultwarden registration flow');
   }
 
   async function ensureLoggedIn() {
@@ -443,7 +469,13 @@ async function main() {
     await clearApiKeyEnvFile();
 
     let userAlreadyExists = false;
-    await ensureOnRegister();
+    const registerMode = await ensureOnRegister();
+    if (registerMode === 'login') {
+      console.log(
+        '[bootstrap] landed on existing-account login flow, skipping registration',
+      );
+      userAlreadyExists = true;
+    }
 
     const ctx = await page
       .evaluate(() => ({
