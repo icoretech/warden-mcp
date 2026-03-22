@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.10](https://github.com/icoretech/warden-mcp/compare/v0.1.9...v0.1.10) (2026-03-22)
+
+
+### Bug Fixes
+
+* skip --nointeraction for bw auth bootstrap ([368bc5d](https://github.com/icoretech/warden-mcp/commit/368bc5d06e4d844a33b5704cc561bb36fe0f7856))
+
 ## [0.1.9](https://github.com/icoretech/warden-mcp/compare/v0.1.8...v0.1.9) (2026-03-21)
 
 
