@@ -38,3 +38,22 @@ jobs:
         uses: docker://rhysd/actionlint:latest
         with:
           args: -color
+
+  integration-compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: run docker-compose integration smoke
+        run: |
+          docker compose up -d vaultwarden vaultwarden-https
+          docker compose run --rm bootstrap
+          docker compose run --rm tests
+
+      - name: dump compose logs
+        if: always()
+        run: docker compose logs --no-color || true
+
+      - name: tear down compose stack
+        if: always()
+        run: docker compose down -v --remove-orphans

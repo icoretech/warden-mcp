@@ -265,4 +265,30 @@ describe('runBw', () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  test('debug error path tolerates non-string argv values', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-cli-test-'));
+    const savedBin = process.env.BW_BIN;
+    const savedDebug = process.env.KEYCHAIN_DEBUG_BW;
+    try {
+      const bw = await createScript(dir, 'bw', '#!/bin/sh\nexit 1\n');
+      process.env.BW_BIN = bw;
+      process.env.KEYCHAIN_DEBUG_BW = 'true';
+      await assert.rejects(
+        () =>
+          runBw(['config', 'server', undefined] as unknown as string[], {
+            timeoutMs: 5000,
+          }),
+        (err: unknown) => {
+          assert.ok(err instanceof BwCliError);
+          assert.equal(err.exitCode, 1);
+          return true;
+        },
+      );
+    } finally {
+      process.env.BW_BIN = savedBin;
+      process.env.KEYCHAIN_DEBUG_BW = savedDebug;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });

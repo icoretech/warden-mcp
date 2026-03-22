@@ -48,7 +48,8 @@ export async function runBw(
     (process.env.KEYCHAIN_DEBUG_BW ?? 'false').toLowerCase() === 'true';
   const startedAt = Date.now();
 
-  function safeArg(a: string): string {
+  function safeArg(a: string | undefined): string {
+    if (typeof a !== 'string') return '<redacted>';
     // Avoid logging encoded JSON blobs (may contain secrets).
     if (a.length > 80) return '<redacted>';
     return a;
