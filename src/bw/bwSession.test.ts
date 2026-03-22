@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, test } from 'node:test';
@@ -557,6 +557,62 @@ printf '{}'; exit 0
       const manager = new BwSessionManager(apiEnv);
       const session = await manager.withSession(async (s) => s);
       assert.equal(session, 'recovered-apikey-session');
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('apikey login resets stale macos cli profile and retries once after empty session', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const staleDir = join(
+        dir,
+        'Library',
+        'Application Support',
+        'Bitwarden CLI',
+      );
+      await mkdir(staleDir, { recursive: true });
+      await writeFile(join(staleDir, 'data.json'), '{"stale":true}');
+
+      const scriptPath = join(dir, 'fake-bw');
+      const staleFile = join(staleDir, 'data.json');
+      const script = `#!/bin/sh
+STALE_FILE="${staleFile}"
+if echo "$*" | grep -q 'config server'; then exit 0; fi
+if echo "$*" | grep -q 'logout'; then exit 0; fi
+if echo "$*" | grep -q 'unlock --check'; then exit 1; fi
+if echo "$*" | grep -q 'login --apikey'; then
+  if [ -f "$STALE_FILE" ]; then
+    printf 'You are already logged in as masterkain@gmail.com.' >&2
+  fi
+  exit 1
+fi
+if echo "$*" | grep -q 'unlock'; then
+  if [ -f "$STALE_FILE" ]; then
+    exit 0
+  fi
+  printf 'recovered-macos-session'
+  exit 0
+fi
+printf '{}'; exit 0
+`;
+      await writeFile(scriptPath, script, { mode: 0o755 });
+      process.env.BW_BIN = scriptPath;
+
+      const env = makeEnv(dir);
+      const apiEnv = {
+        ...env,
+        login: {
+          method: 'apikey' as const,
+          clientId: 'test-client-id',
+          clientSecret: 'test-client-secret',
+        },
+      };
+      const manager = new BwSessionManager(apiEnv);
+      const session = await manager.withSession(async (s) => s);
+      assert.equal(session, 'recovered-macos-session');
     } finally {
       process.env.BW_BIN = savedBin;
       await rm(dir, { recursive: true, force: true });

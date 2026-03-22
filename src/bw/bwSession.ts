@@ -204,12 +204,19 @@ export class BwSessionManager {
     );
 
     const home = this.homeDir;
-    await rm(join(home, '.config', 'Bitwarden CLI', 'data.json'), {
-      force: true,
-    }).catch(() => {});
-    await rm(join(home, '.config', 'Bitwarden CLI', 'config.json'), {
-      force: true,
-    }).catch(() => {});
+    const cliStateDirs = [
+      join(home, '.config', 'Bitwarden CLI'),
+      join(home, 'Library', 'Application Support', 'Bitwarden CLI'),
+      join(home, 'AppData', 'Roaming', 'Bitwarden CLI'),
+    ];
+    for (const dir of cliStateDirs) {
+      await rm(join(dir, 'data.json'), {
+        force: true,
+      }).catch(() => {});
+      await rm(join(dir, 'config.json'), {
+        force: true,
+      }).catch(() => {});
+    }
   }
 
   private async ensureUnlockedInternal(): Promise<string> {
