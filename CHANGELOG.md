@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.16](https://github.com/icoretech/warden-mcp/compare/v0.1.15...v0.1.16) (2026-03-22)
+
+
+### Bug Fixes
+
+* stabilize vaultwarden bootstrap smoke ([8060807](https://github.com/icoretech/warden-mcp/commit/806080785e921449452046037cb9a25ef7d70f49))
+
 ## [0.1.15](https://github.com/icoretech/warden-mcp/compare/v0.1.14...v0.1.15) (2026-03-22)
 
 
