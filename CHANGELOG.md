@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.18](https://github.com/icoretech/warden-mcp/compare/v0.1.17...v0.1.18) (2026-03-22)
+
+
+### Features
+
+* include totp timing metadata ([3a72647](https://github.com/icoretech/warden-mcp/commit/3a7264779b1e2df69fb34bcabf50b4ba94d3d686))
+
+
+### Bug Fixes
+
+* allow degraded startup without bw ([748deba](https://github.com/icoretech/warden-mcp/commit/748deba3202affd8d9f17752803d344e7cc6da29))
+* use patch-package for bundled bw compat ([d509b61](https://github.com/icoretech/warden-mcp/commit/d509b611312e4fa963d2c0d2b458cf9d2946cb3f))
+
 ## [0.1.17](https://github.com/icoretech/warden-mcp/compare/v0.1.16...v0.1.17) (2026-03-22)
 
 
