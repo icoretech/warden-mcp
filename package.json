@@ -48,7 +48,7 @@
     "zod": "^4.3.6"
   },
   "optionalDependencies": {
-    "@bitwarden/cli": "2026.1.0"
+    "@bitwarden/cli": "2026.2.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.8",
