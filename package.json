@@ -29,11 +29,13 @@
   "files": [
     "dist/",
     "bin/",
+    "patches/",
     "!dist/**/*.test.js",
     "!dist/integration/"
   ],
   "scripts": {
     "dev": "tsx watch --clear-screen=false src/server.ts",
+    "postinstall": "node bin/patch-bitwarden-cli.js",
     "build": "tsc -p .",
     "start": "node dist/server.js",
     "test": "npm run build && node --test \"dist/**/*.test.js\"",
@@ -45,10 +47,11 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
     "express": "^5.2.1",
+    "patch-package": "^8.0.1",
     "zod": "^4.3.6"
   },
   "optionalDependencies": {
-    "@bitwarden/cli": "2026.1.0"
+    "@bitwarden/cli": "2026.2.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.8",

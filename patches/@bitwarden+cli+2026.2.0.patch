@@ -1,0 +1,80 @@
+diff --git a/node_modules/@bitwarden/cli/build/bw.js b/node_modules/@bitwarden/cli/build/bw.js
+index 6b02f68..2085f5e 100755
+--- a/node_modules/@bitwarden/cli/build/bw.js
++++ b/node_modules/@bitwarden/cli/build/bw.js
+@@ -27093,7 +27093,17 @@ class AuthRequestLoginStrategy extends LoginStrategy {
+     }
+     setAccountCryptographicState(response, userId) {
+         return auth_request_login_strategy_awaiter(this, void 0, void 0, function* () {
+-            yield this.accountCryptographicStateService.setAccountCryptographicState(response.accountKeysResponseModel.toWrappedAccountCryptographicState(), userId);
++            /* icoretech-vaultwarden-compat */
++            if (response.accountKeysResponseModel) {
++                yield this.accountCryptographicStateService.setAccountCryptographicState(response.accountKeysResponseModel.toWrappedAccountCryptographicState(), userId);
++            }
++            else if (response.privateKey) {
++                yield this.accountCryptographicStateService.setAccountCryptographicState({
++                    V1: {
++                        private_key: response.privateKey,
++                    },
++                }, userId);
++            }
+         });
+     }
+     exportCache() {
+@@ -27203,7 +27213,17 @@ class PasswordLoginStrategy extends LoginStrategy {
+     }
+     setAccountCryptographicState(response, userId) {
+         return password_login_strategy_awaiter(this, void 0, void 0, function* () {
+-            yield this.accountCryptographicStateService.setAccountCryptographicState(response.accountKeysResponseModel.toWrappedAccountCryptographicState(), userId);
++            /* icoretech-vaultwarden-compat */
++            if (response.accountKeysResponseModel) {
++                yield this.accountCryptographicStateService.setAccountCryptographicState(response.accountKeysResponseModel.toWrappedAccountCryptographicState(), userId);
++            }
++            else if (response.privateKey) {
++                yield this.accountCryptographicStateService.setAccountCryptographicState({
++                    V1: {
++                        private_key: response.privateKey,
++                    },
++                }, userId);
++            }
+         });
+     }
+     encryptionKeyMigrationRequired(response) {
+@@ -28327,7 +28347,17 @@ class UserApiLoginStrategy extends LoginStrategy {
+     }
+     setAccountCryptographicState(response, userId) {
+         return user_api_login_strategy_awaiter(this, void 0, void 0, function* () {
+-            yield this.accountCryptographicStateService.setAccountCryptographicState(response.accountKeysResponseModel.toWrappedAccountCryptographicState(), userId);
++            /* icoretech-vaultwarden-compat */
++            if (response.accountKeysResponseModel) {
++                yield this.accountCryptographicStateService.setAccountCryptographicState(response.accountKeysResponseModel.toWrappedAccountCryptographicState(), userId);
++            }
++            else if (response.privateKey) {
++                yield this.accountCryptographicStateService.setAccountCryptographicState({
++                    V1: {
++                        private_key: response.privateKey,
++                    },
++                }, userId);
++            }
+         });
+     }
+     // Overridden to save client ID and secret to token service
+@@ -28457,7 +28487,17 @@ class WebAuthnLoginStrategy extends LoginStrategy {
+     }
+     setAccountCryptographicState(response, userId) {
+         return webauthn_login_strategy_awaiter(this, void 0, void 0, function* () {
+-            yield this.accountCryptographicStateService.setAccountCryptographicState(response.accountKeysResponseModel.toWrappedAccountCryptographicState(), userId);
++            /* icoretech-vaultwarden-compat */
++            if (response.accountKeysResponseModel) {
++                yield this.accountCryptographicStateService.setAccountCryptographicState(response.accountKeysResponseModel.toWrappedAccountCryptographicState(), userId);
++            }
++            else if (response.privateKey) {
++                yield this.accountCryptographicStateService.setAccountCryptographicState({
++                    V1: {
++                        private_key: response.privateKey,
++                    },
++                }, userId);
++            }
+         });
+     }
+     exportCache() {

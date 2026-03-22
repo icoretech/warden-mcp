@@ -194,6 +194,24 @@ export class BwSessionManager {
     });
   }
 
+  private async resetCliProfile(): Promise<void> {
+    this.session = null;
+    this.templateItem = null;
+    this.configuredHost = null;
+
+    await runBw(['logout'], { env: this.baseEnv(), timeoutMs: 30_000 }).catch(
+      () => {},
+    );
+
+    const home = this.homeDir;
+    await rm(join(home, '.config', 'Bitwarden CLI', 'data.json'), {
+      force: true,
+    }).catch(() => {});
+    await rm(join(home, '.config', 'Bitwarden CLI', 'config.json'), {
+      force: true,
+    }).catch(() => {});
+  }
+
   private async ensureUnlockedInternal(): Promise<string> {
     // Ensure server config points to BW_HOST.
     await this.ensureServerConfigured();
@@ -282,19 +300,29 @@ export class BwSessionManager {
       return '';
     };
 
-    // Prefer unlocking first (works when already logged in). If it yields an empty
-    // stdout on exit=0 (observed in some bw builds), fall back to login --raw.
-    let session = await tryUnlock();
-    if (!session) {
-      const login = await tryLoginRaw();
-      if (login.session) {
-        session = login.session;
-      } else if (login.completed) {
-        session = await retryUnlockAfterLogin();
+    const obtainSession = async (): Promise<string> => {
+      // Prefer unlocking first (works when already logged in). If it yields an
+      // empty stdout on exit=0 (observed in some bw builds), fall back to
+      // login --raw.
+      let session = await tryUnlock();
+      if (!session) {
+        const login = await tryLoginRaw();
+        if (login.session) {
+          session = login.session;
+        } else if (login.completed) {
+          session = await retryUnlockAfterLogin();
+        }
       }
-    }
-    if (!session) session = await tryUnlock();
+      if (!session) session = await tryUnlock();
+      return session;
+    };
 
+    let session = await obtainSession();
+    if (!session) {
+      await this.resetCliProfile();
+      await this.ensureServerConfigured();
+      session = await obtainSession();
+    }
     if (!session) throw new Error('bw login/unlock returned an empty session');
     this.session = session;
     return session;
@@ -318,14 +346,7 @@ export class BwSessionManager {
     } catch {
       // If the CLI data is corrupt/out-of-sync, wiping config is the fastest recovery.
     }
-
-    const home = this.homeDir;
-    await rm(join(home, '.config', 'Bitwarden CLI', 'data.json'), {
-      force: true,
-    }).catch(() => {});
-    await rm(join(home, '.config', 'Bitwarden CLI', 'config.json'), {
-      force: true,
-    }).catch(() => {});
+    await this.resetCliProfile();
 
     await runBw(['config', 'server', this.env.host], {
       env: this.baseEnv(),

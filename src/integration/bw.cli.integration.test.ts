@@ -131,16 +131,43 @@ test('integration: direct bw cli auth contract works against vaultwarden', {
     return '';
   };
 
-  let session = await tryUnlock();
-  if (!session) {
-    const login = await tryLogin();
-    if (login.session) {
-      session = login.session;
-    } else if (login.completed) {
-      session = await retryUnlockAfterLogin();
+  const obtainSession = async (): Promise<string> => {
+    let session = await tryUnlock();
+    if (!session) {
+      const login = await tryLogin();
+      if (login.session) {
+        session = login.session;
+      } else if (login.completed) {
+        session = await retryUnlockAfterLogin();
+      }
     }
+    if (!session) session = await tryUnlock();
+    return session;
+  };
+
+  const resetCliProfile = async (): Promise<void> => {
+    await runBw(['logout'], {
+      env,
+      timeoutMs: 30_000,
+      noInteraction: false,
+    }).catch(() => {});
+    await rm(join(bwHome, '.config', 'Bitwarden CLI', 'data.json'), {
+      force: true,
+    }).catch(() => {});
+    await rm(join(bwHome, '.config', 'Bitwarden CLI', 'config.json'), {
+      force: true,
+    }).catch(() => {});
+    await runBw(['config', 'server', bwHost], {
+      env,
+      timeoutMs: 60_000,
+    });
+  };
+
+  let session = await obtainSession();
+  if (!session) {
+    await resetCliProfile();
+    session = await obtainSession();
   }
-  if (!session) session = await tryUnlock();
 
   assert.match(
     session,

@@ -517,6 +517,52 @@ printf '{}'; exit 0
     }
   });
 
+  test('apikey login resets stale cli profile and retries once after empty session', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const logoutCounter = join(dir, 'logout-count');
+      await writeFile(logoutCounter, '0');
+      const scriptPath = join(dir, 'fake-bw');
+      const script = `#!/bin/sh
+if echo "$*" | grep -q 'logout'; then
+  count=$(cat "${logoutCounter}")
+  count=$((count + 1))
+  echo "$count" > "${logoutCounter}"
+  exit 0
+fi
+if echo "$*" | grep -q 'config server'; then exit 0; fi
+if echo "$*" | grep -q 'unlock --check'; then exit 1; fi
+if echo "$*" | grep -q 'login --apikey'; then exit 1; fi
+if echo "$*" | grep -q 'unlock'; then
+  count=$(cat "${logoutCounter}")
+  if [ "$count" -ge 2 ]; then
+    printf 'recovered-apikey-session'
+  fi
+  exit 0
+fi
+printf '{}'; exit 0
+`;
+      await writeFile(scriptPath, script, { mode: 0o755 });
+      process.env.BW_BIN = scriptPath;
+      const env = makeEnv(dir);
+      const apiEnv = {
+        ...env,
+        login: {
+          method: 'apikey' as const,
+          clientId: 'test-client-id',
+          clientSecret: 'test-client-secret',
+        },
+      };
+      const manager = new BwSessionManager(apiEnv);
+      const session = await manager.withSession(async (s) => s);
+      assert.equal(session, 'recovered-apikey-session');
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   test('withSession: invalidates cached session when unlock --check fails', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
     const savedBin = process.env.BW_BIN;
