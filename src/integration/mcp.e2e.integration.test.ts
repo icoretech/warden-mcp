@@ -344,10 +344,18 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
         kind?: unknown;
         value?: unknown;
         revealed?: unknown;
+        period?: unknown;
+        timeLeft?: unknown;
       };
       assert.equal(rec.kind, 'totp');
       assert.equal(rec.revealed, true);
       assert.ok(typeof rec.value === 'string' && rec.value.length >= 6);
+      assert.equal(rec.period, 30);
+      assert.ok(
+        typeof rec.timeLeft === 'number' &&
+          rec.timeLeft >= 1 &&
+          rec.timeLeft <= 30,
+      );
     }
 
     const listOrgs = await client.callTool({

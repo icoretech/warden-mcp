@@ -54,8 +54,11 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     return isNoReveal ? false : (input.reveal ?? false);
   }
 
-  function toolResult<T>(kind: string, value: T, revealed: boolean) {
-    return { result: { kind, value, revealed } };
+  function toolResult<
+    T,
+    E extends Record<string, unknown> = Record<never, never>,
+  >(kind: string, value: T, revealed: boolean, extra?: E) {
+    return { result: { kind, value, revealed, ...(extra ?? {}) } };
   }
 
   const uriMatchSchema = z.enum([
@@ -1184,7 +1187,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
         { reveal: effectiveReveal(input) },
       );
       return {
-        structuredContent: toolResult('totp', totp.value, totp.revealed),
+        structuredContent: toolResult('totp', totp.value, totp.revealed, {
+          period: totp.period,
+          timeLeft: totp.timeLeft,
+        }),
         content: [{ type: 'text', text: 'OK' }],
       };
     },

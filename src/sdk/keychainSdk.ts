@@ -16,6 +16,7 @@ import {
 } from './usernameGenerator.js';
 
 type AnyRecord = Record<string, unknown>;
+type TotpMetadata = { period: number | null; timeLeft: number | null };
 
 const ITEM_TYPE = {
   login: 1,
@@ -245,8 +246,113 @@ export class KeychainSdk {
     return (reveal ? value : (redactItem(value) as T)) as T;
   }
 
-  private valueResult(value: string | null, revealed: boolean) {
-    return { value, revealed };
+  private valueResult<T extends Record<string, unknown> = Record<never, never>>(
+    value: string | null,
+    revealed: boolean,
+    extra?: T,
+  ) {
+    return { value, revealed, ...(extra ?? {}) };
+  }
+
+  private extractLoginTotp(item: unknown): string | null {
+    if (!item || typeof item !== 'object') return null;
+    const login = (item as AnyRecord).login;
+    if (!login || typeof login !== 'object') return null;
+    const totp = (login as AnyRecord).totp;
+    return typeof totp === 'string' && totp.trim().length > 0 ? totp : null;
+  }
+
+  private computeTotpMetadata(
+    rawTotp: string | null,
+    nowMs: number = Date.now(),
+  ): TotpMetadata {
+    if (!rawTotp) return { period: null, timeLeft: null };
+
+    let period = 30;
+
+    if (rawTotp.startsWith('otpauth://')) {
+      try {
+        const parsed = new URL(rawTotp);
+        const candidate = Number.parseInt(
+          parsed.searchParams.get('period') ?? '',
+          10,
+        );
+        if (Number.isFinite(candidate) && candidate > 0) {
+          period = candidate;
+        }
+      } catch {
+        return { period: null, timeLeft: null };
+      }
+    }
+
+    const elapsed = Math.floor(nowMs / 1000) % period;
+    return {
+      period,
+      timeLeft: elapsed === 0 ? period : period - elapsed,
+    };
+  }
+
+  private candidateMatchesTerm(item: AnyRecord, terms: string[]): boolean {
+    const id = item.id;
+    const name = item.name;
+    const login =
+      item.login && typeof item.login === 'object'
+        ? (item.login as AnyRecord)
+        : null;
+    const username = login?.username;
+
+    return terms.some(
+      (term) => id === term || name === term || username === term,
+    );
+  }
+
+  private async resolveTotpConfigForSession(
+    session: string,
+    term: string,
+  ): Promise<string | null> {
+    const direct = await this.bw
+      .runForSession(session, ['get', 'item', term], { timeoutMs: 60_000 })
+      .then(({ stdout }) => this.parseBwJson(stdout))
+      .catch(() => null);
+    const directTotp = this.extractLoginTotp(direct);
+    if (directTotp) return directTotp;
+
+    const tokens = term
+      .split('|')
+      .map((token) => token.trim())
+      .filter((token) => token.length > 0);
+    const terms = tokens.length ? tokens : [term];
+    const byId = new Map<string, AnyRecord>();
+
+    for (const searchTerm of terms) {
+      const { stdout } = await this.bw.runForSession(
+        session,
+        ['list', 'items', '--search', searchTerm],
+        { timeoutMs: 120_000 },
+      );
+      const results = this.parseBwJson<unknown[]>(stdout);
+      for (const raw of results) {
+        if (!raw || typeof raw !== 'object') continue;
+        const item = raw as AnyRecord;
+        if (item.type !== ITEM_TYPE.login) continue;
+        const id = item.id;
+        if (typeof id === 'string' && id.length > 0) byId.set(id, item);
+      }
+    }
+
+    const candidates = [...byId.values()];
+    const candidate =
+      candidates.find((item) => this.candidateMatchesTerm(item, terms)) ??
+      candidates[0];
+    if (!candidate || typeof candidate.id !== 'string') return null;
+
+    const { stdout } = await this.bw.runForSession(
+      session,
+      ['get', 'item', candidate.id],
+      { timeoutMs: 60_000 },
+    );
+    const item = this.parseBwJson(stdout);
+    return this.extractLoginTotp(item);
   }
 
   private parseBwJson<T = unknown>(stdout: string): T {
@@ -1184,8 +1290,19 @@ export class KeychainSdk {
   async getTotp(
     input: { term: string },
     opts: { reveal?: boolean } = {},
-  ): Promise<{ value: string | null; revealed: boolean }> {
-    if (!opts.reveal) return this.valueResult(null, false);
+  ): Promise<{
+    value: string | null;
+    revealed: boolean;
+    period: number | null;
+    timeLeft: number | null;
+  }> {
+    if (!opts.reveal) {
+      return {
+        ...this.valueResult(null, false),
+        period: null,
+        timeLeft: null,
+      };
+    }
 
     return this.bw.withSession(async (session) => {
       const { stdout } = await this.bw.runForSession(
@@ -1193,7 +1310,14 @@ export class KeychainSdk {
         ['--raw', 'get', 'totp', input.term],
         { timeoutMs: 60_000 },
       );
-      return this.valueResult(stdout.trim(), true);
+      const rawTotp = await this.resolveTotpConfigForSession(
+        session,
+        input.term,
+      ).catch(() => null);
+      return {
+        ...this.valueResult(stdout.trim(), true),
+        ...this.computeTotpMetadata(rawTotp),
+      };
     });
   }
 

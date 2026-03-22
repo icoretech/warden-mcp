@@ -304,7 +304,7 @@ if echo "$*" | grep -q 'get folder'; then printf '{"id":"f1","name":"Folder1"}';
 if echo "$*" | grep -q 'get collection'; then printf '{"id":"c1","name":"Col1"}'; exit 0; fi
 if echo "$*" | grep -q 'get organization'; then printf '{"id":"org1","name":"Org1"}'; exit 0; fi
 if echo "$*" | grep -q 'get org-collection'; then printf '{"id":"oc1","name":"OrgCol1"}'; exit 0; fi
-if echo "$*" | grep -q 'get item'; then printf '{"id":"1","type":1,"name":"Test","login":{"username":"u","password":"secret","uris":[]},"passwordHistory":[{"password":"old","lastUsedDate":"2024-01-01"}]}'; exit 0; fi
+if echo "$*" | grep -q 'get item'; then printf '{"id":"1","type":1,"name":"Test","login":{"username":"u","password":"secret","totp":"otpauth://totp/Test?secret=JBSWY3DPEHPK3PXP&issuer=Test&period=45","uris":[]},"passwordHistory":[{"password":"old","lastUsedDate":"2024-01-01"}]}'; exit 0; fi
 if echo "$*" | grep -q 'list items'; then printf '[{"id":"1","type":1,"name":"Test Login","login":{"username":"user","password":"pw","uris":[]}}]'; exit 0; fi
 if echo "$*" | grep -q 'list folders'; then printf '[{"id":"f1","name":"Folder1"}]'; exit 0; fi
 if echo "$*" | grep -q 'list org-collections'; then printf '[{"id":"oc1","name":"OrgCol1"}]'; exit 0; fi
@@ -448,8 +448,28 @@ describe('registerTools: e2e with fake bw', () => {
   });
 
   test('get_totp with reveal=true', async () => {
-    const r = await callToolE2e('get_totp', { term: 'test', reveal: true });
-    assert.equal(r.isError, undefined);
+    const originalDateNow = Date.now;
+    Date.now = () => 41_000;
+    try {
+      const r = await callToolE2e('get_totp', { term: 'test', reveal: true });
+      assert.equal(r.isError, undefined);
+      const structured = r.structuredContent as {
+        result?: {
+          kind?: unknown;
+          value?: unknown;
+          revealed?: unknown;
+          period?: unknown;
+          timeLeft?: unknown;
+        };
+      };
+      assert.equal(structured?.result?.kind, 'totp');
+      assert.equal(structured?.result?.revealed, true);
+      assert.equal(structured?.result?.value, '123456');
+      assert.equal(structured?.result?.period, 45);
+      assert.equal(structured?.result?.timeLeft, 4);
+    } finally {
+      Date.now = originalDateNow;
+    }
   });
 
   test('get_uri', async () => {

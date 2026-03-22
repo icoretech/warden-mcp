@@ -851,13 +851,58 @@ describe('KeychainSdk CRUD', () => {
 
   test('getTotp returns value when reveal=true', async () => {
     const { mock } = createMockBw({
-      runResponses: new Map([['get totp', { stdout: '123456\n', stderr: '' }]]),
+      runResponses: new Map([
+        ['get totp', { stdout: '123456\n', stderr: '' }],
+        [
+          'get item test',
+          {
+            stdout: JSON.stringify({
+              id: 'test',
+              type: 1,
+              name: 'otp-item',
+              login: {},
+            }),
+            stderr: '',
+          },
+        ],
+        [
+          'list items --search test',
+          {
+            stdout: JSON.stringify([
+              { id: '1', type: 1, name: 'otp-item', login: { username: 'u' } },
+            ]),
+            stderr: '',
+          },
+        ],
+        [
+          'get item 1',
+          {
+            stdout: JSON.stringify({
+              id: '1',
+              type: 1,
+              name: 'otp-item',
+              login: {
+                totp: 'otpauth://totp/Test?secret=JBSWY3DPEHPK3PXP&issuer=Test&period=45',
+              },
+            }),
+            stderr: '',
+          },
+        ],
+      ]),
     });
 
     const sdk = new KeychainSdk(mock);
-    const result = await sdk.getTotp({ term: 'test' }, { reveal: true });
-    assert.equal(result.value, '123456');
-    assert.equal(result.revealed, true);
+    const originalDateNow = Date.now;
+    Date.now = () => 41_000;
+    try {
+      const result = await sdk.getTotp({ term: 'test' }, { reveal: true });
+      assert.equal(result.value, '123456');
+      assert.equal(result.revealed, true);
+      assert.equal(result.period, 45);
+      assert.equal(result.timeLeft, 4);
+    } finally {
+      Date.now = originalDateNow;
+    }
   });
 
   test('getNotes returns value when reveal=true', async () => {
