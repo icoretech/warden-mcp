@@ -6,6 +6,13 @@ import test from 'node:test';
 
 import { runBw } from '../bw/bwCli.js';
 
+const POST_LOGIN_UNLOCK_RETRY_ATTEMPTS = 20;
+const POST_LOGIN_UNLOCK_RETRY_DELAY_MS = 2_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function waitForVaultwardenAlive(baseUrl: string, timeoutMs = 20_000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -90,7 +97,10 @@ test('integration: direct bw cli auth contract works against vaultwarden', {
     }
   };
 
-  const tryLogin = async (): Promise<string> => {
+  const tryLogin = async (): Promise<{
+    completed: boolean;
+    session: string;
+  }> => {
     const loginArgs = hasApiKey
       ? ['login', '--apikey', '--raw']
       : ['login', bwUser as string, '--passwordenv', 'BW_PASSWORD', '--raw'];
@@ -100,14 +110,36 @@ test('integration: direct bw cli auth contract works against vaultwarden', {
         timeoutMs: 60_000,
         noInteraction: false,
       });
-      return login.stdout.trim();
+      return { completed: true, session: login.stdout.trim() };
     } catch {
-      return '';
+      return { completed: false, session: '' };
     }
   };
 
+  const retryUnlockAfterLogin = async (): Promise<string> => {
+    for (
+      let attempt = 0;
+      attempt < POST_LOGIN_UNLOCK_RETRY_ATTEMPTS;
+      attempt += 1
+    ) {
+      const session = await tryUnlock();
+      if (session) return session;
+      if (attempt < POST_LOGIN_UNLOCK_RETRY_ATTEMPTS - 1) {
+        await sleep(POST_LOGIN_UNLOCK_RETRY_DELAY_MS);
+      }
+    }
+    return '';
+  };
+
   let session = await tryUnlock();
-  if (!session) session = await tryLogin();
+  if (!session) {
+    const login = await tryLogin();
+    if (login.session) {
+      session = login.session;
+    } else if (login.completed) {
+      session = await retryUnlockAfterLogin();
+    }
+  }
   if (!session) session = await tryUnlock();
 
   assert.match(

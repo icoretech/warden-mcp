@@ -470,6 +470,53 @@ printf '{}'; exit 0
     }
   });
 
+  test('apikey login retries unlock when login succeeds without raw session', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const unlockCounter = join(dir, 'unlock-count');
+      const loginMarker = join(dir, 'login-done');
+      await writeFile(unlockCounter, '0');
+      const scriptPath = join(dir, 'fake-bw');
+      const script = `#!/bin/sh
+if echo "$*" | grep -q 'config server'; then exit 0; fi
+if echo "$*" | grep -q 'logout'; then exit 0; fi
+if echo "$*" | grep -q 'login --apikey'; then
+  echo ok > "${loginMarker}"
+  exit 0
+fi
+if echo "$*" | grep -q 'unlock --check'; then exit 1; fi
+if echo "$*" | grep -q 'unlock'; then
+  count=$(cat "${unlockCounter}")
+  count=$((count + 1))
+  echo "$count" > "${unlockCounter}"
+  if [ ! -f "${loginMarker}" ]; then exit 0; fi
+  if [ "$count" -lt 4 ]; then exit 0; fi
+  printf 'delayed-apikey-session'
+  exit 0
+fi
+printf '{}'; exit 0
+`;
+      await writeFile(scriptPath, script, { mode: 0o755 });
+      process.env.BW_BIN = scriptPath;
+      const env = makeEnv(dir);
+      const apiEnv = {
+        ...env,
+        login: {
+          method: 'apikey' as const,
+          clientId: 'test-client-id',
+          clientSecret: 'test-client-secret',
+        },
+      };
+      const manager = new BwSessionManager(apiEnv);
+      const session = await manager.withSession(async (s) => s);
+      assert.equal(session, 'delayed-apikey-session');
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   test('withSession: invalidates cached session when unlock --check fails', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
     const savedBin = process.env.BW_BIN;

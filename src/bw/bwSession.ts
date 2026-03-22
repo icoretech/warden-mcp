@@ -6,6 +6,13 @@ import type { BwRunOptions, BwRunResult } from './bwCli.js';
 import { runBw } from './bwCli.js';
 import { Mutex } from './mutex.js';
 
+const POST_LOGIN_UNLOCK_RETRY_ATTEMPTS = 20;
+const POST_LOGIN_UNLOCK_RETRY_DELAY_MS = 2_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export interface BwEnv {
   host: string;
   password: string;
@@ -226,7 +233,10 @@ export class BwSessionManager {
       }
     };
 
-    const tryLoginRaw = async (): Promise<string> => {
+    const tryLoginRaw = async (): Promise<{
+      completed: boolean;
+      session: string;
+    }> => {
       try {
         if (this.env.login.method === 'apikey') {
           const { stdout } = await runBw(['login', '--apikey', '--raw'], {
@@ -238,7 +248,7 @@ export class BwSessionManager {
             timeoutMs: 60_000,
             noInteraction: false,
           });
-          return stdout.trim();
+          return { completed: true, session: stdout.trim() };
         }
 
         const { stdout } = await runBw(
@@ -251,16 +261,38 @@ export class BwSessionManager {
           ],
           { env: unlockEnv, timeoutMs: 60_000, noInteraction: false },
         );
-        return stdout.trim();
+        return { completed: true, session: stdout.trim() };
       } catch {
-        return '';
+        return { completed: false, session: '' };
       }
+    };
+
+    const retryUnlockAfterLogin = async (): Promise<string> => {
+      for (
+        let attempt = 0;
+        attempt < POST_LOGIN_UNLOCK_RETRY_ATTEMPTS;
+        attempt += 1
+      ) {
+        const session = await tryUnlock();
+        if (session) return session;
+        if (attempt < POST_LOGIN_UNLOCK_RETRY_ATTEMPTS - 1) {
+          await sleep(POST_LOGIN_UNLOCK_RETRY_DELAY_MS);
+        }
+      }
+      return '';
     };
 
     // Prefer unlocking first (works when already logged in). If it yields an empty
     // stdout on exit=0 (observed in some bw builds), fall back to login --raw.
     let session = await tryUnlock();
-    if (!session) session = await tryLoginRaw();
+    if (!session) {
+      const login = await tryLoginRaw();
+      if (login.session) {
+        session = login.session;
+      } else if (login.completed) {
+        session = await retryUnlockAfterLogin();
+      }
+    }
     if (!session) session = await tryUnlock();
 
     if (!session) throw new Error('bw login/unlock returned an empty session');
