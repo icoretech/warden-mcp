@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.14](https://github.com/icoretech/warden-mcp/compare/v0.1.13...v0.1.14) (2026-03-22)
+
+
+### Bug Fixes
+
+* harden bw cli failure handling ([8eb9e5c](https://github.com/icoretech/warden-mcp/commit/8eb9e5cca7cf72e43b6796499e17e8829c2d8a54))
+
 ## [0.1.13](https://github.com/icoretech/warden-mcp/compare/v0.1.12...v0.1.13) (2026-03-22)
 
 
