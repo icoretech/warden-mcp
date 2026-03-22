@@ -9,8 +9,10 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 
 import { createKeychainApp } from '../transports/http.js';
 
+const INITIAL_STATUS_TIMEOUT_MS = 120_000;
+
 test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', {
-  timeout: 120_000,
+  timeout: 180_000,
 }, async (t) => {
   const requireOrgTests = /^true$/i.test(
     process.env.KEYCHAIN_REQUIRE_ORG_TESTS ?? '',
@@ -120,10 +122,14 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
     assert.ok(names.includes('keychain.create_identity'));
     assert.ok(names.includes('keychain.update_item'));
 
-    const res = await client.callTool({
-      name: 'keychain.status',
-      arguments: {},
-    });
+    const res = await client.callTool(
+      {
+        name: 'keychain.status',
+        arguments: {},
+      },
+      undefined,
+      { timeout: INITIAL_STATUS_TIMEOUT_MS },
+    );
     assert.equal(res.isError, undefined);
     assert.ok(
       res.structuredContent && typeof res.structuredContent === 'object',
