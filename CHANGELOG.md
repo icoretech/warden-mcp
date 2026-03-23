@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/icoretech/warden-mcp/compare/v0.2.0...v0.2.1) (2026-03-23)
+
+
+### Bug Fixes
+
+* bootstrap patch-package app root for npx installs ([21a88bd](https://github.com/icoretech/warden-mcp/commit/21a88bd181a1b452fb94e811b54dfa13ba3a0699))
+
 ## [0.2.0](https://github.com/icoretech/warden-mcp/compare/v0.1.21...v0.2.0) (2026-03-23)
 
 
