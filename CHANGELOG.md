@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/icoretech/warden-mcp/compare/v0.1.21...v0.2.0) (2026-03-23)
+
+
+### Bug Fixes
+
+* default tool names to underscore separator ([0836b1e](https://github.com/icoretech/warden-mcp/commit/0836b1e14445289eb9783fcfd35fe77db47d05da))
+
+
+### Miscellaneous Chores
+
+* release 0.2.0 ([e7c0a48](https://github.com/icoretech/warden-mcp/commit/e7c0a48aa74fba863c35ff94853f454c77804031))
+
 ## [0.1.21](https://github.com/icoretech/warden-mcp/compare/v0.1.20...v0.1.21) (2026-03-22)
 
 
