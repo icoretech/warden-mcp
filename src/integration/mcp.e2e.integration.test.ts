@@ -10,8 +10,14 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { createKeychainApp } from '../transports/http.js';
 
 const INITIAL_STATUS_TIMEOUT_MS = 120_000;
+const TOOL_PREFIX = 'keychain';
+const TOOL_SEPARATOR = '_';
 
-test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', {
+function toolName(name: string) {
+  return `${TOOL_PREFIX}${TOOL_SEPARATOR}${name}`;
+}
+
+test('mcp e2e: can initialize, list tools, and call keychain_status over /sse', {
   timeout: 180_000,
 }, async (t) => {
   const requireOrgTests = /^true$/i.test(
@@ -70,61 +76,61 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
 
     const tools = await client.listTools();
     const names = tools.tools.map((x) => x.name);
-    assert.ok(names.includes('keychain.status'));
-    assert.ok(names.includes('keychain.encode'));
-    assert.ok(names.includes('keychain.generate'));
-    assert.ok(names.includes('keychain.generate_username'));
-    assert.ok(names.includes('keychain.list_folders'));
-    assert.ok(names.includes('keychain.create_folder'));
-    assert.ok(names.includes('keychain.edit_folder'));
-    assert.ok(names.includes('keychain.delete_folder'));
-    assert.ok(names.includes('keychain.list_organizations'));
-    assert.ok(names.includes('keychain.list_collections'));
-    assert.ok(names.includes('keychain.list_org_collections'));
-    assert.ok(names.includes('keychain.create_org_collection'));
-    assert.ok(names.includes('keychain.edit_org_collection'));
-    assert.ok(names.includes('keychain.delete_org_collection'));
-    assert.ok(names.includes('keychain.move_item_to_organization'));
-    assert.ok(names.includes('keychain.search_items'));
-    assert.ok(names.includes('keychain.get_item'));
-    assert.ok(names.includes('keychain.get_uri'));
-    assert.ok(names.includes('keychain.get_notes'));
-    assert.ok(names.includes('keychain.get_exposed'));
-    assert.ok(names.includes('keychain.get_folder'));
-    assert.ok(names.includes('keychain.get_collection'));
-    assert.ok(names.includes('keychain.get_organization'));
-    assert.ok(names.includes('keychain.get_org_collection'));
-    assert.ok(names.includes('keychain.delete_item'));
-    assert.ok(names.includes('keychain.delete_items'));
-    assert.ok(names.includes('keychain.restore_item'));
-    assert.ok(names.includes('keychain.create_attachment'));
-    assert.ok(names.includes('keychain.delete_attachment'));
-    assert.ok(names.includes('keychain.get_attachment'));
-    assert.ok(names.includes('keychain.send_list'));
-    assert.ok(names.includes('keychain.send_template'));
-    assert.ok(names.includes('keychain.send_get'));
-    assert.ok(names.includes('keychain.send_create'));
-    assert.ok(names.includes('keychain.send_create_encoded'));
-    assert.ok(names.includes('keychain.send_remove_password'));
-    assert.ok(names.includes('keychain.send_edit'));
-    assert.ok(names.includes('keychain.send_delete'));
-    assert.ok(names.includes('keychain.receive'));
-    assert.ok(names.includes('keychain.get_username'));
-    assert.ok(names.includes('keychain.get_password'));
-    assert.ok(names.includes('keychain.get_totp'));
-    assert.ok(names.includes('keychain.get_password_history'));
-    assert.ok(names.includes('keychain.create_note'));
-    assert.ok(names.includes('keychain.create_login'));
-    assert.ok(names.includes('keychain.create_logins'));
-    assert.ok(names.includes('keychain.set_login_uris'));
-    assert.ok(names.includes('keychain.create_ssh_key'));
-    assert.ok(names.includes('keychain.create_card'));
-    assert.ok(names.includes('keychain.create_identity'));
-    assert.ok(names.includes('keychain.update_item'));
+    assert.ok(names.includes(toolName('status')));
+    assert.ok(names.includes(toolName('encode')));
+    assert.ok(names.includes(toolName('generate')));
+    assert.ok(names.includes(toolName('generate_username')));
+    assert.ok(names.includes(toolName('list_folders')));
+    assert.ok(names.includes(toolName('create_folder')));
+    assert.ok(names.includes(toolName('edit_folder')));
+    assert.ok(names.includes(toolName('delete_folder')));
+    assert.ok(names.includes(toolName('list_organizations')));
+    assert.ok(names.includes(toolName('list_collections')));
+    assert.ok(names.includes(toolName('list_org_collections')));
+    assert.ok(names.includes(toolName('create_org_collection')));
+    assert.ok(names.includes(toolName('edit_org_collection')));
+    assert.ok(names.includes(toolName('delete_org_collection')));
+    assert.ok(names.includes(toolName('move_item_to_organization')));
+    assert.ok(names.includes(toolName('search_items')));
+    assert.ok(names.includes(toolName('get_item')));
+    assert.ok(names.includes(toolName('get_uri')));
+    assert.ok(names.includes(toolName('get_notes')));
+    assert.ok(names.includes(toolName('get_exposed')));
+    assert.ok(names.includes(toolName('get_folder')));
+    assert.ok(names.includes(toolName('get_collection')));
+    assert.ok(names.includes(toolName('get_organization')));
+    assert.ok(names.includes(toolName('get_org_collection')));
+    assert.ok(names.includes(toolName('delete_item')));
+    assert.ok(names.includes(toolName('delete_items')));
+    assert.ok(names.includes(toolName('restore_item')));
+    assert.ok(names.includes(toolName('create_attachment')));
+    assert.ok(names.includes(toolName('delete_attachment')));
+    assert.ok(names.includes(toolName('get_attachment')));
+    assert.ok(names.includes(toolName('send_list')));
+    assert.ok(names.includes(toolName('send_template')));
+    assert.ok(names.includes(toolName('send_get')));
+    assert.ok(names.includes(toolName('send_create')));
+    assert.ok(names.includes(toolName('send_create_encoded')));
+    assert.ok(names.includes(toolName('send_remove_password')));
+    assert.ok(names.includes(toolName('send_edit')));
+    assert.ok(names.includes(toolName('send_delete')));
+    assert.ok(names.includes(toolName('receive')));
+    assert.ok(names.includes(toolName('get_username')));
+    assert.ok(names.includes(toolName('get_password')));
+    assert.ok(names.includes(toolName('get_totp')));
+    assert.ok(names.includes(toolName('get_password_history')));
+    assert.ok(names.includes(toolName('create_note')));
+    assert.ok(names.includes(toolName('create_login')));
+    assert.ok(names.includes(toolName('create_logins')));
+    assert.ok(names.includes(toolName('set_login_uris')));
+    assert.ok(names.includes(toolName('create_ssh_key')));
+    assert.ok(names.includes(toolName('create_card')));
+    assert.ok(names.includes(toolName('create_identity')));
+    assert.ok(names.includes(toolName('update_item')));
 
     const res = await client.callTool(
       {
-        name: 'keychain.status',
+        name: toolName('status'),
         arguments: {},
       },
       undefined,
@@ -164,7 +170,7 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
     );
 
     const enc = await client.callTool({
-      name: 'keychain.encode',
+      name: toolName('encode'),
       arguments: { value: '{"x":1}' },
     });
     assert.equal(enc.isError, undefined);
@@ -174,7 +180,7 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
     assert.ok('encoded' in enc.structuredContent);
 
     const genNoReveal = await client.callTool({
-      name: 'keychain.generate',
+      name: toolName('generate'),
       arguments: {},
     });
     assert.equal(genNoReveal.isError, undefined);
@@ -197,7 +203,7 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
     }
 
     const genUserNoReveal = await client.callTool({
-      name: 'keychain.generate_username',
+      name: toolName('generate_username'),
       arguments: { type: 'random_word' },
     });
     assert.equal(genUserNoReveal.isError, undefined);
@@ -220,7 +226,7 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
     }
 
     const createLogin = await client.callTool({
-      name: 'keychain.create_login',
+      name: toolName('create_login'),
       arguments: {
         name: `keychain-e2e-login-${Date.now()}`,
         username: 'e2e',
@@ -275,7 +281,7 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
     const term = createdRec.name as string;
 
     const pwNoReveal = await client.callTool({
-      name: 'keychain.get_password',
+      name: 'keychain_get_password',
       arguments: { term },
     });
     assert.equal(pwNoReveal.isError, undefined);
@@ -294,7 +300,7 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
     }
 
     const pwReveal = await client.callTool({
-      name: 'keychain.get_password',
+      name: 'keychain_get_password',
       arguments: { term, reveal: true },
     });
     assert.equal(pwReveal.isError, undefined);
@@ -313,7 +319,7 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
     }
 
     const totpNoReveal = await client.callTool({
-      name: 'keychain.get_totp',
+      name: 'keychain_get_totp',
       arguments: { term },
     });
     assert.equal(totpNoReveal.isError, undefined);
@@ -332,7 +338,7 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
     }
 
     const totpReveal = await client.callTool({
-      name: 'keychain.get_totp',
+      name: 'keychain_get_totp',
       arguments: { term, reveal: true },
     });
     assert.equal(totpReveal.isError, undefined);
@@ -359,7 +365,7 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
     }
 
     const listOrgs = await client.callTool({
-      name: 'keychain.list_organizations',
+      name: 'keychain_list_organizations',
       arguments: {},
     });
     assert.equal(listOrgs.isError, undefined);
@@ -393,7 +399,7 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
 
       try {
         const createOrgCollection = await client.callTool({
-          name: 'keychain.create_org_collection',
+          name: 'keychain_create_org_collection',
           arguments: {
             organizationId,
             name: orgCollectionName,
@@ -420,7 +426,7 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
         assert.equal(orgCollectionId.length > 0, true);
 
         const editOrgCollection = await client.callTool({
-          name: 'keychain.edit_org_collection',
+          name: 'keychain_edit_org_collection',
           arguments: {
             organizationId,
             id: orgCollectionId,
@@ -446,7 +452,7 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
         if (orgCollectionId) {
           await client
             .callTool({
-              name: 'keychain.delete_org_collection',
+              name: 'keychain_delete_org_collection',
               arguments: {
                 organizationId,
                 id: orgCollectionId,
@@ -458,7 +464,7 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
     }
 
     const notesNoReveal = await client.callTool({
-      name: 'keychain.get_notes',
+      name: 'keychain_get_notes',
       arguments: { term },
     });
     assert.equal(notesNoReveal.isError, undefined);
@@ -477,7 +483,7 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
     }
 
     const notesReveal = await client.callTool({
-      name: 'keychain.get_notes',
+      name: 'keychain_get_notes',
       arguments: { term, reveal: true },
     });
     assert.equal(notesReveal.isError, undefined);
@@ -496,7 +502,7 @@ test('mcp e2e: can initialize, list tools, and call keychain.status over /sse', 
     }
 
     const username = await client.callTool({
-      name: 'keychain.get_username',
+      name: 'keychain_get_username',
       arguments: { term },
     });
     assert.equal(username.isError, undefined);

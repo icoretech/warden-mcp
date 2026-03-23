@@ -30,7 +30,7 @@ That lets the agent do end-to-end authenticated workflows such as:
 - open a site or backoffice in the browser
 - read the right login from Vaultwarden or Bitwarden
 - fill username and password without hardcoding secrets in prompts or config
-- retrieve a current TOTP code with `keychain.get_totp` for TOTP-based MFA
+- retrieve a current TOTP code with `keychain_get_totp` for TOTP-based MFA
 - continue the real task after login, such as navigation, data entry, exports, or routine admin work
 
 In practice, this is what makes the server useful for full automation, not just secret lookup. The same MCP session that gives the model browser control can also give it scoped access to the credentials and MFA material needed to finish the workflow.
@@ -385,6 +385,7 @@ Mutation control:
 
 - Set `READONLY=true` to block all write operations (create/edit/delete/move/restore/attachments).
 - Set `NOREVEAL=true` to force all `reveal` parameters to `false` server-side. Clients can still request `reveal: true`, but the server will silently downgrade to redacted output. This prevents prompt injection from tricking an LLM agent into exfiltrating secrets.
+- Tool names default to `keychain_*`. Override `TOOL_PREFIX` to change the namespace and `TOOL_SEPARATOR` to change the separator (default `_`, set `.` for legacy clients).
 - Session guardrails:
   - `KEYCHAIN_SESSION_MAX_COUNT` (default `32`)
   - `KEYCHAIN_SESSION_TTL_MS` (default `900000`)
@@ -482,49 +483,49 @@ npm run dev
 
 Vault/session:
 
-- `keychain.status`
-- `keychain.encode` (base64-encode a string via `bw encode`)
-- `keychain.generate` (returns a generated secret only when `reveal: true`)
+- `keychain_status`
+- `keychain_encode` (base64-encode a string via `bw encode`)
+- `keychain_generate` (returns a generated secret only when `reveal: true`)
 
 Items:
 
-- `keychain.search_items`, `keychain.get_item`, `keychain.update_item`
-- `keychain.create_login`, `keychain.create_note`, `keychain.create_card`, `keychain.create_identity`, `keychain.create_ssh_key`
-- `keychain.delete_item`, `keychain.restore_item`
+- `keychain_search_items`, `keychain_get_item`, `keychain_update_item`
+- `keychain_create_login`, `keychain_create_note`, `keychain_create_card`, `keychain_create_identity`, `keychain_create_ssh_key`
+- `keychain_delete_item`, `keychain_restore_item`
 
 Folders:
 
-- `keychain.list_folders`, `keychain.create_folder`, `keychain.edit_folder`, `keychain.delete_folder`
+- `keychain_list_folders`, `keychain_create_folder`, `keychain_edit_folder`, `keychain_delete_folder`
 
 Orgs/collections:
 
-- `keychain.list_organizations`, `keychain.list_collections`
-- `keychain.list_org_collections`, `keychain.create_org_collection`, `keychain.edit_org_collection`, `keychain.delete_org_collection`
-- `keychain.move_item_to_organization`
+- `keychain_list_organizations`, `keychain_list_collections`
+- `keychain_list_org_collections`, `keychain_create_org_collection`, `keychain_edit_org_collection`, `keychain_delete_org_collection`
+- `keychain_move_item_to_organization`
 
 Attachments:
 
-- `keychain.create_attachment`, `keychain.delete_attachment`, `keychain.get_attachment`
+- `keychain_create_attachment`, `keychain_delete_attachment`, `keychain_get_attachment`
 
 Sends:
 
-- `keychain.send_list`, `keychain.send_template`, `keychain.send_get`
-- `keychain.send_create` (quick create via `bw send`)
-- `keychain.send_create_encoded`, `keychain.send_edit` (advanced create/edit via `bw send create|edit`)
-- `keychain.send_remove_password`, `keychain.send_delete`
-- `keychain.receive`
+- `keychain_send_list`, `keychain_send_template`, `keychain_send_get`
+- `keychain_send_create` (quick create via `bw send`)
+- `keychain_send_create_encoded`, `keychain_send_edit` (advanced create/edit via `bw send create|edit`)
+- `keychain_send_remove_password`, `keychain_send_delete`
+- `keychain_receive`
 
 Direct “bw get …” helpers:
 
-- `keychain.get_username` (returns `{ kind:"username", value, revealed:true }`)
-- `keychain.get_password` / `keychain.get_totp` / `keychain.get_notes` (only return real values when `reveal: true`)
-- `keychain.get_uri`, `keychain.get_exposed`
-- `keychain.get_folder`, `keychain.get_collection`, `keychain.get_organization`, `keychain.get_org_collection`
-- `keychain.get_password_history` (only returns historic passwords when `reveal: true`)
+- `keychain_get_username` (returns `{ kind:"username", value, revealed:true }`)
+- `keychain_get_password` / `keychain_get_totp` / `keychain_get_notes` (only return real values when `reveal: true`)
+- `keychain_get_uri`, `keychain_get_exposed`
+- `keychain_get_folder`, `keychain_get_collection`, `keychain_get_organization`, `keychain_get_org_collection`
+- `keychain_get_password_history` (only returns historic passwords when `reveal: true`)
 
 ## Known Limitations
 
-- `bw list items --search` (and thus `keychain.search_items`) does not reliably search inside **custom field values**.
+- `bw list items --search` (and thus `keychain_search_items`) does not reliably search inside **custom field values**.
 - SSH keys are stored as secure notes in v1 (until `bw` supports native SSH key item creation).
 - High-risk CLI features are intentionally not exposed yet (export/import).
 

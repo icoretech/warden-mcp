@@ -10,10 +10,23 @@ import type { UriInput, UriMatch } from '../sdk/types.js';
 export interface RegisterToolsDeps {
   getSdk: (authInfo?: AuthInfo) => Promise<KeychainSdk>;
   toolPrefix: string;
+  toolSeparator: string;
 }
 
 export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
   const toolMeta = {};
+  const rawRegisterTool = server.registerTool.bind(server) as (
+    name: string,
+    ...args: unknown[]
+  ) => unknown;
+  const legacyPrefix = `${deps.toolPrefix}.`;
+  const publicPrefix = `${deps.toolPrefix}${deps.toolSeparator}`;
+  const registerTool: McpServer['registerTool'] = ((name, ...args) => {
+    const publicName = name.startsWith(legacyPrefix)
+      ? `${publicPrefix}${name.slice(legacyPrefix.length)}`
+      : name;
+    return rawRegisterTool(publicName, ...args);
+  }) as McpServer['registerTool'];
   function parseBoolEnv(...names: string[]): boolean {
     for (const name of names) {
       const v = process.env[name];
@@ -104,7 +117,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     }));
   }
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.status`,
     {
       title: 'Vault Status',
@@ -130,7 +143,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.encode`,
     {
       title: 'Encode',
@@ -151,7 +164,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.generate`,
     {
       title: 'Generate',
@@ -190,7 +203,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.generate_username`,
     {
       title: 'Generate Username',
@@ -228,7 +241,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.list_folders`,
     {
       title: 'List Folders',
@@ -256,7 +269,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.create_folder`,
     {
       title: 'Create Folder',
@@ -277,7 +290,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.edit_folder`,
     {
       title: 'Edit Folder',
@@ -299,7 +312,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.delete_folder`,
     {
       title: 'Delete Folder',
@@ -320,7 +333,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.list_org_collections`,
     {
       title: 'List Org Collections',
@@ -355,7 +368,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.create_org_collection`,
     {
       title: 'Create Org Collection',
@@ -377,7 +390,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.edit_org_collection`,
     {
       title: 'Edit Org Collection',
@@ -400,7 +413,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.delete_org_collection`,
     {
       title: 'Delete Org Collection',
@@ -422,7 +435,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.move_item_to_organization`,
     {
       title: 'Move Item To Organization',
@@ -446,7 +459,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.list_organizations`,
     {
       title: 'List Organizations',
@@ -475,7 +488,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.list_collections`,
     {
       title: 'List Collections',
@@ -510,7 +523,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.search_items`,
     {
       title: 'Search Items',
@@ -546,7 +559,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.get_item`,
     {
       title: 'Get Item',
@@ -570,7 +583,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.get_uri`,
     {
       title: 'Get URI',
@@ -591,7 +604,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.get_notes`,
     {
       title: 'Get Notes',
@@ -616,7 +629,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.get_exposed`,
     {
       title: 'Get Exposed',
@@ -641,7 +654,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.get_folder`,
     {
       title: 'Get Folder',
@@ -662,7 +675,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.get_collection`,
     {
       title: 'Get Collection',
@@ -684,7 +697,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.get_organization`,
     {
       title: 'Get Organization',
@@ -705,7 +718,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.get_org_collection`,
     {
       title: 'Get Org Collection',
@@ -727,7 +740,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.delete_item`,
     {
       title: 'Delete Item',
@@ -750,7 +763,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.delete_items`,
     {
       title: 'Delete Items',
@@ -776,7 +789,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.restore_item`,
     {
       title: 'Restore Item',
@@ -797,7 +810,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.create_attachment`,
     {
       title: 'Create Attachment',
@@ -822,7 +835,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.delete_attachment`,
     {
       title: 'Delete Attachment',
@@ -846,7 +859,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.get_attachment`,
     {
       title: 'Get Attachment',
@@ -869,7 +882,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.send_list`,
     {
       title: 'Send List',
@@ -888,7 +901,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.send_template`,
     {
       title: 'Send Template',
@@ -909,7 +922,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.send_get`,
     {
       title: 'Send Get',
@@ -933,7 +946,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.send_create`,
     {
       title: 'Send Create',
@@ -970,7 +983,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.send_create_encoded`,
     {
       title: 'Send Create (Encoded JSON)',
@@ -1006,7 +1019,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.send_edit`,
     {
       title: 'Send Edit (Encoded JSON)',
@@ -1035,7 +1048,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.send_remove_password`,
     {
       title: 'Send Remove Password',
@@ -1061,7 +1074,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.send_delete`,
     {
       title: 'Send Delete',
@@ -1087,7 +1100,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.receive`,
     {
       title: 'Receive',
@@ -1112,7 +1125,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.get_username`,
     {
       title: 'Get Username',
@@ -1137,7 +1150,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.get_password`,
     {
       title: 'Get Password',
@@ -1167,7 +1180,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.get_totp`,
     {
       title: 'Get TOTP',
@@ -1196,7 +1209,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.get_password_history`,
     {
       title: 'Get Password History',
@@ -1225,7 +1238,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.create_login`,
     {
       title: 'Create Login',
@@ -1282,7 +1295,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.create_logins`,
     {
       title: 'Create Logins',
@@ -1349,7 +1362,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.set_login_uris`,
     {
       title: 'Set Login URIs',
@@ -1384,7 +1397,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.create_note`,
     {
       title: 'Create Note',
@@ -1419,7 +1432,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.create_ssh_key`,
     {
       title: 'Create SSH Key',
@@ -1450,7 +1463,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.create_card`,
     {
       title: 'Create Card',
@@ -1491,7 +1504,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.create_identity`,
     {
       title: 'Create Identity',
@@ -1548,7 +1561,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
   );
 
-  server.registerTool(
+  registerTool(
     `${deps.toolPrefix}.update_item`,
     {
       title: 'Update Item',

@@ -15,6 +15,7 @@ import { registerTools } from '../tools/registerTools.js';
 export interface CreateKeychainAppOptions {
   appName?: string;
   toolPrefix?: string;
+  toolSeparator?: string;
   bwHomeRoot?: string;
   sessionTtlMs?: number;
   sessionMaxCount?: number;
@@ -45,6 +46,8 @@ export function createKeychainApp(opts: CreateKeychainAppOptions = {}) {
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
   };
   const TOOL_PREFIX = opts.toolPrefix ?? process.env.TOOL_PREFIX ?? 'keychain';
+  const TOOL_SEPARATOR =
+    opts.toolSeparator ?? process.env.TOOL_SEPARATOR ?? '_';
   const APP_NAME =
     opts.appName ?? process.env.MCP_APP_NAME ?? `${TOOL_PREFIX}-mcp`;
   const sessionTtlMs =
@@ -98,6 +101,7 @@ export function createKeychainApp(opts: CreateKeychainAppOptions = {}) {
         );
       },
       toolPrefix: TOOL_PREFIX,
+      toolSeparator: TOOL_SEPARATOR,
     });
     return server;
   }

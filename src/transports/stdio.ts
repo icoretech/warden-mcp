@@ -9,6 +9,7 @@ import { registerTools } from '../tools/registerTools.js';
 
 export async function runStdioTransport(): Promise<void> {
   const TOOL_PREFIX = process.env.TOOL_PREFIX ?? 'keychain';
+  const TOOL_SEPARATOR = process.env.TOOL_SEPARATOR ?? '_';
   const APP_NAME = process.env.MCP_APP_NAME ?? `${TOOL_PREFIX}-mcp`;
 
   // Credentials must be present at startup for stdio mode.
@@ -28,6 +29,7 @@ export async function runStdioTransport(): Promise<void> {
       return new KeychainSdk(bw);
     },
     toolPrefix: TOOL_PREFIX,
+    toolSeparator: TOOL_SEPARATOR,
   });
 
   const transport = new StdioServerTransport();

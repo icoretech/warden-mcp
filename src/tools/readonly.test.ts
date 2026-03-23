@@ -38,30 +38,30 @@ test('READONLY=true blocks mutating tools before BW headers are required', async
 
     const tools = await client.listTools();
     const names = tools.tools.map((x) => x.name);
-    assert.ok(names.includes('keychain.send_list'));
-    assert.ok(names.includes('keychain.send_get'));
-    assert.ok(names.includes('keychain.send_create'));
-    assert.ok(names.includes('keychain.send_create_encoded'));
-    assert.ok(names.includes('keychain.send_edit'));
-    assert.ok(names.includes('keychain.send_delete'));
-    assert.ok(names.includes('keychain.receive'));
-    assert.ok(names.includes('keychain.get_attachment'));
+    assert.ok(names.includes('keychain_send_list'));
+    assert.ok(names.includes('keychain_send_get'));
+    assert.ok(names.includes('keychain_send_create'));
+    assert.ok(names.includes('keychain_send_create_encoded'));
+    assert.ok(names.includes('keychain_send_edit'));
+    assert.ok(names.includes('keychain_send_delete'));
+    assert.ok(names.includes('keychain_receive'));
+    assert.ok(names.includes('keychain_get_attachment'));
 
     const blockedCalls: Array<{
       name: string;
       arguments: Record<string, unknown>;
     }> = [
-      { name: 'keychain.create_note', arguments: { name: 'x' } },
-      { name: 'keychain.create_login', arguments: { name: 'x' } },
-      { name: 'keychain.update_item', arguments: { id: 'x', patch: {} } },
-      { name: 'keychain.delete_item', arguments: { id: 'x' } },
-      { name: 'keychain.delete_items', arguments: { ids: ['x', 'y'] } },
-      { name: 'keychain.restore_item', arguments: { id: 'x' } },
-      { name: 'keychain.create_folder', arguments: { name: 'x' } },
-      { name: 'keychain.edit_folder', arguments: { id: 'x', name: 'x' } },
-      { name: 'keychain.delete_folder', arguments: { id: 'x' } },
+      { name: 'keychain_create_note', arguments: { name: 'x' } },
+      { name: 'keychain_create_login', arguments: { name: 'x' } },
+      { name: 'keychain_update_item', arguments: { id: 'x', patch: {} } },
+      { name: 'keychain_delete_item', arguments: { id: 'x' } },
+      { name: 'keychain_delete_items', arguments: { ids: ['x', 'y'] } },
+      { name: 'keychain_restore_item', arguments: { id: 'x' } },
+      { name: 'keychain_create_folder', arguments: { name: 'x' } },
+      { name: 'keychain_edit_folder', arguments: { id: 'x', name: 'x' } },
+      { name: 'keychain_delete_folder', arguments: { id: 'x' } },
       {
-        name: 'keychain.create_attachment',
+        name: 'keychain_create_attachment',
         arguments: {
           itemId: 'x',
           filename: 'x.txt',
@@ -69,27 +69,27 @@ test('READONLY=true blocks mutating tools before BW headers are required', async
         },
       },
       {
-        name: 'keychain.delete_attachment',
+        name: 'keychain_delete_attachment',
         arguments: { itemId: 'x', attachmentId: 'x' },
       },
       {
-        name: 'keychain.send_create',
+        name: 'keychain_send_create',
         arguments: { type: 'text', text: 'hello', name: 'x' },
       },
       {
-        name: 'keychain.send_create_encoded',
+        name: 'keychain_send_create_encoded',
         arguments: { text: 'hello' },
       },
       {
-        name: 'keychain.send_edit',
+        name: 'keychain_send_edit',
         arguments: { json: { id: 'x', type: 0, name: 'x' } },
       },
       {
-        name: 'keychain.send_remove_password',
+        name: 'keychain_send_remove_password',
         arguments: { id: 'x' },
       },
       {
-        name: 'keychain.send_delete',
+        name: 'keychain_send_delete',
         arguments: { id: 'x' },
       },
     ];
@@ -154,7 +154,7 @@ test('READONLY=true blocks mutating tools even when BW headers are present', asy
     await client.connect(transport);
 
     const res = await client.callTool({
-      name: 'keychain.create_note',
+      name: 'keychain_create_note',
       arguments: { name: 'x' },
     });
     assert.equal(res.isError, true);

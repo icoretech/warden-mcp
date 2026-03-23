@@ -9,6 +9,13 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 
 import { createKeychainApp } from '../transports/http.js';
 
+const DEFAULT_TOOL_PREFIX = 'keychain';
+const DEFAULT_TOOL_SEPARATOR = '_';
+
+function toolName(name: string, separator: string = DEFAULT_TOOL_SEPARATOR) {
+  return `${DEFAULT_TOOL_PREFIX}${separator}${name}`;
+}
+
 // ---------------------------------------------------------------------------
 // We test tool registration and behavior through an HTTP integration layer
 // similar to readonly.test.ts.  This avoids needing to mock the MCP server
@@ -60,16 +67,16 @@ describe('registerTools: tool listing', () => {
       const names = tools.tools.map((t) => t.name);
 
       // Core read tools
-      assert.ok(names.includes('keychain.status'));
-      assert.ok(names.includes('keychain.encode'));
-      assert.ok(names.includes('keychain.generate'));
-      assert.ok(names.includes('keychain.search_items'));
-      assert.ok(names.includes('keychain.get_item'));
+      assert.ok(names.includes(toolName('status')));
+      assert.ok(names.includes(toolName('encode')));
+      assert.ok(names.includes(toolName('generate')));
+      assert.ok(names.includes(toolName('search_items')));
+      assert.ok(names.includes(toolName('get_item')));
 
       // Mutating tools
-      assert.ok(names.includes('keychain.create_login'));
-      assert.ok(names.includes('keychain.create_note'));
-      assert.ok(names.includes('keychain.delete_item'));
+      assert.ok(names.includes(toolName('create_login')));
+      assert.ok(names.includes(toolName('create_note')));
+      assert.ok(names.includes(toolName('delete_item')));
 
       // Should have a non-trivial number of tools
       assert.ok(names.length >= 20, `Expected 20+ tools, got ${names.length}`);
@@ -92,6 +99,18 @@ describe('registerTools: tool listing', () => {
       await cleanup();
     }
   });
+
+  test('TOOL_SEPARATOR can restore legacy dotted names', async () => {
+    const { client, cleanup } = await startTestServer({ TOOL_SEPARATOR: '.' });
+    try {
+      const tools = await client.listTools();
+      const names = tools.tools.map((t) => t.name);
+      assert.ok(names.includes(toolName('status', '.')));
+      assert.ok(!names.includes(toolName('status')));
+    } finally {
+      await cleanup();
+    }
+  });
 });
 
 describe('registerTools: READONLY behavior', () => {
@@ -101,7 +120,7 @@ describe('registerTools: READONLY behavior', () => {
     });
     try {
       const result = await client.callTool({
-        name: 'keychain.create_login',
+        name: toolName('create_login'),
         arguments: { name: 'test' },
       });
       const text = (result.content as Array<{ text: string }>)[0]?.text ?? '';
@@ -116,7 +135,7 @@ describe('registerTools: READONLY behavior', () => {
     const { client, cleanup } = await startTestServer({ READONLY: '1' });
     try {
       const result = await client.callTool({
-        name: 'keychain.delete_item',
+        name: toolName('delete_item'),
         arguments: { id: 'x' },
       });
       const text = (result.content as Array<{ text: string }>)[0]?.text ?? '';
@@ -143,7 +162,7 @@ describe('registerTools: read-only tools in readonly mode', () => {
       // This will fail because there's no real bw, but it should NOT
       // fail with READONLY error — it should attempt the real operation.
       const result = await client.callTool({
-        name: 'keychain.encode',
+        name: toolName('encode'),
         arguments: { value: 'hello' },
       });
       const text = (result.content as Array<{ text: string }>)[0]?.text ?? '';
@@ -166,7 +185,7 @@ describe('registerTools: read-only tools in readonly mode', () => {
     });
     try {
       const result = await client.callTool({
-        name: 'keychain.generate_username',
+        name: toolName('generate_username'),
         arguments: { reveal: false },
       });
       const text = (result.content as Array<{ text: string }>)[0]?.text ?? '';
@@ -186,7 +205,7 @@ describe('registerTools: read-only tools in readonly mode', () => {
     });
     try {
       const result = await client.callTool({
-        name: 'keychain.generate',
+        name: toolName('generate'),
         arguments: { reveal: false },
       });
       const text = (result.content as Array<{ text: string }>)[0]?.text ?? '';
@@ -205,7 +224,7 @@ describe('registerTools: read-only tools in readonly mode', () => {
     });
     try {
       const result = await client.callTool({
-        name: 'keychain.generate_username',
+        name: toolName('generate_username'),
         arguments: { reveal: true, type: 'random_word' },
       });
       const text = (result.content as Array<{ text: string }>)[0]?.text ?? '';
@@ -224,7 +243,7 @@ describe('registerTools: read-only tools in readonly mode', () => {
     });
     try {
       const result = await client.callTool({
-        name: 'keychain.get_password',
+        name: toolName('get_password'),
         arguments: { term: 'test', reveal: false },
       });
       const text = (result.content as Array<{ text: string }>)[0]?.text ?? '';
@@ -242,7 +261,7 @@ describe('registerTools: read-only tools in readonly mode', () => {
     });
     try {
       const result = await client.callTool({
-        name: 'keychain.get_totp',
+        name: toolName('get_totp'),
         arguments: { term: 'test', reveal: false },
       });
       const text = (result.content as Array<{ text: string }>)[0]?.text ?? '';
@@ -260,7 +279,7 @@ describe('registerTools: read-only tools in readonly mode', () => {
     });
     try {
       const result = await client.callTool({
-        name: 'keychain.get_notes',
+        name: toolName('get_notes'),
         arguments: { term: 'test', reveal: false },
       });
       const text = (result.content as Array<{ text: string }>)[0]?.text ?? '';
@@ -353,7 +372,7 @@ describe('registerTools: e2e with fake bw', () => {
     });
     try {
       return await client.callTool({
-        name: `keychain.${toolName}`,
+        name: `keychain_${toolName}`,
         arguments: args,
       });
     } finally {
@@ -786,7 +805,7 @@ describe('registerTools: NOREVEAL behavior', () => {
     });
     try {
       const result = await client.callTool({
-        name: 'keychain.generate',
+        name: 'keychain_generate',
         arguments: { reveal: true, length: 12 },
       });
       // With NOREVEAL, the server should downgrade reveal to false,
@@ -814,7 +833,7 @@ describe('registerTools: NOREVEAL behavior', () => {
     });
     try {
       const result = await client.callTool({
-        name: 'keychain.get_password',
+        name: 'keychain_get_password',
         arguments: { term: 'test', reveal: true },
       });
       const structured = result.structuredContent as {
