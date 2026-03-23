@@ -312,7 +312,9 @@ https://warden-mcp.example.com/sse?v=2
 ```
 
 This works because headerless HTTP requests can inherit the server's own
-`BW_*` configuration when `KEYCHAIN_ALLOW_ENV_FALLBACK=true`.
+`BW_*` configuration when `KEYCHAIN_ALLOW_ENV_FALLBACK=true`. You can use
+`BW_USER` + `BW_PASSWORD` here as well; the example above shows the API-key
+variant because it is the default convention used elsewhere in this README.
 
 Important limits:
 
