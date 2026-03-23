@@ -8,24 +8,30 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const startupPath = resolve(__dirname, '../dist/startup/bwStartup.js');
-if (!existsSync(startupPath)) {
-  console.error(
-    '[warden-mcp] ERROR: dist/startup/bwStartup.js not found. Run `npm run build` first.',
-  );
-  process.exit(1);
-}
-const { prepareBwStartup } = await import(startupPath);
-prepareBwStartup(process.env);
+async function main() {
+  const startupPath = resolve(__dirname, '../dist/startup/bwStartup.js');
+  if (!existsSync(startupPath)) {
+    console.error(
+      '[warden-mcp] ERROR: dist/startup/bwStartup.js not found. Run `npm run build` first.',
+    );
+    process.exit(1);
+  }
+  const { prepareBwStartup } = await import(startupPath);
+  prepareBwStartup(process.env);
 
-// Delegate to the compiled server entry, forwarding all arguments.
-const serverPath = resolve(__dirname, '../dist/server.js');
-if (!existsSync(serverPath)) {
-  console.error(
-    '[warden-mcp] ERROR: dist/server.js not found. Run `npm run build` first.',
-  );
-  process.exit(1);
+  // Delegate to the compiled server entry, forwarding all arguments.
+  const serverPath = resolve(__dirname, '../dist/server.js');
+  if (!existsSync(serverPath)) {
+    console.error(
+      '[warden-mcp] ERROR: dist/server.js not found. Run `npm run build` first.',
+    );
+    process.exit(1);
+  }
+
+  await import(serverPath);
 }
 
-// Use dynamic import to run the server module (it has top-level await).
-await import(serverPath);
+void main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

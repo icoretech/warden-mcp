@@ -58,3 +58,48 @@ test('http entrypoint stays alive after startup', {
     child.once('error', reject);
   });
 });
+
+test('stdio bin exits cleanly without unsettled top-level await warning', {
+  timeout: 10_000,
+}, async () => {
+  const projectRoot = fileURLToPath(new URL('..', import.meta.url));
+  const child = spawn(process.execPath, ['bin/warden-mcp.js', '--stdio'], {
+    cwd: projectRoot,
+    env: {
+      ...process.env,
+      BW_HOST: 'https://example.test',
+      BW_PASSWORD: 'test-password',
+      BW_USER: 'user@example.test',
+    },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => {
+    stdout += chunk;
+  });
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk;
+  });
+
+  child.stdin.end();
+
+  const exitCode = await new Promise<number | null>((resolve, reject) => {
+    child.once('exit', resolve);
+    child.once('error', reject);
+  });
+
+  assert.equal(
+    exitCode,
+    0,
+    `stdio bin exited with stderr: ${stderr || stdout}`,
+  );
+  assert.equal(stdout, '');
+  assert.ok(
+    !stderr.includes('Detected unsettled top-level await'),
+    `unexpected warning: ${stderr}`,
+  );
+});

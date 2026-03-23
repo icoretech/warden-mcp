@@ -15,9 +15,12 @@ const { values } = parseArgs({
 const useStdio =
   values.stdio === true || process.env.WARDEN_MCP_STDIO === 'true';
 
-if (useStdio) {
-  await runStdioTransport();
-} else {
+async function main(): Promise<void> {
+  if (useStdio) {
+    await runStdioTransport();
+    return;
+  }
+
   const PORT = Number.parseInt(process.env.PORT ?? '3005', 10);
   const app = createKeychainApp();
   const server = app.listen(PORT, () => {
@@ -28,3 +31,8 @@ if (useStdio) {
     server.once('error', reject);
   });
 }
+
+void main().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});
