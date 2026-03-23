@@ -280,6 +280,38 @@ This shared-server mode is useful when:
 - you are integrating from a custom client or agent host that can attach HTTP headers
 - you want one always-on service instead of each editor spawning its own `bw`-backed subprocess
 
+#### Headerless SSE clients (`claude.ai` web, similar hosts)
+
+Some web MCP hosts can connect to a Streamable HTTP / SSE endpoint but cannot
+attach custom `X-BW-*` headers. In that case, run `warden-mcp` as a
+single-tenant shared server with fixed server-side credentials and explicit env
+fallback enabled:
+
+```bash
+BW_HOST=https://vaultwarden.example.com \
+BW_CLIENTID=user.xxxxx \
+BW_CLIENTSECRET=xxxxx \
+BW_PASSWORD='your-master-password' \
+KEYCHAIN_ALLOW_ENV_FALLBACK=true \
+npx -y @icoretech/warden-mcp@latest
+```
+
+Then point the client at:
+
+```text
+http://localhost:3005/sse?v=2
+```
+
+This works because headerless HTTP requests can inherit the server's own
+`BW_*` configuration when `KEYCHAIN_ALLOW_ENV_FALLBACK=true`.
+
+Important limits:
+
+- this is single-tenant only: every headerless client gets the same vault identity
+- per-request profile switching does not work in this mode
+- if a client can send `X-BW-*` headers, those headers still take priority over the server env
+- anyone who can reach that endpoint inherits that vault access, so keep it behind trusted network access, localhost, VPN, or another private boundary
+
 Client examples for shared HTTP mode:
 
 ```bash
