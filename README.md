@@ -296,17 +296,16 @@ KEYCHAIN_ALLOW_ENV_FALLBACK=true \
 npx -y @icoretech/warden-mcp@latest
 ```
 
-For hosted or browser-based MCP clients, the server URL must be reachable from
-that client and may need to be served over **HTTPS** instead of plain
-`http://localhost:3005/...`.
+Some hosted or browser-based MCP clients expect the server URL to be available
+over **HTTPS** rather than plain `http://localhost:3005/...`.
 
-Depending on the MCP host, that can mean either:
+If you are running `warden-mcp` locally, that usually means putting one of
+these in front of it:
 
 - a local HTTPS reverse proxy in front of `warden-mcp`
-- a public/private HTTPS endpoint on another machine
 - a temporary tunnel such as Cloudflare Tunnel, ngrok, or Tailscale Funnel
 
-Then point the client at the reachable HTTPS endpoint, for example:
+Then point the client at the HTTPS endpoint, for example:
 
 ```text
 https://warden-mcp.example.com/sse?v=2
