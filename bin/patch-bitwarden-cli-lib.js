@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -75,12 +75,31 @@ export function resolvePatchPackagePlan({
   };
 }
 
+const bootstrapPackageJson = `${JSON.stringify(
+  { name: 'warden-mcp-postinstall-bootstrap', private: true },
+  null,
+  2,
+)}\n`;
+
+export function ensurePatchPackageAppRoot({
+  appRoot,
+  exists = existsSync,
+  writeFile = writeFileSync,
+} = {}) {
+  const packageJsonPath = resolve(appRoot, 'package.json');
+  if (exists(packageJsonPath)) return null;
+  writeFile(packageJsonPath, bootstrapPackageJson);
+  return packageJsonPath;
+}
+
 export function applyBundledBwPatch({
   packageDir = defaultPackageDir,
   resolveDependency,
   exists,
   spawn = spawnSync,
   nodeExecPath = process.execPath,
+  writeFile,
+  removeFile = (path) => rmSync(path, { force: true }),
   logError = (message) => console.error(message),
 } = {}) {
   let plan;
@@ -97,10 +116,23 @@ export function applyBundledBwPatch({
 
   if (!plan) return 0;
 
-  const result = spawn(nodeExecPath, plan.args, {
-    cwd: plan.cwd,
-    stdio: 'inherit',
+  const temporaryPackageJsonPath = ensurePatchPackageAppRoot({
+    appRoot: plan.cwd,
+    exists,
+    writeFile,
   });
+
+  let result;
+  try {
+    result = spawn(nodeExecPath, plan.args, {
+      cwd: plan.cwd,
+      stdio: 'inherit',
+    });
+  } finally {
+    if (temporaryPackageJsonPath) {
+      removeFile(temporaryPackageJsonPath);
+    }
+  }
 
   if (result.error) {
     logError(
