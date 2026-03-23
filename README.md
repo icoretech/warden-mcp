@@ -296,10 +296,20 @@ KEYCHAIN_ALLOW_ENV_FALLBACK=true \
 npx -y @icoretech/warden-mcp@latest
 ```
 
-Then point the client at:
+For hosted or browser-based MCP clients, the server URL must be reachable from
+that client and may need to be served over **HTTPS** instead of plain
+`http://localhost:3005/...`.
+
+Depending on the MCP host, that can mean either:
+
+- a local HTTPS reverse proxy in front of `warden-mcp`
+- a public/private HTTPS endpoint on another machine
+- a temporary tunnel such as Cloudflare Tunnel, ngrok, or Tailscale Funnel
+
+Then point the client at the reachable HTTPS endpoint, for example:
 
 ```text
-http://localhost:3005/sse?v=2
+https://warden-mcp.example.com/sse?v=2
 ```
 
 This works because headerless HTTP requests can inherit the server's own
@@ -310,7 +320,7 @@ Important limits:
 - this is single-tenant only: every headerless client gets the same vault identity
 - per-request profile switching does not work in this mode
 - if a client can send `X-BW-*` headers, those headers still take priority over the server env
-- anyone who can reach that endpoint inherits that vault access, so keep it behind trusted network access, localhost, VPN, or another private boundary
+- anyone who can reach that endpoint inherits that vault access, so keep it behind trusted network access, VPN, tunnel access policies, IP allowlists, or another private boundary
 
 Client examples for shared HTTP mode:
 
