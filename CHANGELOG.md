@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.3](https://github.com/icoretech/warden-mcp/compare/v0.2.2...v0.2.3) (2026-03-25)
+
+
+### Features
+
+* add sync and sdk_version tools ([18dac1f](https://github.com/icoretech/warden-mcp/commit/18dac1f8076a63f7f4fa395fd93224af28d34bb2))
+
+
+### Bug Fixes
+
+* use bw version for sdk_version ([81eee55](https://github.com/icoretech/warden-mcp/commit/81eee556843d87637135fcd4fbed6aa6f9e42e56))
+
 ## [0.2.2](https://github.com/icoretech/warden-mcp/compare/v0.2.1...v0.2.2) (2026-03-23)
 
 
