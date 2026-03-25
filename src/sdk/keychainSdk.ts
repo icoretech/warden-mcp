@@ -429,7 +429,7 @@ export class KeychainSdk {
 
   async sdkVersion(): Promise<{ version: string }> {
     const { stdout } = await this.bw.withSession(async (session) => {
-      return this.bw.runForSession(session, ['sdk-version'], {
+      return this.bw.runForSession(session, ['--version'], {
         timeoutMs: 30_000,
       });
     });

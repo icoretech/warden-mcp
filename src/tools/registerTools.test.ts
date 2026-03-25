@@ -304,7 +304,8 @@ async function createFakeBwScript(dir: string): Promise<string> {
 if echo "$*" | grep -q 'config server'; then exit 0; fi
 if echo "$*" | grep -q 'logout'; then exit 0; fi
 if echo "$*" | grep -q 'unlock'; then printf 'fake-session'; exit 0; fi
-if echo "$*" | grep -q 'sdk-version'; then printf '2026.2.0'; exit 0; fi
+if echo "$*" | grep -q -- '--version'; then printf '2026.2.0'; exit 0; fi
+if echo "$*" | grep -q 'sdk-version'; then printf "COMMERCIAL-' ()'"; exit 0; fi
 if echo "$*" | grep -q 'sync'; then exit 0; fi
 if echo "$*" | grep -q 'status'; then printf '{"status":"unlocked","serverUrl":"https://bw.test","userEmail":"test@test.com"}'; exit 0; fi
 if echo "$*" | grep -q 'get template item'; then printf '{"type":1,"name":"","notes":"","favorite":false,"fields":[],"login":{"uris":[],"username":null,"password":null,"totp":null},"card":{},"identity":{},"organizationId":null,"collectionIds":[],"folderId":null,"reprompt":0}'; exit 0; fi

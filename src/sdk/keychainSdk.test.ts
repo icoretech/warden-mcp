@@ -93,6 +93,22 @@ function createMockBw(opts?: {
 // ---------------------------------------------------------------------------
 
 describe('KeychainSdk helper logic', () => {
+  test('sdkVersion uses bw --version instead of sdk-version', async () => {
+    const { mock, calls } = createMockBw({
+      runResponses: new Map([
+        ['--version', { stdout: '2026.2.0', stderr: '' }],
+        ['sdk-version', { stdout: "COMMERCIAL-' ()'", stderr: '' }],
+      ]),
+    });
+
+    const sdk = new KeychainSdk(mock);
+    const result = await sdk.sdkVersion();
+
+    assert.equal(result.version, '2026.2.0');
+    assert.ok(calls.some((c) => c.args.includes('--version')));
+    assert.ok(!calls.some((c) => c.args.includes('sdk-version')));
+  });
+
   test('searchItems: basic text search', async () => {
     const { mock, calls } = createMockBw({
       runResponses: new Map([
