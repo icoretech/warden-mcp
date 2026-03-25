@@ -10,6 +10,7 @@ Bitwarden CLI (`bw`).
 - `npm run test`: build + all tests
 - `make up`: boot local Vaultwarden stack and MCP server
 - `make test`: run compose-backed integration tests
+- quick live MCP smoke: see `agent-instructions/testing.md`
 - `make down`: stop the local stack
 
 Endpoints: `http://localhost:3005/healthz`, `http://localhost:3005/sse`
