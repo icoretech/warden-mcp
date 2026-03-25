@@ -416,6 +416,26 @@ export class KeychainSdk {
     return this.bw.status();
   }
 
+  async sync(): Promise<{ success: true; lastSync: string | null }> {
+    await this.bw.withSession(async (session) => {
+      await this.bw.runForSession(session, ['sync'], { timeoutMs: 120_000 });
+    });
+    // After sync, fetch status to get the lastSync timestamp.
+    const status = (await this.bw.status()) as Record<string, unknown>;
+    const lastSync =
+      typeof status.lastSync === 'string' ? status.lastSync : null;
+    return { success: true, lastSync };
+  }
+
+  async sdkVersion(): Promise<{ version: string }> {
+    const { stdout } = await this.bw.withSession(async (session) => {
+      return this.bw.runForSession(session, ['sdk-version'], {
+        timeoutMs: 30_000,
+      });
+    });
+    return { version: stdout.trim() };
+  }
+
   async encode(input: { value: string }): Promise<{ encoded: string }> {
     // `bw encode` base64-encodes stdin.
     const { stdout } = await this.bw.withSession(async (session) => {

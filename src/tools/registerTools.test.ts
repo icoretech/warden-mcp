@@ -68,6 +68,8 @@ describe('registerTools: tool listing', () => {
 
       // Core read tools
       assert.ok(names.includes(toolName('status')));
+      assert.ok(names.includes(toolName('sync')));
+      assert.ok(names.includes(toolName('sdk_version')));
       assert.ok(names.includes(toolName('encode')));
       assert.ok(names.includes(toolName('generate')));
       assert.ok(names.includes(toolName('search_items')));

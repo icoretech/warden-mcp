@@ -144,6 +144,52 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
   );
 
   registerTool(
+    `${deps.toolPrefix}.sync`,
+    {
+      title: 'Sync Vault',
+      description:
+        'Pull the latest vault data from the server (bw sync). Returns the last sync timestamp.',
+      annotations: { readOnlyHint: true },
+      inputSchema: {},
+      _meta: toolMeta,
+    },
+    async (_input, extra) => {
+      const sdk = await deps.getSdk(extra.authInfo);
+      const result = await sdk.sync();
+      return {
+        structuredContent: result,
+        content: [
+          {
+            type: 'text',
+            text: result.lastSync
+              ? `Synced. Last sync: ${result.lastSync}`
+              : 'Synced.',
+          },
+        ],
+      };
+    },
+  );
+
+  registerTool(
+    `${deps.toolPrefix}.sdk_version`,
+    {
+      title: 'SDK Version',
+      description: 'Returns the Bitwarden SDK version used by the CLI.',
+      annotations: { readOnlyHint: true },
+      inputSchema: {},
+      _meta: toolMeta,
+    },
+    async (_input, extra) => {
+      const sdk = await deps.getSdk(extra.authInfo);
+      const result = await sdk.sdkVersion();
+      return {
+        structuredContent: result,
+        content: [{ type: 'text', text: result.version }],
+      };
+    },
+  );
+
+  registerTool(
     `${deps.toolPrefix}.encode`,
     {
       title: 'Encode',

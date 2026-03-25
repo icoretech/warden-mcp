@@ -527,6 +527,8 @@ npm run dev
 Vault/session:
 
 - `keychain_status`
+- `keychain_sync` (pull latest vault data from server via `bw sync`)
+- `keychain_sdk_version` (returns the Bitwarden SDK version used by the CLI)
 - `keychain_encode` (base64-encode a string via `bw encode`)
 - `keychain_generate` (returns a generated secret only when `reveal: true`)
 
