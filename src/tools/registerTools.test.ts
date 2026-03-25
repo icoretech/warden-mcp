@@ -304,6 +304,7 @@ async function createFakeBwScript(dir: string): Promise<string> {
 if echo "$*" | grep -q 'config server'; then exit 0; fi
 if echo "$*" | grep -q 'logout'; then exit 0; fi
 if echo "$*" | grep -q 'unlock'; then printf 'fake-session'; exit 0; fi
+if echo "$*" | grep -q 'sdk-version'; then printf '2026.2.0'; exit 0; fi
 if echo "$*" | grep -q 'sync'; then exit 0; fi
 if echo "$*" | grep -q 'status'; then printf '{"status":"unlocked","serverUrl":"https://bw.test","userEmail":"test@test.com"}'; exit 0; fi
 if echo "$*" | grep -q 'get template item'; then printf '{"type":1,"name":"","notes":"","favorite":false,"fields":[],"login":{"uris":[],"username":null,"password":null,"totp":null},"card":{},"identity":{},"organizationId":null,"collectionIds":[],"folderId":null,"reprompt":0}'; exit 0; fi
@@ -394,6 +395,18 @@ describe('registerTools: e2e with fake bw', () => {
   test('status', async () => {
     const r = await callToolE2e('status', {});
     assert.ok(textOf(r).includes('Vault access ready'));
+  });
+
+  test('sync', async () => {
+    const r = await callToolE2e('sync', {});
+    assert.equal(r.isError, undefined);
+    assert.ok(textOf(r).includes('Synced'));
+  });
+
+  test('sdk_version', async () => {
+    const r = await callToolE2e('sdk_version', {});
+    assert.equal(r.isError, undefined);
+    assert.ok(textOf(r).includes('2026.2.0'));
   });
 
   test('search_items', async () => {
