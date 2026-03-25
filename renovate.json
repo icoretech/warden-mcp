@@ -54,6 +54,11 @@
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
       "automerge": true,
       "automergeType": "pr"
+    },
+    {
+      "description": "Ignore Node.js engine constraint — library supports any Node >=24",
+      "matchDepNames": ["node"],
+      "enabled": false
     }
   ]
 }
