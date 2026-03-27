@@ -15,6 +15,14 @@ export interface RegisterToolsDeps {
 
 export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
   const toolMeta = {};
+  const mutatingToolAnnotations = {
+    readOnlyHint: false,
+    destructiveHint: false,
+  } as const;
+  const destructiveToolAnnotations = {
+    readOnlyHint: false,
+    destructiveHint: true,
+  } as const;
   const rawRegisterTool = server.registerTool.bind(server) as (
     name: string,
     ...args: unknown[]
@@ -320,6 +328,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Create Folder',
       description: 'Create a Bitwarden folder (personal).',
+      annotations: mutatingToolAnnotations,
       inputSchema: {
         name: z.string(),
       },
@@ -341,6 +350,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Edit Folder',
       description: 'Rename a Bitwarden folder (personal).',
+      annotations: mutatingToolAnnotations,
       inputSchema: {
         id: z.string(),
         name: z.string(),
@@ -363,6 +373,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Delete Folder',
       description: 'Delete a Bitwarden folder (personal).',
+      annotations: destructiveToolAnnotations,
       inputSchema: {
         id: z.string(),
       },
@@ -419,6 +430,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Create Org Collection',
       description: 'Create an organization collection.',
+      annotations: mutatingToolAnnotations,
       inputSchema: {
         organizationId: z.string(),
         name: z.string(),
@@ -441,6 +453,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Edit Org Collection',
       description: 'Rename an organization collection.',
+      annotations: mutatingToolAnnotations,
       inputSchema: {
         organizationId: z.string(),
         id: z.string(),
@@ -464,6 +477,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Delete Org Collection',
       description: 'Delete an organization collection.',
+      annotations: destructiveToolAnnotations,
       inputSchema: {
         organizationId: z.string(),
         id: z.string(),
@@ -487,6 +501,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       title: 'Move Item To Organization',
       description:
         'Move an item to an organization (optionally assigning collection ids).',
+      annotations: mutatingToolAnnotations,
       inputSchema: {
         id: z.string(),
         organizationId: z.string(),
@@ -792,6 +807,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       title: 'Delete Item',
       description:
         'Delete an item by id (soft-delete by default; set permanent=true to hard delete).',
+      annotations: destructiveToolAnnotations,
       inputSchema: {
         id: z.string(),
         permanent: z.boolean().optional(),
@@ -815,6 +831,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       title: 'Delete Items',
       description:
         'Delete multiple items by id. Returns per-id results (soft-delete by default; set permanent=true to hard delete).',
+      annotations: destructiveToolAnnotations,
       inputSchema: {
         ids: z.array(z.string()).min(1).max(200),
         permanent: z.boolean().optional(),
@@ -840,6 +857,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Restore Item',
       description: 'Restore an item from trash by id.',
+      annotations: mutatingToolAnnotations,
       inputSchema: {
         id: z.string(),
       },
@@ -862,6 +880,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       title: 'Create Attachment',
       description:
         'Attach a file (base64) to an existing item. Returns the updated (redacted) item.',
+      annotations: mutatingToolAnnotations,
       inputSchema: {
         itemId: z.string(),
         filename: z.string(),
@@ -887,6 +906,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       title: 'Delete Attachment',
       description:
         'Delete an attachment from an item. Returns the updated (redacted) item.',
+      annotations: destructiveToolAnnotations,
       inputSchema: {
         itemId: z.string(),
         attachmentId: z.string(),
@@ -1289,6 +1309,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Create Login',
       description: 'Create a login item.',
+      annotations: mutatingToolAnnotations,
       inputSchema: {
         name: z.string(),
         username: z.string().optional(),
@@ -1346,6 +1367,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Create Logins',
       description: 'Create multiple login items in a single call.',
+      annotations: mutatingToolAnnotations,
       inputSchema: {
         items: z.array(
           z.object({
@@ -1414,6 +1436,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       title: 'Set Login URIs',
       description:
         'Set or update the URIs (and per-URI match types) for a login item. mode=replace overwrites; mode=merge updates/adds by uri.',
+      annotations: mutatingToolAnnotations,
       inputSchema: {
         id: z.string(),
         mode: z.enum(['replace', 'merge']).optional(),
@@ -1448,6 +1471,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Create Note',
       description: 'Create a secure note item.',
+      annotations: mutatingToolAnnotations,
       inputSchema: {
         name: z.string(),
         notes: z.string().optional(),
@@ -1484,6 +1508,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       title: 'Create SSH Key',
       description:
         'Create an SSH key object (stored as secure note with fields).',
+      annotations: mutatingToolAnnotations,
       inputSchema: {
         name: z.string(),
         publicKey: z.string(),
@@ -1514,6 +1539,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Create Card',
       description: 'Create a payment card item.',
+      annotations: mutatingToolAnnotations,
       inputSchema: {
         name: z.string(),
         cardholderName: z.string().optional(),
@@ -1555,6 +1581,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Create Identity',
       description: 'Create an identity item.',
+      annotations: mutatingToolAnnotations,
       inputSchema: {
         name: z.string(),
         identity: z
@@ -1612,6 +1639,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Update Item',
       description: 'Update selected fields of an item by id.',
+      annotations: mutatingToolAnnotations,
       inputSchema: {
         id: z.string(),
         patch: z.object({

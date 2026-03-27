@@ -113,6 +113,76 @@ describe('registerTools: tool listing', () => {
       await cleanup();
     }
   });
+
+  test('mutating tools advertise explicit mutability annotations', async () => {
+    const { client, cleanup } = await startTestServer();
+    try {
+      const tools = await client.listTools();
+      const byName = new Map(tools.tools.map((tool) => [tool.name, tool]));
+      const destructiveTools = new Set([
+        toolName('delete_folder'),
+        toolName('delete_org_collection'),
+        toolName('delete_item'),
+        toolName('delete_items'),
+        toolName('delete_attachment'),
+        toolName('send_remove_password'),
+        toolName('send_delete'),
+      ]);
+      const mutatingTools = [
+        toolName('create_folder'),
+        toolName('edit_folder'),
+        toolName('delete_folder'),
+        toolName('create_org_collection'),
+        toolName('edit_org_collection'),
+        toolName('delete_org_collection'),
+        toolName('move_item_to_organization'),
+        toolName('delete_item'),
+        toolName('delete_items'),
+        toolName('restore_item'),
+        toolName('create_attachment'),
+        toolName('delete_attachment'),
+        toolName('send_create'),
+        toolName('send_create_encoded'),
+        toolName('send_edit'),
+        toolName('send_remove_password'),
+        toolName('send_delete'),
+        toolName('create_login'),
+        toolName('create_logins'),
+        toolName('set_login_uris'),
+        toolName('create_note'),
+        toolName('create_ssh_key'),
+        toolName('create_card'),
+        toolName('create_identity'),
+        toolName('update_item'),
+      ];
+
+      for (const name of mutatingTools) {
+        const tool = byName.get(name) as
+          | {
+              annotations?: {
+                readOnlyHint?: boolean;
+                destructiveHint?: boolean;
+              };
+            }
+          | undefined;
+        assert.ok(tool, `Tool ${name} missing from listTools()`);
+        assert.equal(
+          tool.annotations?.readOnlyHint,
+          false,
+          `Tool ${name} should declare readOnlyHint=false`,
+        );
+
+        const expectedDestructive = destructiveTools.has(name);
+        assert.equal(
+          tool.annotations?.destructiveHint,
+          expectedDestructive,
+          `Tool ${name} should declare destructiveHint=${String(expectedDestructive)}`,
+        );
+      }
+    } finally {
+      await cleanup();
+    }
+  });
 });
 
 describe('registerTools: READONLY behavior', () => {
