@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.4](https://github.com/icoretech/warden-mcp/compare/v0.2.3...v0.2.4) (2026-03-27)
+
+
+### Bug Fixes
+
+* align mcp server version metadata ([f1aa144](https://github.com/icoretech/warden-mcp/commit/f1aa14416ff794c0758321f1a641a6d30d4e9525))
+* annotate mutating mcp tools ([871dec4](https://github.com/icoretech/warden-mcp/commit/871dec446d06630cd6592b3ac92b06e0be9c85e8))
+* **deps:** update dependency @modelcontextprotocol/sdk to ^1.28.0 ([#9](https://github.com/icoretech/warden-mcp/issues/9)) ([865633d](https://github.com/icoretech/warden-mcp/commit/865633d1ac78adfef6794961a460283f22d6b35e))
+
 ## [0.2.3](https://github.com/icoretech/warden-mcp/compare/v0.2.2...v0.2.3) (2026-03-25)
 
 
