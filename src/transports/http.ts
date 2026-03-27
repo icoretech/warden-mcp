@@ -11,6 +11,7 @@ import { bwEnvFromHeadersOrEnv } from '../bw/bwHeaders.js';
 import { BwSessionPool } from '../bw/bwPool.js';
 import { KeychainSdk } from '../sdk/keychainSdk.js';
 import { registerTools } from '../tools/registerTools.js';
+import { SERVER_VERSION } from '../version.js';
 
 export interface CreateKeychainAppOptions {
   appName?: string;
@@ -87,7 +88,7 @@ export function createKeychainApp(opts: CreateKeychainAppOptions = {}) {
   });
 
   function createMcpServer() {
-    const server = new McpServer({ name: APP_NAME, version: '0.1.0' });
+    const server = new McpServer({ name: APP_NAME, version: SERVER_VERSION });
     registerTools(server, {
       getSdk: async (authInfo?: AuthInfo) => {
         const extra = authInfo?.extra as Record<string, unknown> | undefined;

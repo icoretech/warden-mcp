@@ -6,6 +6,7 @@ import { BwSessionPool } from '../bw/bwPool.js';
 import { readBwEnv } from '../bw/bwSession.js';
 import { KeychainSdk } from '../sdk/keychainSdk.js';
 import { registerTools } from '../tools/registerTools.js';
+import { SERVER_VERSION } from '../version.js';
 
 export async function runStdioTransport(): Promise<void> {
   const TOOL_PREFIX = process.env.TOOL_PREFIX ?? 'keychain';
@@ -21,7 +22,7 @@ export async function runStdioTransport(): Promise<void> {
       `${process.env.HOME ?? '/data'}/bw-profiles`,
   });
 
-  const server = new McpServer({ name: APP_NAME, version: '0.1.0' });
+  const server = new McpServer({ name: APP_NAME, version: SERVER_VERSION });
 
   registerTools(server, {
     getSdk: async () => {

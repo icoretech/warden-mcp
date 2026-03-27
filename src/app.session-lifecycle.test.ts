@@ -3,6 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import packageJson from '../package.json' with { type: 'json' };
 
 import { createKeychainApp } from './transports/http.js';
 
@@ -31,6 +32,13 @@ async function initializeOverSse(baseUrl: string, sessionId?: string) {
   return {
     status: res.status,
     sessionId: res.headers.get('mcp-session-id'),
+    body: (await res.json()) as {
+      result?: {
+        serverInfo?: {
+          version?: string;
+        };
+      };
+    },
   };
 }
 
@@ -93,6 +101,28 @@ test('rejects new sessions when max session count is reached', async () => {
     await new Promise((resolve) => setTimeout(resolve, 650));
     const afterTtl = await initializeOverSse(baseUrl);
     assert.equal(afterTtl.status, 200);
+  } finally {
+    await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+    await rm(bwHomeRoot, { recursive: true, force: true });
+  }
+});
+
+test('initialize reports the published package version in serverInfo', async () => {
+  const bwHomeRoot = await mkdtemp(join(tmpdir(), 'keychain-version-'));
+  const app = createKeychainApp({ bwHomeRoot });
+  const httpServer = app.listen(0, '127.0.0.1');
+  await new Promise<void>((resolve) => httpServer.once('listening', resolve));
+
+  try {
+    const addr = httpServer.address();
+    if (!addr || typeof addr === 'string') {
+      throw new Error('Unexpected server address');
+    }
+    const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+    const init = await initializeOverSse(baseUrl);
+    assert.equal(init.status, 200);
+    assert.equal(init.body.result?.serverInfo?.version, packageJson.version);
   } finally {
     await new Promise<void>((resolve) => httpServer.close(() => resolve()));
     await rm(bwHomeRoot, { recursive: true, force: true });
