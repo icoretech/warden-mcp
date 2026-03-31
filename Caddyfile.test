@@ -9,6 +9,6 @@
 # Serve on both the docker-compose hostname (inside the network) and localhost
 # (from the host machine via port mapping).
 vaultwarden-https:443, localhost:443, 127.0.0.1:443 {
-  tls internal
-  reverse_proxy vaultwarden:80
+	tls internal
+	reverse_proxy vaultwarden:80
 }

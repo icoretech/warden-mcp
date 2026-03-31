@@ -18,7 +18,9 @@ Use this file when adding or updating tests.
 ## Commands
 
 - `npm run test`: build plus the full test suite
-- `npm run test:integration`: build plus integration-only coverage
+- `npm run test:integration`: build plus integration-only coverage, forced to
+  run one integration file at a time because the compose-backed suite shares a
+  single Vaultwarden/`bw` runtime
 - `make test`: compose-backed integration path
 
 ## Quick Local Smoke
