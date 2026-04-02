@@ -2,7 +2,7 @@ name: keychain-mcp
 
 services:
   vaultwarden:
-    image: vaultwarden/server:1.35.3-alpine
+    image: vaultwarden/server:1.35.4-alpine
     ports:
       - "8080:80"
     environment:

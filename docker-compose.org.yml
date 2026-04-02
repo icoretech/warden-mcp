@@ -3,7 +3,7 @@ name: keychain-mcp-org
 
 services:
   vaultwarden-org:
-    image: vaultwarden/server:1.35.3-alpine
+    image: vaultwarden/server:1.35.4-alpine
     environment:
       DOMAIN: https://vaultwarden-org-https
       SIGNUPS_ALLOWED: "true"
