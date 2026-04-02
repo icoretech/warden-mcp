@@ -1,9 +1,25 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
+
+const unpatchedMethod = (
+  awaiterName: string,
+) => `    setAccountCryptographicState(response, userId) {
+        return ${awaiterName}(this, void 0, void 0, function* () {
+            yield this.accountCryptographicStateService.setAccountCryptographicState(response.accountKeysResponseModel.toWrappedAccountCryptographicState(), userId);
+        });
+    }
+`;
+
+const sampleBwSource = `${unpatchedMethod('auth_request_login_strategy_awaiter')}
+${unpatchedMethod('password_login_strategy_awaiter')}
+yield this.accountCryptographicStateService.setAccountCryptographicState(tokenResponse.accountKeysResponseModel.toWrappedAccountCryptographicState(), userId);
+${unpatchedMethod('user_api_login_strategy_awaiter')}
+${unpatchedMethod('webauthn_login_strategy_awaiter')}
+`;
 
 async function loadPatchLibModule() {
   const modulePath = pathToFileURL(
@@ -12,63 +28,39 @@ async function loadPatchLibModule() {
   return import(`${modulePath}?test=${Date.now()}`);
 }
 
-test('resolvePatchPackagePlan targets the hoisted npx install root', async () => {
-  const tempRoot = mkdtempSync(join(tmpdir(), 'warden-patch-plan-'));
-  const installRoot = join(tempRoot, '_npx', 'abc123');
-  const packageDir = join(
-    installRoot,
-    'node_modules',
-    '@icoretech',
-    'warden-mcp',
+test('patchBundledBwSource patches the four login strategies and leaves tokenResponse untouched', async () => {
+  const { patchBundledBwSource } = await loadPatchLibModule();
+  const result = patchBundledBwSource(sampleBwSource);
+
+  assert.equal(result.replacements, 4);
+  assert.match(result.source, /icoretech-vaultwarden-compat/);
+  assert.match(
+    result.source,
+    /else if \(response\.privateKey\) \{\n\s+yield this\.accountCryptographicStateService\.setAccountCryptographicState\(\{\n\s+V1: \{\n\s+private_key: response\.privateKey,/,
   );
-  const patchesDir = join(packageDir, 'patches');
-  const cliPackageJsonPath = join(
-    installRoot,
-    'node_modules',
-    '@bitwarden',
-    'cli',
-    'package.json',
+  assert.match(
+    result.source,
+    /yield this\.accountCryptographicStateService\.setAccountCryptographicState\(tokenResponse\.accountKeysResponseModel\.toWrappedAccountCryptographicState\(\), userId\);/,
   );
-
-  mkdirSync(patchesDir, { recursive: true });
-  writeFileSync(join(patchesDir, '@bitwarden+cli+2026.2.0.patch'), 'patch');
-  mkdirSync(dirname(cliPackageJsonPath), { recursive: true });
-  writeFileSync(cliPackageJsonPath, '{}');
-
-  const { resolvePatchPackagePlan } = await loadPatchLibModule();
-  const plan = resolvePatchPackagePlan({
-    packageDir,
-    resolveDependency(specifier: string) {
-      if (specifier === '@bitwarden/cli/package.json')
-        return cliPackageJsonPath;
-      if (specifier === 'patch-package/dist/index.js') {
-        return '/tmp/fake-patch-package.js';
-      }
-      throw new Error(`unexpected dependency: ${specifier}`);
-    },
-  });
-
-  assert.deepEqual(plan, {
-    cwd: installRoot,
-    args: [
-      '/tmp/fake-patch-package.js',
-      '--patch-dir',
-      join('node_modules', '@icoretech', 'warden-mcp', 'patches'),
-      '--error-on-fail',
-    ],
-  });
 });
 
-test('resolvePatchPackagePlan skips cleanly when @bitwarden/cli is absent', async () => {
-  const tempRoot = mkdtempSync(join(tmpdir(), 'warden-patch-plan-'));
+test('patchBundledBwSource is idempotent once the compat block is present', async () => {
+  const { patchBundledBwSource } = await loadPatchLibModule();
+  const firstPass = patchBundledBwSource(sampleBwSource);
+  const secondPass = patchBundledBwSource(firstPass.source);
+
+  assert.equal(secondPass.replacements, 0);
+  assert.equal(secondPass.source, firstPass.source);
+});
+
+test('applyBundledBwPatch skips cleanly when @bitwarden/cli is absent', async () => {
+  const tempRoot = mkdtempSync(join(tmpdir(), 'warden-bw-patch-'));
   const packageDir = join(tempRoot, 'node_modules', '@icoretech', 'warden-mcp');
-  const patchesDir = join(packageDir, 'patches');
 
-  mkdirSync(patchesDir, { recursive: true });
-  writeFileSync(join(patchesDir, '@bitwarden+cli+2026.2.0.patch'), 'patch');
+  mkdirSync(packageDir, { recursive: true });
 
-  const { resolvePatchPackagePlan } = await loadPatchLibModule();
-  const plan = resolvePatchPackagePlan({
+  const { applyBundledBwPatch } = await loadPatchLibModule();
+  const status = applyBundledBwPatch({
     packageDir,
     resolveDependency(specifier: string) {
       if (specifier === '@bitwarden/cli/package.json') {
@@ -76,70 +68,52 @@ test('resolvePatchPackagePlan skips cleanly when @bitwarden/cli is absent', asyn
         Object.assign(error, { code: 'MODULE_NOT_FOUND' });
         throw error;
       }
-      if (specifier === 'patch-package/dist/index.js') {
-        return '/tmp/fake-patch-package.js';
-      }
       throw new Error(`unexpected dependency: ${specifier}`);
     },
   });
 
-  assert.equal(plan, null);
+  assert.equal(status, 0);
 });
 
-test('applyBundledBwPatch bootstraps and cleans up a temporary app package.json', async () => {
-  const tempRoot = mkdtempSync(join(tmpdir(), 'warden-patch-plan-'));
-  const installRoot = join(tempRoot, '_npx', 'abc123');
-  const packageDir = join(
-    installRoot,
-    'node_modules',
-    '@icoretech',
-    'warden-mcp',
-  );
-  const patchesDir = join(packageDir, 'patches');
+test('applyBundledBwPatch rewrites build/bw.js in place', async () => {
+  const tempRoot = mkdtempSync(join(tmpdir(), 'warden-bw-patch-'));
+  const packageDir = join(tempRoot, 'node_modules', '@icoretech', 'warden-mcp');
   const cliPackageJsonPath = join(
-    installRoot,
+    tempRoot,
     'node_modules',
     '@bitwarden',
     'cli',
     'package.json',
   );
-  const appPackageJsonPath = join(installRoot, 'package.json');
+  const cliBundlePath = join(
+    tempRoot,
+    'node_modules',
+    '@bitwarden',
+    'cli',
+    'build',
+    'bw.js',
+  );
 
-  mkdirSync(patchesDir, { recursive: true });
-  writeFileSync(join(patchesDir, '@bitwarden+cli+2026.2.0.patch'), 'patch');
   mkdirSync(dirname(cliPackageJsonPath), { recursive: true });
+  mkdirSync(dirname(cliBundlePath), { recursive: true });
+  mkdirSync(packageDir, { recursive: true });
   writeFileSync(cliPackageJsonPath, '{}');
+  writeFileSync(cliBundlePath, sampleBwSource);
 
   const { applyBundledBwPatch } = await loadPatchLibModule();
   const status = applyBundledBwPatch({
     packageDir,
     resolveDependency(specifier: string) {
-      if (specifier === '@bitwarden/cli/package.json')
+      if (specifier === '@bitwarden/cli/package.json') {
         return cliPackageJsonPath;
-      if (specifier === 'patch-package/dist/index.js') {
-        return '/tmp/fake-patch-package.js';
       }
       throw new Error(`unexpected dependency: ${specifier}`);
-    },
-    spawn(
-      command: string,
-      args: readonly string[],
-      options: { cwd?: string; stdio?: string },
-    ) {
-      assert.equal(command, process.execPath);
-      assert.deepEqual(args, [
-        '/tmp/fake-patch-package.js',
-        '--patch-dir',
-        join('node_modules', '@icoretech', 'warden-mcp', 'patches'),
-        '--error-on-fail',
-      ]);
-      assert.equal(options?.cwd, installRoot);
-      assert.equal(options?.stdio, 'inherit');
-      assert.equal(existsSync(appPackageJsonPath), true);
-      return { status: 0 };
     },
   });
 
   assert.equal(status, 0);
-  assert.equal(existsSync(appPackageJsonPath), false);
+  assert.match(
+    readFileSync(cliBundlePath, 'utf8'),
+    /icoretech-vaultwarden-compat/,
+  );
 });

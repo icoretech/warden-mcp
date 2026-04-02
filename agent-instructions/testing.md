@@ -104,3 +104,5 @@ docker compose down
 - Prefer the compose-backed path when the behavior depends on real `bw` or
   Vaultwarden interaction
 - Keep the Playwright bootstrap flow idempotent so clean reruns stay reliable
+- Keep the Playwright Docker image tag in `docker-compose*.yml` aligned with
+  `package.json` when bumping the npm package
