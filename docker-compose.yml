@@ -58,7 +58,7 @@ services:
         condition: service_healthy
 
   bootstrap:
-    image: mcr.microsoft.com/playwright:v1.58.2-jammy
+    image: mcr.microsoft.com/playwright:v1.59.1-jammy
     working_dir: /work
     volumes:
       - .:/work
