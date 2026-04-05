@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.6](https://github.com/icoretech/warden-mcp/compare/v0.2.5...v0.2.6) (2026-04-05)
+
+
+### Bug Fixes
+
+* **session:** avoid relogin when bw host is unchanged ([3acc13e](https://github.com/icoretech/warden-mcp/commit/3acc13eaf299b20ef437cbc836423671b46c83d6))
+
 ## [0.2.5](https://github.com/icoretech/warden-mcp/compare/v0.2.4...v0.2.5) (2026-04-03)
 
 
