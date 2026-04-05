@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.7](https://github.com/icoretech/warden-mcp/compare/v0.2.6...v0.2.7) (2026-04-05)
+
+
+### Bug Fixes
+
+* **docker:** remove stale patches copy ([817b373](https://github.com/icoretech/warden-mcp/commit/817b373aa885eb873659423ac2a47f5462df735d))
+
 ## [0.2.6](https://github.com/icoretech/warden-mcp/compare/v0.2.5...v0.2.6) (2026-04-05)
 
 
