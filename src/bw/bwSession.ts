@@ -219,6 +219,19 @@ export class BwSessionManager {
     }
   }
 
+  private async currentServerUrl(): Promise<string | null> {
+    try {
+      const { stdout } = await runBw(['status'], {
+        env: this.baseEnv(),
+        timeoutMs: 30_000,
+      });
+      const parsed = JSON.parse(stdout) as { serverUrl?: unknown };
+      return typeof parsed.serverUrl === 'string' ? parsed.serverUrl : null;
+    } catch {
+      return null;
+    }
+  }
+
   private async ensureUnlockedInternal(): Promise<string> {
     // Ensure server config points to BW_HOST.
     await this.ensureServerConfigured();
@@ -337,6 +350,12 @@ export class BwSessionManager {
 
   private async ensureServerConfigured(): Promise<void> {
     if (this.configuredHost === this.env.host) return;
+
+    const currentHost = await this.currentServerUrl();
+    if (currentHost === this.env.host) {
+      this.configuredHost = currentHost;
+      return;
+    }
 
     // bw requires logout before config server update.
     await runBw(['logout'], { env: this.baseEnv(), timeoutMs: 30_000 }).catch(

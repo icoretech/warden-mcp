@@ -440,6 +440,38 @@ printf '{}'; exit 0
     }
   });
 
+  test('fresh process reuses existing host config without logout or reconfigure', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const scriptPath = join(dir, 'fake-bw');
+      const script = `#!/bin/sh
+if echo "$*" | grep -q 'status'; then
+  printf '%s' '{"status":"locked","serverUrl":"https://bw.test"}'
+  exit 0
+fi
+if echo "$*" | grep -q 'config server'; then exit 1; fi
+if echo "$*" | grep -q 'logout'; then exit 1; fi
+if echo "$*" | grep -q 'unlock --check'; then exit 1; fi
+if echo "$*" | grep -q 'unlock'; then
+  printf 'reused-session'
+  exit 0
+fi
+printf '{}'
+exit 0
+`;
+      await writeFile(scriptPath, script, { mode: 0o755 });
+      process.env.BW_BIN = scriptPath;
+
+      const manager = new BwSessionManager(makeEnv(dir));
+      const session = await manager.withSession(async (s) => s);
+      assert.equal(session, 'reused-session');
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   test('apikey login path works', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
     const savedBin = process.env.BW_BIN;
