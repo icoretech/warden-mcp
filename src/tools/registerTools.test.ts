@@ -638,6 +638,22 @@ describe('registerTools: e2e with fake bw', () => {
     assert.equal(textOf(r), JSON.stringify(r.structuredContent));
   });
 
+  test('get_totp exposes structured result in text when KEYCHAIN_TEXT_COMPAT_MODE=structured_json', async () => {
+    const originalDateNow = Date.now;
+    Date.now = () => 41_000;
+    try {
+      const r = await callToolE2e(
+        'get_totp',
+        { term: 'test', reveal: true },
+        { KEYCHAIN_TEXT_COMPAT_MODE: 'structured_json' },
+      );
+      assert.equal(r.isError, undefined);
+      assert.equal(textOf(r), JSON.stringify(r.structuredContent));
+    } finally {
+      Date.now = originalDateNow;
+    }
+  });
+
   // --- Send tools ---
 
   test('send_list', async () => {
