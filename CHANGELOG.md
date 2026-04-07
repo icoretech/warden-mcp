@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.8](https://github.com/icoretech/warden-mcp/compare/v0.2.7...v0.2.8) (2026-04-07)
+
+
+### Features
+
+* **warden-mcp:** add text-only compat mode ([fcbedb5](https://github.com/icoretech/warden-mcp/commit/fcbedb5e520351acbd932b44dbf63c0ea9f99884))
+
 ## [0.2.7](https://github.com/icoretech/warden-mcp/compare/v0.2.6...v0.2.7) (2026-04-05)
 
 
