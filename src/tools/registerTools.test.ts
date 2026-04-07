@@ -435,7 +435,11 @@ printf '{}'; exit 0
 
 describe('registerTools: e2e with fake bw', () => {
   // Shared e2e helper: creates fake bw, starts server, calls tool, cleans up.
-  async function callToolE2e(toolName: string, args: Record<string, unknown>) {
+  async function callToolE2e(
+    toolName: string,
+    args: Record<string, unknown>,
+    envOverrides?: Record<string, string>,
+  ) {
     const tmpDir = await mkdtemp(join(tmpdir(), 'tools-e2e-'));
     const fakeBw = await createFakeBwScript(tmpDir);
     const { client, cleanup } = await startTestServer({
@@ -443,6 +447,7 @@ describe('registerTools: e2e with fake bw', () => {
       BW_HOST: 'https://bw.test',
       BW_PASSWORD: 'pw',
       BW_USER: 'test@test.com',
+      ...(envOverrides ?? {}),
     });
     try {
       return await client.callTool({
@@ -611,6 +616,26 @@ describe('registerTools: e2e with fake bw', () => {
   test('generate_username with reveal=true', async () => {
     const r = await callToolE2e('generate_username', { reveal: true });
     assert.equal(r.isError, undefined);
+  });
+
+  test('get_username exposes structured result in text when KEYCHAIN_TEXT_COMPAT_MODE=structured_json', async () => {
+    const r = await callToolE2e(
+      'get_username',
+      { term: 'test' },
+      { KEYCHAIN_TEXT_COMPAT_MODE: 'structured_json' },
+    );
+    assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), JSON.stringify(r.structuredContent));
+  });
+
+  test('get_password exposes structured result in text when KEYCHAIN_TEXT_COMPAT_MODE=structured_json', async () => {
+    const r = await callToolE2e(
+      'get_password',
+      { term: 'test', reveal: true },
+      { KEYCHAIN_TEXT_COMPAT_MODE: 'structured_json' },
+    );
+    assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), JSON.stringify(r.structuredContent));
   });
 
   // --- Send tools ---

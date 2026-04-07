@@ -430,6 +430,7 @@ Mutation control:
 
 - Set `READONLY=true` to block all write operations (create/edit/delete/move/restore/attachments).
 - Set `NOREVEAL=true` to force all `reveal` parameters to `false` server-side. Clients can still request `reveal: true`, but the server will silently downgrade to redacted output. This prevents prompt injection from tricking an LLM agent into exfiltrating secrets.
+- Set `KEYCHAIN_TEXT_COMPAT_MODE=structured_json` to mirror any structured `OK` tool result into `TextContent` as serialized JSON. This is useful for text-only MCP clients that ignore `structuredContent`, but it also duplicates revealed secrets into the plain-text transcript.
 - Tool names default to `keychain_*`. Override `TOOL_PREFIX` to change the namespace and `TOOL_SEPARATOR` to change the separator (default `_`, set `.` for legacy clients).
 - Session guardrails:
   - `KEYCHAIN_SESSION_MAX_COUNT` (default `32`)
@@ -439,6 +440,7 @@ Mutation control:
   - `KEYCHAIN_METRICS_LOG_INTERVAL_MS` (default `0`, disabled)
   - `NOREVEAL` / `KEYCHAIN_NOREVEAL` (default `false`; force all reveals to false)
   - `KEYCHAIN_ALLOW_ENV_FALLBACK` (default `false`; HTTP env-var credential fallback)
+  - `KEYCHAIN_TEXT_COMPAT_MODE` (default unset; set to `structured_json` to copy structured `OK` results into `TextContent`)
 
 Redaction defaults (item reads):
 
@@ -474,6 +476,8 @@ If you run `warden-mcp` beyond local development, review these items:
 7. **Set `NOREVEAL=true` when secrets should never leave the server.** This forces all `reveal` parameters to `false` server-side, regardless of what the client requests. Use this when the MCP host is an LLM agent that could be influenced by prompt injection — it prevents tricked agents from exfiltrating passwords or TOTP codes.
 
 8. **Monitor `/metricsz`.** The endpoint is intentionally unauthenticated (for scraper compatibility) but exposes session counts, heap usage, and rejection counters. If this data is sensitive in your environment, restrict access at the network level.
+
+9. **Only enable `KEYCHAIN_TEXT_COMPAT_MODE=structured_json` for text-only clients you trust.** It improves compatibility with clients that ignore `structuredContent`, but any revealed secret will also appear in plain-text `TextContent`, making transcript leakage easier.
 
 ## Quick Start
 

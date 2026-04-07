@@ -54,6 +54,8 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
 
   const isReadOnly = parseBoolEnv('READONLY', 'KEYCHAIN_READONLY');
   const isNoReveal = parseBoolEnv('NOREVEAL', 'KEYCHAIN_NOREVEAL');
+  const textCompatMode =
+    process.env.KEYCHAIN_TEXT_COMPAT_MODE?.trim().toLowerCase();
 
   function readonlyBlocked() {
     return {
@@ -80,6 +82,17 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     E extends Record<string, unknown> = Record<never, never>,
   >(kind: string, value: T, revealed: boolean, extra?: E) {
     return { result: { kind, value, revealed, ...(extra ?? {}) } };
+  }
+
+  function toolTextContent(
+    structuredContent: Record<string, unknown>,
+    fallbackText: string,
+  ) {
+    const text =
+      textCompatMode === 'structured_json'
+        ? JSON.stringify(structuredContent)
+        : fallbackText;
+    return [{ type: 'text' as const, text }];
   }
 
   const uriMatchSchema = z.enum([
@@ -213,7 +226,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const encoded = await sdk.encode(input);
       return {
         structuredContent: encoded,
-        content: [{ type: 'text', text: 'OK' }],
+        content: toolTextContent(encoded, 'OK'),
       };
     },
   );
@@ -246,13 +259,14 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
       const result = await sdk.generate(clampReveal(input));
+      const structuredContent = toolResult(
+        'generated',
+        result.value,
+        result.revealed,
+      );
       return {
-        structuredContent: toolResult(
-          'generated',
-          result.value,
-          result.revealed,
-        ),
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -284,13 +298,14 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
       const result = await sdk.generateUsername(clampReveal(input));
+      const structuredContent = toolResult(
+        'generated',
+        result.value,
+        result.revealed,
+      );
       return {
-        structuredContent: toolResult(
-          'generated',
-          result.value,
-          result.revealed,
-        ),
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -637,9 +652,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const item = await sdk.getItem(input.id, {
         reveal: effectiveReveal(input),
       });
+      const structuredContent = { item };
       return {
-        structuredContent: { item },
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -658,9 +674,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
       const uri = await sdk.getUri(input);
+      const structuredContent = toolResult('uri', uri.value, uri.revealed);
       return {
-        structuredContent: toolResult('uri', uri.value, uri.revealed),
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -683,9 +700,14 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
         { term: input.term },
         { reveal: effectiveReveal(input) },
       );
+      const structuredContent = toolResult(
+        'notes',
+        notes.value,
+        notes.revealed,
+      );
       return {
-        structuredContent: toolResult('notes', notes.value, notes.revealed),
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -704,13 +726,14 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
       const exposed = await sdk.getExposed(input);
+      const structuredContent = toolResult(
+        'exposed',
+        exposed.value,
+        exposed.revealed,
+      );
       return {
-        structuredContent: toolResult(
-          'exposed',
-          exposed.value,
-          exposed.revealed,
-        ),
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -729,9 +752,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
       const folder = await sdk.getFolder(input);
+      const structuredContent = { folder };
       return {
-        structuredContent: { folder },
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -751,9 +775,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
       const collection = await sdk.getCollection(input);
+      const structuredContent = { collection };
       return {
-        structuredContent: { collection },
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -772,9 +797,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
       const organization = await sdk.getOrganization(input);
+      const structuredContent = { organization };
       return {
-        structuredContent: { organization },
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -794,9 +820,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
       const collection = await sdk.getOrgCollection(input);
+      const structuredContent = { collection };
       return {
-        structuredContent: { collection },
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -941,9 +968,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
       const attachment = await sdk.getAttachment(input);
+      const structuredContent = { attachment };
       return {
-        structuredContent: { attachment },
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -960,9 +988,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (_input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
       const sends = await sdk.sendList();
+      const structuredContent = { sends };
       return {
-        structuredContent: { sends },
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -981,9 +1010,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
       const template = await sdk.sendTemplate(input);
+      const structuredContent = { template };
       return {
-        structuredContent: { template },
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -1005,9 +1035,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
       const result = await sdk.sendGet(input);
+      const structuredContent = { result };
       return {
-        structuredContent: { result },
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -1042,9 +1073,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       if (isReadOnly) return readonlyBlocked();
       const sdk = await deps.getSdk(extra.authInfo);
       const send = await sdk.sendCreate(input);
+      const structuredContent = { send };
       return {
-        structuredContent: { send },
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -1078,9 +1110,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       if (isReadOnly) return readonlyBlocked();
       const sdk = await deps.getSdk(extra.authInfo);
       const send = await sdk.sendCreateEncoded(input);
+      const structuredContent = { send };
       return {
-        structuredContent: { send },
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -1107,9 +1140,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       if (isReadOnly) return readonlyBlocked();
       const sdk = await deps.getSdk(extra.authInfo);
       const send = await sdk.sendEdit(input);
+      const structuredContent = { send };
       return {
-        structuredContent: { send },
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -1133,9 +1167,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       if (isReadOnly) return readonlyBlocked();
       const sdk = await deps.getSdk(extra.authInfo);
       const result = await sdk.sendRemovePassword(input);
+      const structuredContent = { result };
       return {
-        structuredContent: { result },
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -1159,9 +1194,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       if (isReadOnly) return readonlyBlocked();
       const sdk = await deps.getSdk(extra.authInfo);
       const result = await sdk.sendDelete(input);
+      const structuredContent = { result };
       return {
-        structuredContent: { result },
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -1184,9 +1220,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
       const result = await sdk.receive(input);
+      const structuredContent = { result };
       return {
-        structuredContent: { result },
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -1205,13 +1242,14 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
       const username = await sdk.getUsername(input);
+      const structuredContent = toolResult(
+        'username',
+        username.value,
+        username.revealed,
+      );
       return {
-        structuredContent: toolResult(
-          'username',
-          username.value,
-          username.revealed,
-        ),
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -1235,13 +1273,14 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
         { term: input.term },
         { reveal: effectiveReveal(input) },
       );
+      const structuredContent = toolResult(
+        'password',
+        password.value,
+        password.revealed,
+      );
       return {
-        structuredContent: toolResult(
-          'password',
-          password.value,
-          password.revealed,
-        ),
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -1265,12 +1304,13 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
         { term: input.term },
         { reveal: effectiveReveal(input) },
       );
+      const structuredContent = toolResult('totp', totp.value, totp.revealed, {
+        period: totp.period,
+        timeLeft: totp.timeLeft,
+      });
       return {
-        structuredContent: toolResult('totp', totp.value, totp.revealed, {
-          period: totp.period,
-          timeLeft: totp.timeLeft,
-        }),
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
@@ -1293,13 +1333,14 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const history = await sdk.getPasswordHistory(input.id, {
         reveal: effectiveReveal(input),
       });
+      const structuredContent = toolResult(
+        'password_history',
+        history.value,
+        history.revealed,
+      );
       return {
-        structuredContent: toolResult(
-          'password_history',
-          history.value,
-          history.revealed,
-        ),
-        content: [{ type: 'text', text: 'OK' }],
+        structuredContent,
+        content: toolTextContent(structuredContent, 'OK'),
       };
     },
   );
