@@ -4,6 +4,7 @@
 [![ghcr](https://img.shields.io/badge/ghcr.io-icoretech%2Fwarden--mcp-blue?logo=docker)](https://ghcr.io/icoretech/warden-mcp)
 [![CI](https://img.shields.io/github/actions/workflow/status/icoretech/warden-mcp/ci.yml?branch=main&label=ci)](https://github.com/icoretech/warden-mcp/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/icoretech/warden-mcp)](LICENSE)
+[![SafeSkill 80/100](https://img.shields.io/badge/SafeSkill-80%2F100_Passes%20with%20Notes-yellow)](https://safeskill.dev/scan/icoretech-warden-mcp)
 
 Programmatic Vaultwarden/Bitwarden vault management over MCP (Model Context Protocol), backed by the official Bitwarden CLI (`bw`).
 
