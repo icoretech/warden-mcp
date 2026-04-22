@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.10](https://github.com/icoretech/warden-mcp/compare/v0.2.9...v0.2.10) (2026-04-22)
+
+
+### Bug Fixes
+
+* **stdio:** prewarm bw sessions for hosted mcp clients ([5fb8bd9](https://github.com/icoretech/warden-mcp/commit/5fb8bd94068d00bade70e5be341c31730c2afec6))
+
 ## [0.2.9](https://github.com/icoretech/warden-mcp/compare/v0.2.8...v0.2.9) (2026-04-22)
 
 
