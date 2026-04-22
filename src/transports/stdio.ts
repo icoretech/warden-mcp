@@ -22,11 +22,12 @@ export async function runStdioTransport(): Promise<void> {
       `${process.env.HOME ?? '/data'}/bw-profiles`,
   });
 
+  const bw = await pool.getOrCreate(bwEnv);
+
   const server = new McpServer({ name: APP_NAME, version: SERVER_VERSION });
 
   registerTools(server, {
     getSdk: async () => {
-      const bw = await pool.getOrCreate(bwEnv);
       return new KeychainSdk(bw);
     },
     toolPrefix: TOOL_PREFIX,
@@ -41,5 +42,13 @@ export async function runStdioTransport(): Promise<void> {
     transport.onclose = resolve;
   });
   await server.connect(transport);
+
+  const warmupTimer = setTimeout(() => {
+    void bw.status().catch(() => {
+      // Best-effort stdio warmup only. Real tool calls still surface failures.
+    });
+  }, 0);
+  warmupTimer.unref?.();
+
   await closed;
 }
