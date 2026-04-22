@@ -153,13 +153,26 @@ test('mcp e2e: can initialize, list tools, and call keychain_status over /sse', 
         summary?: unknown;
         status?: unknown;
       };
-      assert.equal(rec.status, 'unlocked');
-      assert.ok(rec.operational && typeof rec.operational === 'object');
-      assert.equal((rec.operational as { ready?: unknown }).ready, true);
       assert.ok(
-        typeof rec.summary === 'string' &&
-          rec.summary.toLowerCase().includes('vault access ready'),
+        rec.status === 'unlocked' ||
+          rec.status === 'locked' ||
+          rec.status === 'unauthenticated',
       );
+      assert.ok(rec.operational && typeof rec.operational === 'object');
+      const ready = (rec.operational as { ready?: unknown }).ready;
+      if (rec.status === 'unlocked') {
+        assert.equal(ready, true);
+        assert.ok(
+          typeof rec.summary === 'string' &&
+            rec.summary.toLowerCase().includes('vault access ready'),
+        );
+      } else {
+        assert.equal(ready, false);
+        assert.ok(
+          typeof rec.summary === 'string' &&
+            rec.summary.toLowerCase().includes('vault access not ready'),
+        );
+      }
     }
     assert.ok(Array.isArray(res.content));
     assert.ok(

@@ -43,14 +43,5 @@ export async function runStdioTransport(): Promise<void> {
   });
   await server.connect(transport);
 
-  const warmupTimer = setTimeout(() => {
-    void bw
-      .withSession(async () => undefined)
-      .catch(() => {
-        // Best-effort stdio warmup only. Real tool calls still surface failures.
-      });
-  }, 0);
-  warmupTimer.unref?.();
-
   await closed;
 }

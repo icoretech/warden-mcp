@@ -129,7 +129,7 @@ exit 0
   await rm(dir, { recursive: true, force: true });
 });
 
-test('stdio startup eagerly warms the fixed bw session before first tool call', {
+test('stdio startup does not unlock before first tool call', {
   timeout: 15_000,
 }, async () => {
   const projectRoot = fileURLToPath(new URL('..', import.meta.url));
@@ -150,10 +150,10 @@ if echo "$*" | grep -q 'unlock'; then
   printf 'warm-session-token'
   exit 0
 fi
-if echo "$*" | grep -q 'status'; then
-  printf '%s' '{"serverUrl":"https://example.test","userEmail":"user@example.test","status":"unlocked"}'
-  exit 0
-fi
+    if echo "$*" | grep -q 'status'; then
+      printf '%s' '{"serverUrl":"https://example.test","userEmail":"user@example.test","status":"locked"}'
+      exit 0
+    fi
 printf '%s' '{}'
 exit 0
 `,
@@ -189,9 +189,10 @@ exit 0
       await readFile(unlockCounterFile, 'utf8'),
       10,
     );
-    assert.ok(
-      unlocksBeforeCall >= 1,
-      `expected stdio startup warmup to unlock before first tool call, got ${unlocksBeforeCall}`,
+    assert.equal(
+      unlocksBeforeCall,
+      0,
+      `expected stdio startup to avoid unlock before first tool call, got ${unlocksBeforeCall}`,
     );
 
     const result = await client.callTool(
@@ -202,7 +203,16 @@ exit 0
     const status = (result.structuredContent ?? {}) as {
       status?: { status?: string };
     };
-    assert.equal(status.status?.status, 'unlocked');
+    assert.equal(status.status?.status, 'locked');
+    const unlocksAfterCall = Number.parseInt(
+      await readFile(unlockCounterFile, 'utf8'),
+      10,
+    );
+    assert.equal(
+      unlocksAfterCall,
+      0,
+      `expected keychain_status to avoid unlock, got ${unlocksAfterCall}`,
+    );
   } finally {
     await client.close().catch(() => {});
     await rm(dir, { recursive: true, force: true });
