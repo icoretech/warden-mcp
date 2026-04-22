@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.9](https://github.com/icoretech/warden-mcp/compare/v0.2.8...v0.2.9) (2026-04-22)
+
+
+### Bug Fixes
+
+* **session:** kill timed out bw process trees and stabilize cli appdata ([ab03a25](https://github.com/icoretech/warden-mcp/commit/ab03a255425b65e2753ebaa15f54778eae124569))
+
 ## [0.2.8](https://github.com/icoretech/warden-mcp/compare/v0.2.7...v0.2.8) (2026-04-07)
 
 
