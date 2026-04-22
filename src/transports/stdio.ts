@@ -23,6 +23,9 @@ export async function runStdioTransport(): Promise<void> {
   });
 
   const bw = await pool.getOrCreate(bwEnv);
+  await bw.status().catch(() => {
+    // Best-effort stdio prewarm only. Real tool calls still surface failures.
+  });
 
   const server = new McpServer({ name: APP_NAME, version: SERVER_VERSION });
 
@@ -42,13 +45,5 @@ export async function runStdioTransport(): Promise<void> {
     transport.onclose = resolve;
   });
   await server.connect(transport);
-
-  const warmupTimer = setTimeout(() => {
-    void bw.status().catch(() => {
-      // Best-effort stdio warmup only. Real tool calls still surface failures.
-    });
-  }, 0);
-  warmupTimer.unref?.();
-
   await closed;
 }
