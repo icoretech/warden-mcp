@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.12](https://github.com/icoretech/warden-mcp/compare/v0.2.11...v0.2.12) (2026-04-22)
+
+
+### Bug Fixes
+
+* **session:** avoid idle auth and serialize process unlocks ([a45765d](https://github.com/icoretech/warden-mcp/commit/a45765dc7d914d241dfed2bd722f7c1b5c29ac79))
+* **session:** create auth lock parent dirs before locking ([f780e00](https://github.com/icoretech/warden-mcp/commit/f780e00a42c1a716ac1aa3e2af075bfa2f50ff6e))
+* **status:** avoid unlock on cold stdio startup ([5e9628f](https://github.com/icoretech/warden-mcp/commit/5e9628f32e74f82d9bf63a567a6abbaefb896082))
+
 ## [0.2.11](https://github.com/icoretech/warden-mcp/compare/v0.2.10...v0.2.11) (2026-04-22)
 
 
