@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.13](https://github.com/icoretech/warden-mcp/compare/v0.2.12...v0.2.13) (2026-04-22)
+
+
+### Bug Fixes
+
+* **session:** reuse persisted bw sessions across stdio workers ([58520d6](https://github.com/icoretech/warden-mcp/commit/58520d6a44d8ebf544abc099938c1102b13974b7))
+
 ## [0.2.12](https://github.com/icoretech/warden-mcp/compare/v0.2.11...v0.2.12) (2026-04-22)
 
 
