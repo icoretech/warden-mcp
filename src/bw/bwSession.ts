@@ -1,6 +1,6 @@
 // src/bw/bwSession.ts
 
-import { mkdir, rm } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { BwRunOptions, BwRunResult } from './bwCli.js';
 import { runBw } from './bwCli.js';
@@ -10,6 +10,15 @@ const POST_LOGIN_UNLOCK_RETRY_ATTEMPTS = 20;
 const POST_LOGIN_UNLOCK_RETRY_DELAY_MS = 2_000;
 const PROCESS_LOCK_WAIT_MS = 100;
 const PROCESS_LOCK_TIMEOUT_MS = 90_000;
+
+interface StoredSessionState {
+  version: 1;
+  host: string;
+  identity: string;
+  session: string;
+  createdAt: string;
+  validatedAt: string;
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -80,11 +89,13 @@ export class BwSessionManager {
   private readonly homeDir: string;
   private readonly appDataDir: string;
   private readonly processLockDir: string;
+  private readonly sessionStatePath: string;
 
   constructor(private readonly env: BwEnv) {
     this.homeDir = env.homeDir ?? process.env.HOME ?? '/data';
     this.appDataDir = join(this.homeDir, '.bitwarden-cli');
     this.processLockDir = join(this.appDataDir, '.warden-mcp-auth-lock');
+    this.sessionStatePath = join(this.appDataDir, '.warden-mcp-session.json');
   }
 
   private baseEnv(extra?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
@@ -215,6 +226,7 @@ export class BwSessionManager {
     this.session = null;
     this.templateItem = null;
     this.configuredHost = null;
+    await this.clearStoredSessionState();
 
     await runBw(['logout'], { env: this.baseEnv(), timeoutMs: 30_000 }).catch(
       () => {},
@@ -239,6 +251,22 @@ export class BwSessionManager {
 
   private async currentServerUrl(): Promise<string | null> {
     try {
+      const dataPath = join(this.appDataDir, 'data.json');
+      const raw = await readFile(dataPath, 'utf8');
+      const parsed = JSON.parse(raw) as {
+        global_environment_environment?: {
+          urls?: { base?: unknown };
+        };
+      };
+      const base = parsed.global_environment_environment?.urls?.base;
+      if (typeof base === 'string' && base.length > 0) {
+        return base;
+      }
+    } catch {
+      // Fall back to the CLI if local state is absent or unreadable.
+    }
+
+    try {
       const { stdout } = await runBw(['status'], {
         env: this.baseEnv(),
         timeoutMs: 30_000,
@@ -257,19 +285,20 @@ export class BwSessionManager {
 
       // If we already have a session, check if it still works.
       if (this.session) {
-        try {
-          const { stdout } = await runBw(
-            ['--session', this.session, 'unlock', '--check'],
-            {
-              env: this.baseEnv(),
-              timeoutMs: 30_000,
-            },
-          );
-          void stdout;
+        if (await this.isSessionValid(this.session)) {
           return this.session;
-        } catch {
-          this.session = null;
         }
+        this.session = null;
+      }
+
+      const storedSession = await this.readStoredSessionState();
+      if (storedSession?.session) {
+        if (await this.isSessionValid(storedSession.session)) {
+          this.session = storedSession.session;
+          await this.writeStoredSessionState(storedSession.session);
+          return storedSession.session;
+        }
+        await this.clearStoredSessionState();
       }
 
       const unlockEnv = this.baseEnv({
@@ -361,8 +390,68 @@ export class BwSessionManager {
       if (!session)
         throw new Error('bw login/unlock returned an empty session');
       this.session = session;
+      await this.writeStoredSessionState(session);
       return session;
     });
+  }
+
+  private sessionIdentity(): string {
+    return this.env.login.method === 'apikey'
+      ? `apikey:${this.env.login.clientId}`
+      : `userpass:${this.env.login.user}`;
+  }
+
+  private async isSessionValid(session: string): Promise<boolean> {
+    try {
+      const { stdout } = await runBw(
+        ['--session', session, 'unlock', '--check'],
+        {
+          env: this.baseEnv(),
+          timeoutMs: 30_000,
+        },
+      );
+      void stdout;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async readStoredSessionState(): Promise<StoredSessionState | null> {
+    try {
+      const raw = await readFile(this.sessionStatePath, 'utf8');
+      const parsed = JSON.parse(raw) as Partial<StoredSessionState>;
+      if (
+        parsed.version !== 1 ||
+        parsed.host !== this.env.host ||
+        parsed.identity !== this.sessionIdentity() ||
+        typeof parsed.session !== 'string' ||
+        parsed.session.length === 0
+      ) {
+        return null;
+      }
+      return parsed as StoredSessionState;
+    } catch {
+      return null;
+    }
+  }
+
+  private async writeStoredSessionState(session: string): Promise<void> {
+    const now = new Date().toISOString();
+    const state: StoredSessionState = {
+      version: 1,
+      host: this.env.host,
+      identity: this.sessionIdentity(),
+      session,
+      createdAt: now,
+      validatedAt: now,
+    };
+    await mkdir(this.appDataDir, { recursive: true });
+    await writeFile(this.sessionStatePath, JSON.stringify(state), 'utf8');
+  }
+
+  private async clearStoredSessionState(): Promise<void> {
+    await rm(this.sessionStatePath, { force: true }).catch(() => {});
   }
 
   private async withProcessAuthLock<T>(fn: () => Promise<T>): Promise<T> {

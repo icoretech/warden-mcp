@@ -276,6 +276,98 @@ describe('BwSessionManager', () => {
     }
   });
 
+  test('withSession: reuses persisted session across fresh managers', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const scriptPath = join(dir, 'fake-bw');
+      const unlockCounter = join(dir, 'unlock-count');
+      await writeFile(unlockCounter, '0');
+      const script = `#!/bin/sh
+if echo "$*" | grep -q 'config server'; then exit 0; fi
+if echo "$*" | grep -q 'logout'; then exit 0; fi
+if echo "$*" | grep -q 'unlock --check'; then
+  if echo "$*" | grep -q 'persisted-session'; then
+    printf 'Vault is unlocked!'
+    exit 0
+  fi
+  exit 1
+fi
+if echo "$*" | grep -q 'unlock'; then
+  count=$(cat "${unlockCounter}")
+  count=$((count + 1))
+  echo "$count" > "${unlockCounter}"
+  printf 'persisted-session'
+  exit 0
+fi
+if echo "$*" | grep -q 'login'; then exit 1; fi
+printf '{}'; exit 0
+`;
+      await writeFile(scriptPath, script, { mode: 0o755 });
+      process.env.BW_BIN = scriptPath;
+
+      const manager1 = new BwSessionManager(makeEnv(dir));
+      const s1 = await manager1.withSession(async (session) => session);
+      assert.equal(s1, 'persisted-session');
+      assert.equal(await readFile(unlockCounter, 'utf8'), '1');
+
+      const manager2 = new BwSessionManager(makeEnv(dir));
+      const s2 = await manager2.withSession(async (session) => session);
+      assert.equal(s2, 'persisted-session');
+      assert.equal(await readFile(unlockCounter, 'utf8'), '1');
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('withSession: invalid persisted session triggers fresh unlock', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const scriptPath = join(dir, 'fake-bw');
+      const unlockCounter = join(dir, 'unlock-count');
+      await writeFile(unlockCounter, '0');
+      const script = `#!/bin/sh
+if echo "$*" | grep -q 'config server'; then exit 0; fi
+if echo "$*" | grep -q 'logout'; then exit 0; fi
+if echo "$*" | grep -q 'unlock --check'; then
+  if echo "$*" | grep -q 'persisted-session'; then exit 1; fi
+  if echo "$*" | grep -q 'fresh-session'; then
+    printf 'Vault is unlocked!'
+    exit 0
+  fi
+  exit 1
+fi
+if echo "$*" | grep -q 'unlock'; then
+  count=$(cat "${unlockCounter}")
+  count=$((count + 1))
+  echo "$count" > "${unlockCounter}"
+  if [ "$count" -eq 1 ]; then printf 'persisted-session'; exit 0; fi
+  printf 'fresh-session'
+  exit 0
+fi
+if echo "$*" | grep -q 'login'; then exit 1; fi
+printf '{}'; exit 0
+`;
+      await writeFile(scriptPath, script, { mode: 0o755 });
+      process.env.BW_BIN = scriptPath;
+
+      const manager1 = new BwSessionManager(makeEnv(dir));
+      const s1 = await manager1.withSession(async (session) => session);
+      assert.equal(s1, 'persisted-session');
+      assert.equal(await readFile(unlockCounter, 'utf8'), '1');
+
+      const manager2 = new BwSessionManager(makeEnv(dir));
+      const s2 = await manager2.withSession(async (session) => session);
+      assert.equal(s2, 'fresh-session');
+      assert.equal(await readFile(unlockCounter, 'utf8'), '2');
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   test('withSession: falls back to login when unlock returns empty', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
     const savedBin = process.env.BW_BIN;
