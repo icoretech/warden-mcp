@@ -175,12 +175,24 @@ test('mcp e2e: can initialize, list tools, and call keychain_status over /sse', 
       }
     }
     assert.ok(Array.isArray(res.content));
-    assert.ok(
-      res.content.some((item) => {
-        if (!item || item.type !== 'text') return false;
-        return item.text.toLowerCase().includes('vault access ready');
-      }),
-    );
+    if (
+      (res.structuredContent as { status?: { status?: string } }).status
+        ?.status === 'unlocked'
+    ) {
+      assert.ok(
+        res.content.some((item) => {
+          if (!item || item.type !== 'text') return false;
+          return item.text.toLowerCase().includes('vault access ready');
+        }),
+      );
+    } else {
+      assert.ok(
+        res.content.some((item) => {
+          if (!item || item.type !== 'text') return false;
+          return item.text.toLowerCase().includes('vault access not ready');
+        }),
+      );
+    }
 
     const enc = await client.callTool({
       name: toolName('encode'),

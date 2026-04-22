@@ -59,7 +59,7 @@ async function startTestServer(envOverrides?: Record<string, string>) {
   };
 }
 
-describe('registerTools: tool listing', () => {
+describe('registerTools: tool listing', { concurrency: 1 }, () => {
   test('registers expected tool names with prefix', async () => {
     const { client, cleanup } = await startTestServer();
     try {
@@ -185,7 +185,7 @@ describe('registerTools: tool listing', () => {
   });
 });
 
-describe('registerTools: READONLY behavior', () => {
+describe('registerTools: READONLY behavior', { concurrency: 1 }, () => {
   test('readonly=on blocks create_login', async () => {
     const { client, cleanup } = await startTestServer({
       READONLY: 'on',
@@ -219,7 +219,9 @@ describe('registerTools: READONLY behavior', () => {
   });
 });
 
-describe('registerTools: read-only tools in readonly mode', () => {
+describe('registerTools: read-only tools in readonly mode', {
+  concurrency: 1,
+}, () => {
   test('encode tool is not blocked by READONLY', async () => {
     const { client, cleanup } = await startTestServer({
       READONLY: 'true',
@@ -433,7 +435,7 @@ printf '{}'; exit 0
   return scriptPath;
 }
 
-describe('registerTools: e2e with fake bw', () => {
+describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
   // Shared e2e helper: creates fake bw, starts server, calls tool, cleans up.
   async function callToolE2e(
     toolName: string,
@@ -919,7 +921,7 @@ describe('registerTools: e2e with fake bw', () => {
 // NOREVEAL tests
 // ---------------------------------------------------------------------------
 
-describe('registerTools: NOREVEAL behavior', () => {
+describe('registerTools: NOREVEAL behavior', { concurrency: 1 }, () => {
   test('NOREVEAL=true forces generate reveal to false', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'tools-noreveal-'));
     const fakeBw = await createFakeBwScript(tmpDir);
