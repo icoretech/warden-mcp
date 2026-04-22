@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { describe, test } from 'node:test';
@@ -179,6 +179,44 @@ describe('runBw', () => {
         () => runBw(['slow'], { timeoutMs: 100 }),
         /timed out/,
       );
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('timeout kills the full process group', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-cli-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const bgPidFile = join(dir, 'bg.pid');
+      const bw = await createScript(
+        dir,
+        'bw',
+        `#!/bin/sh
+sleep 30 &
+bg_pid=$!
+printf '%s' "$bg_pid" > "$BG_PID_FILE"
+wait "$bg_pid"
+`,
+      );
+      process.env.BW_BIN = bw;
+      await assert.rejects(
+        () =>
+          runBw(['slow'], {
+            timeoutMs: 100,
+            env: { BG_PID_FILE: bgPidFile },
+          }),
+        /timed out/,
+      );
+
+      const bgPid = Number.parseInt(await readFile(bgPidFile, 'utf8'), 10);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      assert.ok(
+        Number.isFinite(bgPid),
+        'background process pid should be recorded',
+      );
+      assert.throws(() => process.kill(bgPid, 0));
     } finally {
       process.env.BW_BIN = savedBin;
       await rm(dir, { recursive: true, force: true });

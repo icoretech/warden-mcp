@@ -78,9 +78,11 @@ export async function runBw(
     console.log(`[bw] start: ${bwBin} ${rendered}`);
   }
 
+  const detached = process.platform !== 'win32';
   const child = spawn(bwBin, finalArgs, {
     env,
     stdio: ['pipe', 'pipe', 'pipe'],
+    detached,
   });
 
   const stdoutChunks: Buffer[] = [];
@@ -94,62 +96,84 @@ export async function runBw(
   }
   child.stdin.end();
 
-  let timeout: NodeJS.Timeout | undefined;
   const timeoutMs = opts.timeoutMs ?? 60_000;
-  const timedOut = new Promise<never>((_resolve, reject) => {
-    timeout = setTimeout(() => {
+
+  const killChildProcessTree = () => {
+    if (typeof child.pid === 'number' && detached) {
       try {
-        child.kill('SIGKILL');
+        process.kill(-child.pid, 'SIGKILL');
+        return;
       } catch {
-        // ignore
+        // Fallback to direct child kill below.
       }
+    }
+
+    try {
+      child.kill('SIGKILL');
+    } catch {
+      // ignore
+    }
+  };
+
+  return new Promise<BwRunResult>((resolve, reject) => {
+    let settled = false;
+    const settle = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      if (timeout) clearTimeout(timeout);
+      fn();
+    };
+
+    const timeout = setTimeout(() => {
+      killChildProcessTree();
       if (debug) {
         console.log(`[bw] timeout after ${timeoutMs}ms`);
       }
-      reject(new Error(`bw command timed out after ${timeoutMs}ms`));
+      settle(() => {
+        reject(new Error(`bw command timed out after ${timeoutMs}ms`));
+      });
     }, timeoutMs);
-  });
 
-  const completed = new Promise<BwRunResult>((resolve, reject) => {
     child.on('error', (error: NodeJS.ErrnoException) => {
-      const safeCmd = `${bwBin} ${safeRenderedArgs(finalArgs)}`;
-      if (error.code === 'ENOENT') {
-        reject(
-          new Error(
-            `bw CLI not available for ${safeCmd}. Install @bitwarden/cli or set BW_BIN to a valid bw binary.`,
-          ),
-        );
-        return;
-      }
-      reject(new Error(`Failed to start ${safeCmd}: ${error.message}`));
+      settle(() => {
+        const safeCmd = `${bwBin} ${safeRenderedArgs(finalArgs)}`;
+        if (error.code === 'ENOENT') {
+          reject(
+            new Error(
+              `bw CLI not available for ${safeCmd}. Install @bitwarden/cli or set BW_BIN to a valid bw binary.`,
+            ),
+          );
+          return;
+        }
+        reject(new Error(`Failed to start ${safeCmd}: ${error.message}`));
+      });
     });
     child.on('close', (code) => {
-      if (timeout) clearTimeout(timeout);
-      const stdout = Buffer.concat(stdoutChunks).toString('utf8');
-      const stderr = Buffer.concat(stderrChunks).toString('utf8');
-      const exitCode = code ?? 1;
-      if (exitCode !== 0) {
-        if (debug) {
-          console.log(
-            `[bw] fail: exit=${exitCode} ms=${Date.now() - startedAt}`,
+      settle(() => {
+        const stdout = Buffer.concat(stdoutChunks).toString('utf8');
+        const stderr = Buffer.concat(stderrChunks).toString('utf8');
+        const exitCode = code ?? 1;
+        if (exitCode !== 0) {
+          if (debug) {
+            console.log(
+              `[bw] fail: exit=${exitCode} ms=${Date.now() - startedAt}`,
+            );
+          }
+          const safeCmd = `${bwBin} ${safeRenderedArgs(finalArgs)}`;
+          reject(
+            new BwCliError(`${safeCmd} failed with exit code ${exitCode}`, {
+              exitCode,
+              stdout,
+              stderr,
+            }),
           );
+          return;
         }
-        const safeCmd = `${bwBin} ${safeRenderedArgs(finalArgs)}`;
-        reject(
-          new BwCliError(`${safeCmd} failed with exit code ${exitCode}`, {
-            exitCode,
-            stdout,
-            stderr,
-          }),
-        );
-        return;
-      }
-      if (debug) {
-        console.log(`[bw] ok: ms=${Date.now() - startedAt}`);
-      }
-      resolve({ stdout, stderr });
+        if (debug) {
+          console.log(`[bw] ok: ms=${Date.now() - startedAt}`);
+        }
+        resolve({ stdout, stderr });
+      });
     });
   });
-
-  return Promise.race([completed, timedOut]);
 }

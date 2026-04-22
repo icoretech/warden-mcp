@@ -76,13 +76,19 @@ export class BwSessionManager {
   private keepaliveTimer: NodeJS.Timeout | null = null;
   private configuredHost: string | null = null;
   private readonly homeDir: string;
+  private readonly appDataDir: string;
 
   constructor(private readonly env: BwEnv) {
     this.homeDir = env.homeDir ?? process.env.HOME ?? '/data';
+    this.appDataDir = join(this.homeDir, '.bitwarden-cli');
   }
 
   private baseEnv(extra?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-    return { HOME: this.homeDir, ...(extra ?? {}) };
+    return {
+      HOME: this.homeDir,
+      BITWARDENCLI_APPDATA_DIR: this.appDataDir,
+      ...(extra ?? {}),
+    };
   }
 
   // Must be called while holding `this.lock` (i.e. from within `withSession`).
@@ -205,6 +211,7 @@ export class BwSessionManager {
 
     const home = this.homeDir;
     const cliStateDirs = [
+      this.appDataDir,
       join(home, '.config', 'Bitwarden CLI'),
       join(home, 'Library', 'Application Support', 'Bitwarden CLI'),
       join(home, 'AppData', 'Roaming', 'Bitwarden CLI'),

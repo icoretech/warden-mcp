@@ -378,6 +378,40 @@ describe('BwSessionManager', () => {
     }
   });
 
+  test('runForSession passes a stable Bitwarden appdata dir', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const scriptPath = join(dir, 'fake-bw');
+      const script = `#!/bin/sh
+if echo "$*" | grep -q 'config server'; then exit 0; fi
+if echo "$*" | grep -q 'unlock --check'; then exit 1; fi
+if echo "$*" | grep -q 'unlock'; then printf 'env-session'; exit 0; fi
+if echo "$*" | grep -q 'status'; then
+  printf '{"home":"%s","appData":"%s"}' "$HOME" "$BITWARDENCLI_APPDATA_DIR"
+  exit 0
+fi
+printf '{}'; exit 0
+`;
+      await writeFile(scriptPath, script, { mode: 0o755 });
+      process.env.BW_BIN = scriptPath;
+
+      const manager = new BwSessionManager(makeEnv(dir));
+      const result = await manager.withSession(async (session) => {
+        return manager.runForSession(session, ['status']);
+      });
+      const parsed = JSON.parse(result.stdout) as {
+        home: string;
+        appData: string;
+      };
+      assert.equal(parsed.home, dir);
+      assert.equal(parsed.appData, join(dir, '.bitwarden-cli'));
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   test('getTemplateItem fetches and caches template', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
     const savedBin = process.env.BW_BIN;
@@ -645,6 +679,57 @@ printf '{}'; exit 0
       const manager = new BwSessionManager(apiEnv);
       const session = await manager.withSession(async (s) => s);
       assert.equal(session, 'recovered-macos-session');
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('apikey login resets stale custom appdata dir and retries once after empty session', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const staleDir = join(dir, '.bitwarden-cli');
+      await mkdir(staleDir, { recursive: true });
+      await writeFile(join(staleDir, 'data.json'), '{"stale":true}');
+
+      const scriptPath = join(dir, 'fake-bw');
+      const staleFile = join(staleDir, 'data.json');
+      const script = `#!/bin/sh
+STALE_FILE="${staleFile}"
+if echo "$*" | grep -q 'config server'; then exit 0; fi
+if echo "$*" | grep -q 'logout'; then exit 0; fi
+if echo "$*" | grep -q 'unlock --check'; then exit 1; fi
+if echo "$*" | grep -q 'login --apikey'; then
+  if [ -f "$STALE_FILE" ]; then
+    printf 'You are already logged in as masterkain@gmail.com.' >&2
+  fi
+  exit 1
+fi
+if echo "$*" | grep -q 'unlock'; then
+  if [ -f "$STALE_FILE" ]; then
+    exit 0
+  fi
+  printf 'recovered-custom-appdata-session'
+  exit 0
+fi
+printf '{}'; exit 0
+`;
+      await writeFile(scriptPath, script, { mode: 0o755 });
+      process.env.BW_BIN = scriptPath;
+
+      const env = makeEnv(dir);
+      const apiEnv = {
+        ...env,
+        login: {
+          method: 'apikey' as const,
+          clientId: 'test-client-id',
+          clientSecret: 'test-client-secret',
+        },
+      };
+      const manager = new BwSessionManager(apiEnv);
+      const session = await manager.withSession(async (s) => s);
+      assert.equal(session, 'recovered-custom-appdata-session');
     } finally {
       process.env.BW_BIN = savedBin;
       await rm(dir, { recursive: true, force: true });
