@@ -149,42 +149,48 @@ export class BwSessionManager {
   }
 
   async status(): Promise<unknown> {
-    return this.withSession(async (session) => {
-      const { stdout } = await runBw(['--session', session, 'status'], {
-        env: this.baseEnv(),
-        timeoutMs: 60_000,
-      });
-      let parsed: Record<string, unknown>;
-      try {
-        parsed = JSON.parse(stdout) as Record<string, unknown>;
-      } catch (err) {
-        throw new Error(
-          `Failed to parse bw status output (${stdout.length} bytes)`,
-          { cause: err },
-        );
-      }
-      const serverUrl =
-        typeof parsed.serverUrl === 'string' ? parsed.serverUrl : this.env.host;
-      const userEmail =
-        typeof parsed.userEmail === 'string'
-          ? parsed.userEmail
-          : this.env.login.method === 'userpass'
-            ? this.env.login.user
-            : null;
-      const summaryParts = ['Vault access ready'];
-      if (userEmail) summaryParts.push(`for ${userEmail}`);
-      if (serverUrl) summaryParts.push(`on ${serverUrl}`);
-
-      return {
-        ...parsed,
-        summary: `${summaryParts.join(' ')}.`,
-        operational: {
-          ready: true,
-          sessionValid: true,
-          source: 'session_manager',
-        },
-      };
+    const { stdout } = await runBw(['status'], {
+      env: this.baseEnv(),
+      timeoutMs: 60_000,
     });
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(stdout) as Record<string, unknown>;
+    } catch (err) {
+      throw new Error(
+        `Failed to parse bw status output (${stdout.length} bytes)`,
+        {
+          cause: err,
+        },
+      );
+    }
+
+    const rawStatus = typeof parsed.status === 'string' ? parsed.status : null;
+    const serverUrl =
+      typeof parsed.serverUrl === 'string' ? parsed.serverUrl : this.env.host;
+    const userEmail =
+      typeof parsed.userEmail === 'string'
+        ? parsed.userEmail
+        : this.env.login.method === 'userpass'
+          ? this.env.login.user
+          : null;
+
+    const isUnlocked = rawStatus === 'unlocked';
+    const summaryParts = isUnlocked
+      ? ['Vault access ready']
+      : ['Vault access not ready'];
+    if (userEmail) summaryParts.push(`for ${userEmail}`);
+    if (serverUrl) summaryParts.push(`on ${serverUrl}`);
+
+    return {
+      ...parsed,
+      summary: `${summaryParts.join(' ')}.`,
+      operational: {
+        ready: isUnlocked,
+        sessionValid: isUnlocked,
+        source: 'session_manager',
+      },
+    };
   }
 
   // Run a bw command within an existing session, using this manager's HOME/profile.
