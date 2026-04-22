@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.11](https://github.com/icoretech/warden-mcp/compare/v0.2.10...v0.2.11) (2026-04-22)
+
+
+### Bug Fixes
+
+* **stdio:** block startup on bw session warmup ([06d81f7](https://github.com/icoretech/warden-mcp/commit/06d81f7bf5f62bbe01d30b17b91072cba8e6f49c))
+
 ## [0.2.10](https://github.com/icoretech/warden-mcp/compare/v0.2.9...v0.2.10) (2026-04-22)
 
 
