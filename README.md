@@ -403,8 +403,10 @@ The server executes `bw` commands on your behalf:
 
 - In HTTP mode, Bitwarden/Vaultwarden connection + credentials are provided via **HTTP headers** per request. Env-var fallback is disabled by default; set `KEYCHAIN_ALLOW_ENV_FALLBACK=true` to enable it for single-tenant HTTP deployments.
 - In stdio mode, Bitwarden/Vaultwarden credentials are loaded once from `BW_*` env vars at startup.
-- The server maintains per-profile `bw` state under `KEYCHAIN_BW_HOME_ROOT` to avoid session/config clashes.
+- The server maintains per-profile `bw` state under `KEYCHAIN_BW_HOME_ROOT` and pins `BITWARDENCLI_APPDATA_DIR` inside that profile so the Bitwarden CLI keeps a stable local device/app identity across restarts instead of looking like a fresh client every time.
 - Writes can optionally call `bw sync` (internal; not exposed as an MCP tool).
+
+Timeout handling is also process-tree aware: if a `bw` command hangs, `warden-mcp` kills the full spawned process group rather than only the direct parent process. That prevents timed-out auth attempts from leaving orphaned `bw`/shell child processes behind.
 
 ### Required Headers
 
