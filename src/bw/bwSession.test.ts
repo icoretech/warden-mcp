@@ -309,12 +309,12 @@ printf '{}'; exit 0
       const manager1 = new BwSessionManager(makeEnv(dir));
       const s1 = await manager1.withSession(async (session) => session);
       assert.equal(s1, 'persisted-session');
-      assert.equal(await readFile(unlockCounter, 'utf8'), '1');
+      assert.equal((await readFile(unlockCounter, 'utf8')).trim(), '1');
 
       const manager2 = new BwSessionManager(makeEnv(dir));
       const s2 = await manager2.withSession(async (session) => session);
       assert.equal(s2, 'persisted-session');
-      assert.equal(await readFile(unlockCounter, 'utf8'), '1');
+      assert.equal((await readFile(unlockCounter, 'utf8')).trim(), '1');
     } finally {
       process.env.BW_BIN = savedBin;
       await rm(dir, { recursive: true, force: true });
@@ -356,12 +356,12 @@ printf '{}'; exit 0
       const manager1 = new BwSessionManager(makeEnv(dir));
       const s1 = await manager1.withSession(async (session) => session);
       assert.equal(s1, 'persisted-session');
-      assert.equal(await readFile(unlockCounter, 'utf8'), '1');
+      assert.equal((await readFile(unlockCounter, 'utf8')).trim(), '1');
 
       const manager2 = new BwSessionManager(makeEnv(dir));
       const s2 = await manager2.withSession(async (session) => session);
       assert.equal(s2, 'fresh-session');
-      assert.equal(await readFile(unlockCounter, 'utf8'), '2');
+      assert.equal((await readFile(unlockCounter, 'utf8')).trim(), '2');
     } finally {
       process.env.BW_BIN = savedBin;
       await rm(dir, { recursive: true, force: true });
@@ -481,7 +481,7 @@ exit 0
       assert.equal(status.operational.ready, false);
       assert.equal(status.operational.sessionValid, false);
       assert.ok(status.summary.includes('Vault access not ready'));
-      assert.equal(await readFile(unlockCounter, 'utf8'), '0');
+      assert.equal((await readFile(unlockCounter, 'utf8')).trim(), '0');
     } finally {
       process.env.BW_BIN = savedBin;
       await rm(dir, { recursive: true, force: true });
