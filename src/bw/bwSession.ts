@@ -1,6 +1,6 @@
 // src/bw/bwSession.ts
 
-import { rm } from 'node:fs/promises';
+import { mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { BwRunOptions, BwRunResult } from './bwCli.js';
 import { runBw } from './bwCli.js';
@@ -8,6 +8,8 @@ import { Mutex } from './mutex.js';
 
 const POST_LOGIN_UNLOCK_RETRY_ATTEMPTS = 20;
 const POST_LOGIN_UNLOCK_RETRY_DELAY_MS = 2_000;
+const PROCESS_LOCK_WAIT_MS = 100;
+const PROCESS_LOCK_TIMEOUT_MS = 90_000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -77,10 +79,12 @@ export class BwSessionManager {
   private configuredHost: string | null = null;
   private readonly homeDir: string;
   private readonly appDataDir: string;
+  private readonly processLockDir: string;
 
   constructor(private readonly env: BwEnv) {
     this.homeDir = env.homeDir ?? process.env.HOME ?? '/data';
     this.appDataDir = join(this.homeDir, '.bitwarden-cli');
+    this.processLockDir = join(this.appDataDir, '.warden-mcp-auth-lock');
   }
 
   private baseEnv(extra?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
@@ -118,6 +122,7 @@ export class BwSessionManager {
     if (this.keepaliveTimer) return;
     const intervalMs = Math.max(10, this.env.unlockIntervalSeconds) * 1000;
     this.keepaliveTimer = setInterval(() => {
+      if (!this.session) return;
       void this.lock.runExclusive(async () => {
         try {
           await this.ensureUnlockedInternal();
@@ -246,119 +251,146 @@ export class BwSessionManager {
   }
 
   private async ensureUnlockedInternal(): Promise<string> {
-    // Ensure server config points to BW_HOST.
-    await this.ensureServerConfigured();
-
-    // If we already have a session, check if it still works.
-    if (this.session) {
-      try {
-        const { stdout } = await runBw(
-          ['--session', this.session, 'unlock', '--check'],
-          {
-            env: this.baseEnv(),
-            timeoutMs: 30_000,
-          },
-        );
-        // unlock --check prints "Vault is unlocked!" or similar; exit code 0 means ok.
-        void stdout;
-        return this.session;
-      } catch {
-        this.session = null;
-      }
-    }
-
-    const unlockEnv = this.baseEnv({
-      BW_PASSWORD: this.env.password,
-      BW_HOST: this.env.host,
-    });
-
-    const tryUnlock = async (): Promise<string> => {
-      try {
-        const { stdout } = await runBw(
-          ['unlock', '--passwordenv', 'BW_PASSWORD', '--raw'],
-          { env: unlockEnv, timeoutMs: 60_000, noInteraction: false },
-        );
-        return stdout.trim();
-      } catch {
-        return '';
-      }
-    };
-
-    const tryLoginRaw = async (): Promise<{
-      completed: boolean;
-      session: string;
-    }> => {
-      try {
-        if (this.env.login.method === 'apikey') {
-          const { stdout } = await runBw(['login', '--apikey', '--raw'], {
-            env: this.baseEnv({
-              BW_CLIENTID: this.env.login.clientId,
-              BW_CLIENTSECRET: this.env.login.clientSecret,
-              BW_HOST: this.env.host,
-            }),
-            timeoutMs: 60_000,
-            noInteraction: false,
-          });
-          return { completed: true, session: stdout.trim() };
-        }
-
-        const { stdout } = await runBw(
-          [
-            'login',
-            this.env.login.user,
-            '--passwordenv',
-            'BW_PASSWORD',
-            '--raw',
-          ],
-          { env: unlockEnv, timeoutMs: 60_000, noInteraction: false },
-        );
-        return { completed: true, session: stdout.trim() };
-      } catch {
-        return { completed: false, session: '' };
-      }
-    };
-
-    const retryUnlockAfterLogin = async (): Promise<string> => {
-      for (
-        let attempt = 0;
-        attempt < POST_LOGIN_UNLOCK_RETRY_ATTEMPTS;
-        attempt += 1
-      ) {
-        const session = await tryUnlock();
-        if (session) return session;
-        if (attempt < POST_LOGIN_UNLOCK_RETRY_ATTEMPTS - 1) {
-          await sleep(POST_LOGIN_UNLOCK_RETRY_DELAY_MS);
-        }
-      }
-      return '';
-    };
-
-    const obtainSession = async (): Promise<string> => {
-      // Prefer unlocking first (works when already logged in). If it yields an
-      // empty stdout on exit=0 (observed in some bw builds), fall back to
-      // login --raw.
-      let session = await tryUnlock();
-      if (!session) {
-        const login = await tryLoginRaw();
-        if (login.session) {
-          session = login.session;
-        } else if (login.completed) {
-          session = await retryUnlockAfterLogin();
-        }
-      }
-      if (!session) session = await tryUnlock();
-      return session;
-    };
-
-    let session = await obtainSession();
-    if (!session) {
-      await this.resetCliProfile();
+    return this.withProcessAuthLock(async () => {
+      // Ensure server config points to BW_HOST.
       await this.ensureServerConfigured();
-      session = await obtainSession();
+
+      // If we already have a session, check if it still works.
+      if (this.session) {
+        try {
+          const { stdout } = await runBw(
+            ['--session', this.session, 'unlock', '--check'],
+            {
+              env: this.baseEnv(),
+              timeoutMs: 30_000,
+            },
+          );
+          void stdout;
+          return this.session;
+        } catch {
+          this.session = null;
+        }
+      }
+
+      const unlockEnv = this.baseEnv({
+        BW_PASSWORD: this.env.password,
+        BW_HOST: this.env.host,
+      });
+
+      const tryUnlock = async (): Promise<string> => {
+        try {
+          const { stdout } = await runBw(
+            ['unlock', '--passwordenv', 'BW_PASSWORD', '--raw'],
+            { env: unlockEnv, timeoutMs: 60_000, noInteraction: false },
+          );
+          return stdout.trim();
+        } catch {
+          return '';
+        }
+      };
+
+      const tryLoginRaw = async (): Promise<{
+        completed: boolean;
+        session: string;
+      }> => {
+        try {
+          if (this.env.login.method === 'apikey') {
+            const { stdout } = await runBw(['login', '--apikey', '--raw'], {
+              env: this.baseEnv({
+                BW_CLIENTID: this.env.login.clientId,
+                BW_CLIENTSECRET: this.env.login.clientSecret,
+                BW_HOST: this.env.host,
+              }),
+              timeoutMs: 60_000,
+              noInteraction: false,
+            });
+            return { completed: true, session: stdout.trim() };
+          }
+
+          const { stdout } = await runBw(
+            [
+              'login',
+              this.env.login.user,
+              '--passwordenv',
+              'BW_PASSWORD',
+              '--raw',
+            ],
+            { env: unlockEnv, timeoutMs: 60_000, noInteraction: false },
+          );
+          return { completed: true, session: stdout.trim() };
+        } catch {
+          return { completed: false, session: '' };
+        }
+      };
+
+      const retryUnlockAfterLogin = async (): Promise<string> => {
+        for (
+          let attempt = 0;
+          attempt < POST_LOGIN_UNLOCK_RETRY_ATTEMPTS;
+          attempt += 1
+        ) {
+          const session = await tryUnlock();
+          if (session) return session;
+          if (attempt < POST_LOGIN_UNLOCK_RETRY_ATTEMPTS - 1) {
+            await sleep(POST_LOGIN_UNLOCK_RETRY_DELAY_MS);
+          }
+        }
+        return '';
+      };
+
+      const obtainSession = async (): Promise<string> => {
+        let session = await tryUnlock();
+        if (!session) {
+          const login = await tryLoginRaw();
+          if (login.session) {
+            session = login.session;
+          } else if (login.completed) {
+            session = await retryUnlockAfterLogin();
+          }
+        }
+        if (!session) session = await tryUnlock();
+        return session;
+      };
+
+      let session = await obtainSession();
+      if (!session) {
+        await this.resetCliProfile();
+        await this.ensureServerConfigured();
+        session = await obtainSession();
+      }
+      if (!session)
+        throw new Error('bw login/unlock returned an empty session');
+      this.session = session;
+      return session;
+    });
+  }
+
+  private async withProcessAuthLock<T>(fn: () => Promise<T>): Promise<T> {
+    const startedAt = Date.now();
+
+    while (true) {
+      try {
+        await mkdir(this.processLockDir);
+        break;
+      } catch (error) {
+        const err = error as NodeJS.ErrnoException;
+        if (err?.code !== 'EEXIST') throw error;
+        if (Date.now() - startedAt >= PROCESS_LOCK_TIMEOUT_MS) {
+          throw new Error(
+            `Timed out waiting for process auth lock after ${PROCESS_LOCK_TIMEOUT_MS}ms`,
+          );
+        }
+        await sleep(PROCESS_LOCK_WAIT_MS);
+      }
     }
-    if (!session) throw new Error('bw login/unlock returned an empty session');
-    this.session = session;
-    return session;
+
+    try {
+      return await fn();
+    } finally {
+      await rm(this.processLockDir, { recursive: true, force: true }).catch(
+        () => {},
+      );
+    }
   }
 
   private async ensureServerConfigured(): Promise<void> {

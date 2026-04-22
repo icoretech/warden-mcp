@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, test } from 'node:test';
@@ -347,6 +347,49 @@ describe('BwSessionManager', () => {
       assert.ok(status.summary.includes('Vault access ready'));
       assert.ok(status.summary.includes('test@test.com'));
       assert.equal(status.operational.ready, true);
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('status returns not-ready summary without forcing unlock', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const scriptPath = join(dir, 'fake-bw');
+      const unlockCounter = join(dir, 'unlock-count');
+      await writeFile(unlockCounter, '0');
+      const script = `#!/bin/sh
+if echo "$*" | grep -q 'status'; then
+  printf '%s' '{"status":"unauthenticated","serverUrl":"https://bw.test"}'
+  exit 0
+fi
+if echo "$*" | grep -q 'unlock'; then
+  count=$(cat "${unlockCounter}")
+  count=$((count + 1))
+  echo "$count" > "${unlockCounter}"
+  printf 'unexpected-session'
+  exit 0
+fi
+if echo "$*" | grep -q 'login'; then exit 1; fi
+printf '{}'
+exit 0
+`;
+      await writeFile(scriptPath, script, { mode: 0o755 });
+      process.env.BW_BIN = scriptPath;
+
+      const manager = new BwSessionManager(makeEnv(dir));
+      const status = (await manager.status()) as {
+        summary: string;
+        operational: { ready: boolean; sessionValid: boolean };
+        status: string;
+      };
+      assert.equal(status.status, 'unauthenticated');
+      assert.equal(status.operational.ready, false);
+      assert.equal(status.operational.sessionValid, false);
+      assert.ok(status.summary.includes('Vault access not ready'));
+      assert.equal(await readFile(unlockCounter, 'utf8'), '0');
     } finally {
       process.env.BW_BIN = savedBin;
       await rm(dir, { recursive: true, force: true });
