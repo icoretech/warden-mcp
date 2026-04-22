@@ -368,6 +368,8 @@ export class BwSessionManager {
   private async withProcessAuthLock<T>(fn: () => Promise<T>): Promise<T> {
     const startedAt = Date.now();
 
+    await mkdir(this.appDataDir, { recursive: true });
+
     while (true) {
       try {
         await mkdir(this.processLockDir);
