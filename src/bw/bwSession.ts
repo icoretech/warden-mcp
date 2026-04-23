@@ -85,6 +85,7 @@ export class BwSessionManager {
   private session: string | null = null;
   private templateItem: unknown | null = null;
   private keepaliveTimer: NodeJS.Timeout | null = null;
+  private warmupPromise: Promise<void> | null = null;
   private configuredHost: string | null = null;
   private readonly homeDir: string;
   private readonly appDataDir: string;
@@ -191,7 +192,25 @@ export class BwSessionManager {
           ? this.env.login.user
           : null;
 
-    const isUnlocked = rawStatus === 'unlocked';
+    let isUnlocked = rawStatus === 'unlocked';
+    if (!isUnlocked) {
+      if (this.session && (await this.isSessionValid(this.session))) {
+        isUnlocked = true;
+      } else {
+        const storedSession = await this.readStoredSessionState();
+        if (
+          storedSession?.session &&
+          (await this.isSessionValid(storedSession.session))
+        ) {
+          this.session = storedSession.session;
+          await this.writeStoredSessionState(storedSession.session);
+          isUnlocked = true;
+        }
+      }
+    }
+    if (rawStatus === 'locked') {
+      this.startBackgroundUnlock();
+    }
     const summaryParts = isUnlocked
       ? ['Vault access ready']
       : ['Vault access not ready'];
@@ -393,6 +412,15 @@ export class BwSessionManager {
       await this.writeStoredSessionState(session);
       return session;
     });
+  }
+
+  private startBackgroundUnlock(): void {
+    if (this.session || this.warmupPromise) return;
+    this.warmupPromise = this.withSession(async () => undefined)
+      .catch(() => {})
+      .finally(() => {
+        this.warmupPromise = null;
+      });
   }
 
   private sessionIdentity(): string {

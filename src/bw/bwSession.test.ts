@@ -488,6 +488,60 @@ exit 0
     }
   });
 
+  test('status reports ready when a persisted session is still valid', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const scriptPath = join(dir, 'fake-bw');
+      const unlockCounter = join(dir, 'unlock-count');
+      await writeFile(unlockCounter, '0');
+      const script = `#!/bin/sh
+if echo "$*" | grep -q 'status'; then
+  printf '%s' '{"status":"locked","serverUrl":"https://bw.test"}'
+  exit 0
+fi
+if echo "$*" | grep -q 'unlock --check'; then
+  if echo "$*" | grep -q 'persisted-session'; then
+    printf 'Vault is unlocked!'
+    exit 0
+  fi
+  exit 1
+fi
+if echo "$*" | grep -q 'unlock'; then
+  count=$(cat "${unlockCounter}")
+  count=$((count + 1))
+  echo "$count" > "${unlockCounter}"
+  printf 'persisted-session'
+  exit 0
+fi
+if echo "$*" | grep -q 'login'; then exit 1; fi
+if echo "$*" | grep -q 'config server'; then exit 0; fi
+if echo "$*" | grep -q 'logout'; then exit 0; fi
+printf '{}'
+exit 0
+`;
+      await writeFile(scriptPath, script, { mode: 0o755 });
+      process.env.BW_BIN = scriptPath;
+
+      const manager = new BwSessionManager(makeEnv(dir));
+      await manager.withSession(async (session) => session);
+      assert.equal((await readFile(unlockCounter, 'utf8')).trim(), '1');
+
+      const freshManager = new BwSessionManager(makeEnv(dir));
+      const status = (await freshManager.status()) as {
+        summary: string;
+        operational: { ready: boolean; sessionValid: boolean };
+      };
+      assert.equal(status.operational.ready, true);
+      assert.equal(status.operational.sessionValid, true);
+      assert.ok(status.summary.includes('Vault access ready'));
+      assert.equal((await readFile(unlockCounter, 'utf8')).trim(), '1');
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   test('runForSession delegates to runBw with session and HOME', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
     const savedBin = process.env.BW_BIN;
