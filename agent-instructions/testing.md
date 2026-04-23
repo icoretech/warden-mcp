@@ -98,6 +98,44 @@ Stop the local server you started, then tear down the compose stack:
 docker compose down
 ```
 
+## Isolated OpenCode smoke
+
+Use this when you want to reproduce hosted-client behavior without reusing your
+normal OpenCode state. The script creates a temporary `HOME` / `XDG_*` tree for
+OpenCode itself, but points the MCP child at a configurable
+`KEYCHAIN_BW_HOME_ROOT` so `warden-mcp` can reuse persisted Bitwarden profile
+state.
+
+Required env vars:
+
+- `BW_HOST`
+- `BW_PASSWORD`
+- either `BW_CLIENTID` + `BW_CLIENTSECRET`, or `BW_USER` / `BW_USERNAME`
+
+Recommended extra env vars:
+
+- `ISOLATED_KEYCHAIN_BW_HOME_ROOT` — defaults to `~/bw-profiles`
+- `ISOLATED_OPENCODE_MCP_TIMEOUT_MS` — defaults to `10000`
+- `ISOLATED_WARDEN_LOOKUP_TERM` — defaults to `app.example.test`
+
+Run it from the repo root after `npm run build`:
+
+```bash
+BW_HOST=https://vaultwarden.example.test \
+BW_CLIENTID=user.xxxxx \
+BW_CLIENTSECRET=xxxxx \
+BW_PASSWORD='your-master-password' \
+node scripts/opencode-isolated-warden-smoke.mjs
+```
+
+The script:
+
+1. starts an isolated `opencode serve`
+2. configures only one local MCP server (`warden`)
+3. calls `keychain_status`
+4. calls `keychain_get_username` for the configured lookup term
+5. prints the raw `opencode run --format json` output for inspection
+
 ## Expectations
 
 - Add or update tests for behavior changes
