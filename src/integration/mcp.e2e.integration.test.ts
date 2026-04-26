@@ -195,9 +195,14 @@ test('mcp e2e: can initialize, list tools, and call keychain_status over /sse', 
         );
       } else {
         assert.equal(ready, false);
+        assert.equal(
+          (rec.operational as { recoverable?: unknown }).recoverable,
+          true,
+        );
         assert.ok(
           typeof rec.summary === 'string' &&
-            rec.summary.toLowerCase().includes('vault access not ready'),
+            rec.summary.toLowerCase().includes('vault access not ready yet') &&
+            rec.summary.toLowerCase().includes('on demand'),
         );
       }
     }
@@ -216,7 +221,11 @@ test('mcp e2e: can initialize, list tools, and call keychain_status over /sse', 
       assert.ok(
         res.content.some((item) => {
           if (!item || item.type !== 'text') return false;
-          return item.text.toLowerCase().includes('vault access not ready');
+          const text = item.text.toLowerCase();
+          return (
+            text.includes('vault access not ready yet') &&
+            text.includes('on demand')
+          );
         }),
       );
     }

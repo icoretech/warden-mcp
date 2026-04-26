@@ -143,7 +143,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Vault Status',
       description:
-        'Returns Bitwarden CLI status (locked/unlocked, server, user).',
+        'Returns Bitwarden CLI status (locked/unlocked, server, user). This is a lazy check: not-ready status does not mean later keychain tool calls cannot unlock or recover on demand.',
       annotations: { readOnlyHint: true },
       inputSchema: {},
       _meta: toolMeta,
