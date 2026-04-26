@@ -3,7 +3,7 @@
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
-import { BwCliError } from '../bw/bwCli.js';
+import { BwCliError, isBwAuthSessionInvalidError } from '../bw/bwCli.js';
 import type { BwSessionManager } from '../bw/bwSession.js';
 import { deepClone } from './clone.js';
 import { buildBwGenerateArgs, type GenerateInput } from './generateArgs.js';
@@ -79,6 +79,37 @@ function denormalizeUris(raw: unknown): UriInput[] | undefined {
     out.push({ uri, match });
   }
   return out;
+}
+
+function isUsernameLookupFailure(error: BwCliError): boolean {
+  const combined = [error.stderr, error.stdout, error.message]
+    .join('\n')
+    .toLowerCase();
+
+  if (
+    /could not connect/.test(combined) ||
+    /connection/.test(combined) ||
+    /network/.test(combined) ||
+    /timeout/.test(combined) ||
+    /timed out/.test(combined) ||
+    /server error/.test(combined) ||
+    /internal server error/.test(combined) ||
+    /bad gateway/.test(combined) ||
+    /service unavailable/.test(combined)
+  ) {
+    return false;
+  }
+
+  return (
+    /not found/.test(combined) ||
+    /no item/.test(combined) ||
+    /no matching/.test(combined) ||
+    /more than one result/.test(combined) ||
+    /multiple results/.test(combined) ||
+    /ambiguous/.test(combined) ||
+    /invalid search/.test(combined) ||
+    /invalid lookup/.test(combined)
+  );
 }
 
 function kindFromItem(item: AnyRecord): ItemKind {
@@ -1280,13 +1311,64 @@ export class KeychainSdk {
   async getUsername(input: {
     term: string;
   }): Promise<{ value: string | null; revealed: boolean }> {
+    const term = input.term.trim();
+    if (!term) throw new Error('Username lookup term is empty');
+
     return this.bw.withSession(async (session) => {
-      const { stdout } = await this.bw.runForSession(
-        session,
-        ['--raw', 'get', 'username', input.term],
-        { timeoutMs: 60_000 },
-      );
-      return this.valueResult(stdout.trim(), true);
+      try {
+        const { stdout } = await this.bw.runForSession(
+          session,
+          ['--raw', 'get', 'username', term],
+          { timeoutMs: 60_000 },
+        );
+        const username = stdout.trim();
+        if (!username)
+          throw new Error('Username lookup found an empty username');
+        return this.valueResult(username, true);
+      } catch (error) {
+        if (isBwAuthSessionInvalidError(error)) throw error;
+        if (!(error instanceof BwCliError) || error.exitCode !== 1) throw error;
+        if (!isUsernameLookupFailure(error)) throw error;
+
+        const { stdout } = await this.bw.runForSession(
+          session,
+          ['list', 'items', '--search', term],
+          { timeoutMs: 120_000 },
+        );
+        const rawResults = this.parseBwJson<unknown[]>(stdout);
+        const candidates = rawResults.filter(
+          (raw): raw is AnyRecord =>
+            !!raw &&
+            typeof raw === 'object' &&
+            (raw as AnyRecord).type === ITEM_TYPE.login,
+        );
+
+        if (candidates.length === 0) {
+          throw new Error('Username lookup failed: no login item found');
+        }
+
+        const exactCandidates = candidates.filter((item) =>
+          this.candidateMatchesTerm(item, [term]),
+        );
+        const narrowed =
+          exactCandidates.length > 0 ? exactCandidates : candidates;
+        if (narrowed.length !== 1) {
+          throw new Error(
+            'Username lookup failed: multiple matching login items found',
+          );
+        }
+
+        const login =
+          narrowed[0]?.login && typeof narrowed[0].login === 'object'
+            ? (narrowed[0].login as AnyRecord)
+            : null;
+        const username = login?.username;
+        if (typeof username !== 'string' || username.trim().length === 0) {
+          throw new Error('Username lookup found an empty username');
+        }
+
+        return this.valueResult(username.trim(), true);
+      }
     });
   }
 

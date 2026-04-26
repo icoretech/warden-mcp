@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, test } from 'node:test';
-import type { BwRunResult } from '../bw/bwCli.js';
+import { BwCliError, type BwRunResult } from '../bw/bwCli.js';
 import type { BwSessionManager } from '../bw/bwSession.js';
 import { KeychainSdk } from './keychainSdk.js';
 
@@ -851,6 +851,186 @@ describe('KeychainSdk CRUD', () => {
     const result = await sdk.getUsername({ term: 'test' });
     assert.equal(result.value, 'alice@test.com');
     assert.equal(result.revealed, true);
+  });
+
+  test('getUsername falls back to unique login search result on lookup exit 1', async () => {
+    const calls: MockCall[] = [];
+    const mock: BwSessionManager = {
+      withSession: async (fn: (session: string) => Promise<unknown>) => {
+        return fn('mock-session');
+      },
+      runForSession: async (
+        _session: string,
+        args: string[],
+        runOpts?: unknown,
+      ) => {
+        calls.push({ args, opts: runOpts });
+        if (args.includes('username')) {
+          throw new BwCliError('lookup failed', {
+            exitCode: 1,
+            stdout: '',
+            stderr: 'Not found.',
+          });
+        }
+        if (args.includes('list')) {
+          return {
+            stdout: JSON.stringify([
+              {
+                id: '1',
+                type: 1,
+                name: 'sample login',
+                login: { username: 'alice@test.com' },
+              },
+            ]),
+            stderr: '',
+          };
+        }
+        return { stdout: '{}', stderr: '' };
+      },
+    } as unknown as BwSessionManager;
+
+    const sdk = new KeychainSdk(mock);
+    const result = await sdk.getUsername({ term: 'sample' });
+
+    assert.equal(result.value, 'alice@test.com');
+    assert.equal(result.revealed, true);
+    assert.equal(calls.length, 2);
+  });
+
+  test('getUsername reports ambiguous fallback matches', async () => {
+    const mock: BwSessionManager = {
+      withSession: async (fn: (session: string) => Promise<unknown>) => {
+        return fn('mock-session');
+      },
+      runForSession: async (_session: string, args: string[]) => {
+        if (args.includes('username')) {
+          throw new BwCliError('lookup failed', {
+            exitCode: 1,
+            stdout: '',
+            stderr: 'More than one result was found.',
+          });
+        }
+        return {
+          stdout: JSON.stringify([
+            {
+              id: '1',
+              type: 1,
+              name: 'one',
+              login: { username: 'a@test.com' },
+            },
+            {
+              id: '2',
+              type: 1,
+              name: 'two',
+              login: { username: 'b@test.com' },
+            },
+          ]),
+          stderr: '',
+        };
+      },
+    } as unknown as BwSessionManager;
+
+    const sdk = new KeychainSdk(mock);
+    await assert.rejects(
+      () => sdk.getUsername({ term: 'sample' }),
+      /multiple matching login items/,
+    );
+  });
+
+  test('getUsername rejects empty lookup terms before session work', async () => {
+    const { mock, calls } = createMockBw();
+    const sdk = new KeychainSdk(mock);
+
+    await assert.rejects(
+      () => sdk.getUsername({ term: '   ' }),
+      /term is empty/,
+    );
+    assert.equal(calls.length, 0);
+  });
+
+  test('getUsername reports empty fallback username', async () => {
+    const mock: BwSessionManager = {
+      withSession: async (fn: (session: string) => Promise<unknown>) => {
+        return fn('mock-session');
+      },
+      runForSession: async (_session: string, args: string[]) => {
+        if (args.includes('username')) {
+          throw new BwCliError('lookup failed', {
+            exitCode: 1,
+            stdout: '',
+            stderr: 'Not found.',
+          });
+        }
+        return {
+          stdout: JSON.stringify([
+            { id: '1', type: 1, name: 'sample', login: { username: '' } },
+          ]),
+          stderr: '',
+        };
+      },
+    } as unknown as BwSessionManager;
+
+    const sdk = new KeychainSdk(mock);
+    await assert.rejects(
+      () => sdk.getUsername({ term: 'sample' }),
+      /empty username/,
+    );
+  });
+
+  test('getUsername rethrows auth session invalidation for session recovery', async () => {
+    const mock: BwSessionManager = {
+      withSession: async (fn: (session: string) => Promise<unknown>) => {
+        return fn('mock-session');
+      },
+      runForSession: async () => {
+        throw new BwCliError('invalid session', {
+          exitCode: 1,
+          stdout: '',
+          stderr: 'Invalid BW session',
+        });
+      },
+    } as unknown as BwSessionManager;
+
+    const sdk = new KeychainSdk(mock);
+    await assert.rejects(
+      () => sdk.getUsername({ term: 'sample' }),
+      /invalid session/,
+    );
+  });
+
+  test('getUsername does not fallback for non-lookup exit 1 failures', async () => {
+    const failures = [
+      'Could not connect to server.',
+      'Network timeout.',
+      'Server error.',
+      'Unexpected CLI failure.',
+    ];
+
+    for (const stderr of failures) {
+      const calls: MockCall[] = [];
+      const mock: BwSessionManager = {
+        withSession: async (fn: (session: string) => Promise<unknown>) => {
+          return fn('mock-session');
+        },
+        runForSession: async (
+          _session: string,
+          args: string[],
+          runOpts?: unknown,
+        ) => {
+          calls.push({ args, opts: runOpts });
+          throw new BwCliError('lookup failed', {
+            exitCode: 1,
+            stdout: '',
+            stderr,
+          });
+        },
+      } as unknown as BwSessionManager;
+
+      const sdk = new KeychainSdk(mock);
+      await assert.rejects(() => sdk.getUsername({ term: 'sample' }));
+      assert.equal(calls.length, 1, stderr);
+      assert.ok(calls[0]?.args.includes('username'), stderr);
+    }
   });
 
   test('getUri returns raw value', async () => {

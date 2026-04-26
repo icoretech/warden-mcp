@@ -435,6 +435,22 @@ printf '{}'; exit 0
   return scriptPath;
 }
 
+async function createLookupFallbackBwScript(dir: string): Promise<string> {
+  const scriptPath = join(dir, 'fake-bw');
+  const script = `#!/bin/sh
+if echo "$*" | grep -q 'config server'; then exit 0; fi
+if echo "$*" | grep -q 'logout'; then exit 0; fi
+if echo "$*" | grep -q 'unlock --check'; then printf 'Vault is unlocked!'; exit 0; fi
+if echo "$*" | grep -q 'unlock'; then printf 'fallback-session'; exit 0; fi
+if echo "$*" | grep -q 'status'; then printf '{"status":"unlocked","serverUrl":"https://bw.test","userEmail":"test@test.com"}'; exit 0; fi
+if echo "$*" | grep -q 'get username'; then printf 'Not found.' >&2; exit 1; fi
+if echo "$*" | grep -q 'list items'; then printf '[{"id":"1","type":1,"name":"Sample Login","login":{"username":"fallback@test.com","password":"pw","uris":[]}}]'; exit 0; fi
+printf '{}'; exit 0
+`;
+  await writeFile(scriptPath, script, { mode: 0o755 });
+  return scriptPath;
+}
+
 describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
   // Shared e2e helper: creates fake bw, starts server, calls tool, cleans up.
   async function callToolE2e(
@@ -549,6 +565,51 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
     const r = await callToolE2e('get_username', { term: 'test' });
     assert.equal(r.isError, undefined);
     assert.equal(textOf(r), 'OK');
+  });
+
+  test('status, search_items, and get_username fallback stay ready together', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'tools-fallback-'));
+    const fakeBw = await createLookupFallbackBwScript(tmpDir);
+    const { client, cleanup } = await startTestServer({
+      BW_BIN: fakeBw,
+      BW_HOST: 'https://bw.test',
+      BW_PASSWORD: 'pw',
+      BW_USER: 'test@test.com',
+    });
+    try {
+      const search = await client.callTool({
+        name: toolName('search_items'),
+        arguments: { text: 'sample' },
+      });
+      assert.equal(search.isError, undefined);
+      assert.ok(textOf(search).includes('1 item'));
+
+      const username = await client.callTool({
+        name: toolName('get_username'),
+        arguments: { term: 'sample' },
+      });
+      assert.equal(username.isError, undefined);
+      const structured = username.structuredContent as {
+        result?: {
+          kind?: unknown;
+          value?: unknown;
+          revealed?: unknown;
+        };
+      };
+      assert.equal(structured?.result?.kind, 'username');
+      assert.equal(structured?.result?.value, 'fallback@test.com');
+      assert.equal(structured?.result?.revealed, true);
+
+      const status = await client.callTool({
+        name: toolName('status'),
+        arguments: {},
+      });
+      assert.equal(status.isError, undefined);
+      assert.ok(textOf(status).includes('Vault access ready'));
+    } finally {
+      await cleanup();
+      await rm(tmpDir, { recursive: true, force: true });
+    }
   });
 
   test('get_password with reveal=true', async () => {
