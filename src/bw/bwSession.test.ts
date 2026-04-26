@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, test } from 'node:test';
 
+import { BwCliError } from './bwCli.js';
 import { BwSessionManager, readBwEnv } from './bwSession.js';
 
 function clearBwEnv() {
@@ -957,6 +958,137 @@ printf '{}'; exit 0
       // Second call: unlock --check fails → session invalidated → re-unlocks
       const s2 = await manager.withSession(async (s) => s);
       assert.ok(s2 !== s1, 'should get a new session after invalidation');
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('withSession: refreshes session once when protected operation reports invalid session', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const counterFile = join(dir, 'unlock-count');
+      await writeFile(counterFile, '0');
+      const scriptPath = join(dir, 'fake-bw');
+      const script = `#!/bin/sh
+if echo "$*" | grep -q 'config server'; then exit 0; fi
+if echo "$*" | grep -q 'logout'; then exit 0; fi
+if echo "$*" | grep -q 'unlock --check'; then exit 0; fi
+if echo "$*" | grep -q 'unlock'; then
+  count=$(cat "${counterFile}")
+  count=$((count + 1))
+  echo "$count" > "${counterFile}"
+  printf "session-v%s" "$count"
+  exit 0
+fi
+printf '{}'; exit 0
+`;
+      await writeFile(scriptPath, script, { mode: 0o755 });
+      process.env.BW_BIN = scriptPath;
+
+      const manager = new BwSessionManager(makeEnv(dir));
+      let attempts = 0;
+      const result = await manager.withSession(async (session) => {
+        attempts += 1;
+        if (attempts === 1) {
+          assert.equal(session, 'session-v1');
+          throw new BwCliError('invalid session', {
+            exitCode: 1,
+            stdout: '',
+            stderr: 'Invalid BW session',
+          });
+        }
+        assert.equal(session, 'session-v2');
+        return 'recovered';
+      });
+
+      assert.equal(result, 'recovered');
+      assert.equal(attempts, 2);
+      assert.equal((await readFile(counterFile, 'utf8')).trim(), '2');
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('withSession: retries auth invalidation only once', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const counterFile = join(dir, 'unlock-count');
+      await writeFile(counterFile, '0');
+      const scriptPath = join(dir, 'fake-bw');
+      const script = `#!/bin/sh
+if echo "$*" | grep -q 'config server'; then exit 0; fi
+if echo "$*" | grep -q 'logout'; then exit 0; fi
+if echo "$*" | grep -q 'unlock --check'; then exit 0; fi
+if echo "$*" | grep -q 'unlock'; then
+  count=$(cat "${counterFile}")
+  count=$((count + 1))
+  echo "$count" > "${counterFile}"
+  printf 'session-v%s' "$count"
+  exit 0
+fi
+printf '{}'; exit 0
+`;
+      await writeFile(scriptPath, script, { mode: 0o755 });
+      process.env.BW_BIN = scriptPath;
+
+      const manager = new BwSessionManager(makeEnv(dir));
+      let attempts = 0;
+
+      await assert.rejects(
+        () =>
+          manager.withSession(async (session) => {
+            attempts += 1;
+            assert.equal(session, attempts === 1 ? 'session-v1' : 'session-v2');
+            throw new BwCliError('invalid session', {
+              exitCode: 1,
+              stdout: '',
+              stderr: 'Invalid BW session',
+            });
+          }),
+        /invalid session/i,
+      );
+
+      assert.equal(attempts, 2);
+      assert.equal((await readFile(counterFile, 'utf8')).trim(), '2');
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('withSession: does not retry lookup failures as session failures', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const fakeBw = await createFakeBw(dir, {
+        responses: {
+          'config server': '',
+          unlock: 'lookup-session',
+          'unlock --check': '',
+        },
+      });
+      process.env.BW_BIN = fakeBw;
+      const manager = new BwSessionManager(makeEnv(dir));
+      let attempts = 0;
+
+      await assert.rejects(
+        () =>
+          manager.withSession(async () => {
+            attempts += 1;
+            throw new BwCliError('not found', {
+              exitCode: 1,
+              stdout: '',
+              stderr: 'Not found.',
+            });
+          }),
+        /not found/,
+      );
+
+      assert.equal(attempts, 1);
     } finally {
       process.env.BW_BIN = savedBin;
       await rm(dir, { recursive: true, force: true });

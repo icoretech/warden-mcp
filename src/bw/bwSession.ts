@@ -3,7 +3,7 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { BwRunOptions, BwRunResult } from './bwCli.js';
-import { runBw } from './bwCli.js';
+import { isBwAuthSessionInvalidError, runBw } from './bwCli.js';
 import { Mutex } from './mutex.js';
 
 const POST_LOGIN_UNLOCK_RETRY_ATTEMPTS = 20;
@@ -149,7 +149,15 @@ export class BwSessionManager {
   async withSession<T>(fn: (session: string) => Promise<T>): Promise<T> {
     return this.lock.runExclusive(async () => {
       const session = await this.ensureUnlockedInternal();
-      return fn(session);
+      try {
+        return await fn(session);
+      } catch (error) {
+        if (!isBwAuthSessionInvalidError(error)) throw error;
+
+        await this.clearSessionStateLocked();
+        const refreshedSession = await this.ensureUnlockedInternal();
+        return fn(refreshedSession);
+      }
     });
   }
 
@@ -241,11 +249,15 @@ export class BwSessionManager {
     });
   }
 
-  private async resetCliProfile(): Promise<void> {
+  private async clearSessionStateLocked(): Promise<void> {
     this.session = null;
     this.templateItem = null;
-    this.configuredHost = null;
     await this.clearStoredSessionState();
+  }
+
+  private async resetCliProfile(): Promise<void> {
+    await this.clearSessionStateLocked();
+    this.configuredHost = null;
 
     await runBw(['logout'], { env: this.baseEnv(), timeoutMs: 30_000 }).catch(
       () => {},
@@ -365,7 +377,9 @@ export class BwSessionManager {
             ],
             { env: unlockEnv, timeoutMs: 60_000, noInteraction: false },
           );
-          return { completed: true, session: stdout.trim() };
+          const session = stdout.trim();
+          if (!session) return { completed: false, session: '' };
+          return { completed: true, session };
         } catch {
           return { completed: false, session: '' };
         }
