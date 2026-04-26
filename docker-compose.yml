@@ -52,7 +52,7 @@ services:
       KEYCHAIN_DEBUG_HTTP: "${KEYCHAIN_DEBUG_HTTP:-false}"
     # Dev-only: allow npm to write to the node-modules volume.
     user: "0:0"
-    command: sh -lc "npm install && npm run dev"
+    command: sh -lc "npm ci && npm run dev"
     depends_on:
       vaultwarden:
         condition: service_healthy
@@ -71,7 +71,7 @@ services:
     depends_on:
       vaultwarden-https:
         condition: service_started
-    command: sh -lc "npm install && node scripts/vaultwarden-bootstrap.mjs"
+    command: sh -lc "npm ci && node scripts/vaultwarden-bootstrap.mjs"
 
   tests:
     build:
@@ -99,7 +99,7 @@ services:
         condition: service_healthy
       vaultwarden-https:
         condition: service_started
-    command: sh -lc "npm install && npm run test:integration"
+    command: sh -lc "npm ci && npm run test:integration"
 
   tests-apikey:
     build:
@@ -117,6 +117,7 @@ services:
       BW_HOST: https://vaultwarden-https
       NODE_TLS_REJECT_UNAUTHORIZED: "0"
       KEYCHAIN_SYNC_ON_WRITE: "false"
+      KEYCHAIN_INTEGRATION_PROFILE: auth-smoke
     user: "0:0"
     depends_on:
       vaultwarden:
@@ -124,7 +125,7 @@ services:
       vaultwarden-https:
         condition: service_started
     command: >
-      sh -lc "npm install &&
+      sh -lc "npm ci &&
       test -s tmp/vaultwarden-bootstrap/apikey.env &&
       set -a &&
       . ./.env.test &&

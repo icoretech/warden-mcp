@@ -12,9 +12,34 @@ import { createKeychainApp } from '../transports/http.js';
 const INITIAL_STATUS_TIMEOUT_MS = 120_000;
 const TOOL_PREFIX = 'keychain';
 const TOOL_SEPARATOR = '_';
+const AUTH_SMOKE_PROFILE = 'auth-smoke';
 
 function toolName(name: string) {
   return `${TOOL_PREFIX}${TOOL_SEPARATOR}${name}`;
+}
+
+function assertReadyStatus(status: unknown) {
+  assert.ok(status && typeof status === 'object');
+  const rec = status as {
+    operational?: unknown;
+    summary?: unknown;
+    status?: unknown;
+  };
+  assert.ok(
+    rec.status === 'unlocked' ||
+      rec.status === 'locked' ||
+      rec.status === 'unauthenticated',
+  );
+  assert.ok(rec.operational && typeof rec.operational === 'object');
+  assert.equal((rec.operational as { ready?: unknown }).ready, true);
+  assert.ok(
+    typeof rec.summary === 'string' &&
+      rec.summary.toLowerCase().includes('vault access ready'),
+  );
+}
+
+function isAuthSmokeProfile() {
+  return process.env.KEYCHAIN_INTEGRATION_PROFILE === AUTH_SMOKE_PROFILE;
 }
 
 test('mcp e2e: can initialize, list tools, and call keychain_status over /sse', {
@@ -23,6 +48,7 @@ test('mcp e2e: can initialize, list tools, and call keychain_status over /sse', 
   const requireOrgTests = /^true$/i.test(
     process.env.KEYCHAIN_REQUIRE_ORG_TESTS ?? '',
   );
+  const authSmokeProfile = isAuthSmokeProfile();
   const bwHost = process.env.BW_HOST;
   const bwPassword = process.env.BW_PASSWORD;
   const bwUser = process.env.BW_USER ?? process.env.BW_USERNAME;
@@ -70,6 +96,7 @@ test('mcp e2e: can initialize, list tools, and call keychain_status over /sse', 
     { name: 'keychain-mcp-e2e', version: '0.0.0' },
     { capabilities: {} },
   );
+  let createdLoginId = '';
 
   try {
     await client.connect(transport);
@@ -194,6 +221,37 @@ test('mcp e2e: can initialize, list tools, and call keychain_status over /sse', 
       );
     }
 
+    if (authSmokeProfile) {
+      const listFolders = await client.callTool({
+        name: toolName('list_folders'),
+        arguments: { limit: 1 },
+      });
+      assert.equal(listFolders.isError, undefined);
+      assert.ok(
+        listFolders.structuredContent &&
+          typeof listFolders.structuredContent === 'object',
+      );
+      assert.ok(
+        Array.isArray(
+          (listFolders.structuredContent as { results?: unknown }).results,
+        ),
+      );
+
+      const readyAfterList = await client.callTool(
+        {
+          name: toolName('status'),
+          arguments: {},
+        },
+        undefined,
+        { timeout: INITIAL_STATUS_TIMEOUT_MS },
+      );
+      assert.equal(readyAfterList.isError, undefined);
+      assertReadyStatus(
+        (readyAfterList.structuredContent as { status?: unknown }).status,
+      );
+      return;
+    }
+
     const enc = await client.callTool({
       name: toolName('encode'),
       arguments: { value: '{"x":1}' },
@@ -279,6 +337,7 @@ test('mcp e2e: can initialize, list tools, and call keychain_status over /sse', 
         : undefined;
     assert.ok(created && typeof created === 'object');
     const createdRec = created as Record<string, unknown>;
+    if (typeof createdRec.id === 'string') createdLoginId = createdRec.id;
     const login = createdRec.login as Record<string, unknown> | undefined;
     assert.equal(login?.password, '[REDACTED]');
     assert.equal(login?.totp, '[REDACTED]');
@@ -304,6 +363,71 @@ test('mcp e2e: can initialize, list tools, and call keychain_status over /sse', 
 
     // Secret helper tools: they must return a consistent shape and not leak values by default.
     const term = createdRec.name as string;
+
+    const readyBeforeLookup = await client.callTool(
+      {
+        name: 'keychain_status',
+        arguments: {},
+      },
+      undefined,
+      { timeout: INITIAL_STATUS_TIMEOUT_MS },
+    );
+    assert.equal(readyBeforeLookup.isError, undefined);
+    assertReadyStatus(
+      (readyBeforeLookup.structuredContent as { status?: unknown }).status,
+    );
+
+    const searchLogin = await client.callTool({
+      name: 'keychain_search_items',
+      arguments: { text: term, type: 'login', limit: 50 },
+    });
+    assert.equal(searchLogin.isError, undefined);
+    {
+      const results = (searchLogin.structuredContent as { results?: unknown })
+        .results;
+      assert.ok(Array.isArray(results));
+      assert.ok(
+        results.some(
+          (item) =>
+            item &&
+            typeof item === 'object' &&
+            (item as { id?: unknown }).id === createdRec.id,
+        ),
+        'search_items should find the created login by the same term used by get_username',
+      );
+    }
+
+    const username = await client.callTool({
+      name: 'keychain_get_username',
+      arguments: { term },
+    });
+    assert.equal(username.isError, undefined);
+    {
+      const result = (username.structuredContent as { result?: unknown })
+        .result;
+      assert.ok(result && typeof result === 'object');
+      const rec = result as {
+        kind?: unknown;
+        value?: unknown;
+        revealed?: unknown;
+      };
+      assert.equal(rec.kind, 'username');
+      assert.equal(rec.revealed, true);
+      assert.equal(rec.value, 'e2e');
+    }
+
+    const readyAfterLookup = await client.callTool(
+      {
+        name: 'keychain_status',
+        arguments: {},
+      },
+      undefined,
+      { timeout: INITIAL_STATUS_TIMEOUT_MS },
+    );
+    assert.equal(readyAfterLookup.isError, undefined);
+    assertReadyStatus(
+      (readyAfterLookup.structuredContent as { status?: unknown }).status,
+    );
 
     const pwNoReveal = await client.callTool({
       name: 'keychain_get_password',
@@ -525,26 +649,15 @@ test('mcp e2e: can initialize, list tools, and call keychain_status over /sse', 
       assert.equal(rec.revealed, true);
       assert.equal(rec.value, 'e2e-notes');
     }
-
-    const username = await client.callTool({
-      name: 'keychain_get_username',
-      arguments: { term },
-    });
-    assert.equal(username.isError, undefined);
-    {
-      const result = (username.structuredContent as { result?: unknown })
-        .result;
-      assert.ok(result && typeof result === 'object');
-      const rec = result as {
-        kind?: unknown;
-        value?: unknown;
-        revealed?: unknown;
-      };
-      assert.equal(rec.kind, 'username');
-      assert.equal(rec.revealed, true);
-      assert.equal(rec.value, 'e2e');
-    }
   } finally {
+    if (typeof createdLoginId === 'string' && createdLoginId.length > 0) {
+      await client
+        .callTool({
+          name: toolName('delete_item'),
+          arguments: { id: createdLoginId, permanent: true },
+        })
+        .catch(() => {});
+    }
     await transport.terminateSession().catch(() => {});
     await transport.close().catch(() => {});
     await new Promise<void>((resolve) => httpServer.close(() => resolve()));
