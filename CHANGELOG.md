@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.15](https://github.com/icoretech/warden-mcp/compare/v0.2.14...v0.2.15) (2026-04-26)
+
+
+### Bug Fixes
+
+* **status:** clarify lazy readiness recovery ([89d6a7d](https://github.com/icoretech/warden-mcp/commit/89d6a7dc8c35c6f701ee4518f7540058260449e9))
+
 ## [0.2.14](https://github.com/icoretech/warden-mcp/compare/v0.2.13...v0.2.14) (2026-04-26)
 
 
