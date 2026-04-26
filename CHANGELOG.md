@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.14](https://github.com/icoretech/warden-mcp/compare/v0.2.13...v0.2.14) (2026-04-26)
+
+
+### Bug Fixes
+
+* **sdk:** fallback username lookup precisely ([aab1c2e](https://github.com/icoretech/warden-mcp/commit/aab1c2e69c37108e69467b5bce820841e6c2e750))
+* **session:** classify stale bitwarden sessions ([504b4ba](https://github.com/icoretech/warden-mcp/commit/504b4ba066b79c2a0808c6dda352140c39e3ae2e))
+* **session:** retry stale session operations once ([40969b0](https://github.com/icoretech/warden-mcp/commit/40969b0c8a1feca0e7ea028f9bb6e6bd4e5d6f1e))
+* **status:** reflect reusable sessions in vault readiness ([579e7b3](https://github.com/icoretech/warden-mcp/commit/579e7b39c9073c78b7c1842c79d045ccfc0ee9d9))
+
 ## [0.2.13](https://github.com/icoretech/warden-mcp/compare/v0.2.12...v0.2.13) (2026-04-22)
 
 
