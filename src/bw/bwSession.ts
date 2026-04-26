@@ -221,7 +221,9 @@ export class BwSessionManager {
     }
     const summaryParts = isUnlocked
       ? ['Vault access ready']
-      : ['Vault access not ready'];
+      : [
+          'Vault access not ready yet; this lazy status check does not unlock the vault, but keychain tools will attempt unlock/recovery on demand',
+        ];
     if (userEmail) summaryParts.push(`for ${userEmail}`);
     if (serverUrl) summaryParts.push(`on ${serverUrl}`);
 
@@ -231,6 +233,10 @@ export class BwSessionManager {
       operational: {
         ready: isUnlocked,
         sessionValid: isUnlocked,
+        recoverable: !isUnlocked,
+        nextAction: isUnlocked
+          ? 'continue'
+          : 'call a keychain tool such as search_items or get_username to initialize vault access on demand',
         source: 'session_manager',
       },
     };

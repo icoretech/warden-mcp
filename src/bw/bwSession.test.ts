@@ -475,13 +475,21 @@ exit 0
       const manager = new BwSessionManager(makeEnv(dir));
       const status = (await manager.status()) as {
         summary: string;
-        operational: { ready: boolean; sessionValid: boolean };
+        operational: {
+          ready: boolean;
+          sessionValid: boolean;
+          recoverable: boolean;
+          nextAction: string;
+        };
         status: string;
       };
       assert.equal(status.status, 'unauthenticated');
       assert.equal(status.operational.ready, false);
       assert.equal(status.operational.sessionValid, false);
-      assert.ok(status.summary.includes('Vault access not ready'));
+      assert.equal(status.operational.recoverable, true);
+      assert.match(status.operational.nextAction, /keychain tool/);
+      assert.ok(status.summary.includes('Vault access not ready yet'));
+      assert.match(status.summary, /will attempt unlock\/recovery on demand/);
       assert.equal((await readFile(unlockCounter, 'utf8')).trim(), '0');
     } finally {
       process.env.BW_BIN = savedBin;
