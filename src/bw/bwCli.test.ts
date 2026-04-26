@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { describe, test } from 'node:test';
 
-import { BwCliError, runBw } from './bwCli.js';
+import { BwCliError, isBwAuthSessionInvalidError, runBw } from './bwCli.js';
 import { resolveBundledBwBin } from './resolveBwBin.js';
 
 async function createScript(
@@ -290,6 +290,39 @@ wait "$bg_pid"
     assert.equal(err.stdout, 'out');
     assert.equal(err.stderr, 'err');
     assert.ok(err.message.includes('test error'));
+  });
+
+  test('isBwAuthSessionInvalidError classifies only session invalidation failures', () => {
+    assert.equal(
+      isBwAuthSessionInvalidError(
+        new BwCliError('bw failed', {
+          exitCode: 1,
+          stdout: '',
+          stderr: 'Invalid BW session',
+        }),
+      ),
+      true,
+    );
+
+    const nonRetryableMessages = [
+      'Not found.',
+      'More than one result was found.',
+      'Username lookup is ambiguous.',
+      'Could not connect to server.',
+      'Network timeout.',
+      'Server error.',
+      'Unknown CLI failure.',
+    ];
+
+    for (const stderr of nonRetryableMessages) {
+      assert.equal(
+        isBwAuthSessionInvalidError(
+          new BwCliError('bw failed', { exitCode: 1, stdout: '', stderr }),
+        ),
+        false,
+        stderr,
+      );
+    }
   });
 
   test('redacts --session value in debug error messages', async () => {

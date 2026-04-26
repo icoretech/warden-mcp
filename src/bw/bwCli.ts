@@ -32,6 +32,44 @@ export class BwCliError extends Error {
   }
 }
 
+export function isBwAuthSessionInvalidError(error: unknown): boolean {
+  if (!(error instanceof BwCliError)) return false;
+
+  const combined = [error.stderr, error.stdout, error.message]
+    .join('\n')
+    .toLowerCase();
+
+  if (
+    /not found/.test(combined) ||
+    /more than one result/.test(combined) ||
+    /multiple results/.test(combined) ||
+    /ambiguous/.test(combined) ||
+    /invalid search/.test(combined) ||
+    /could not connect/.test(combined) ||
+    /connection/.test(combined) ||
+    /network/.test(combined) ||
+    /timeout/.test(combined) ||
+    /timed out/.test(combined) ||
+    /server error/.test(combined)
+  ) {
+    return false;
+  }
+
+  return (
+    /invalid\s+(bw\s+)?session/.test(combined) ||
+    /(bw\s+)?session\s+(is\s+)?invalid/.test(combined) ||
+    /expired\s+(bw\s+)?session/.test(combined) ||
+    /(bw\s+)?session\s+(has\s+)?expired/.test(combined) ||
+    /not logged in/.test(combined) ||
+    /not authenticated/.test(combined) ||
+    /you are not authenticated/.test(combined) ||
+    /vault is locked/.test(combined) ||
+    /please unlock/.test(combined) ||
+    /unlock your vault/.test(combined) ||
+    /requires an unlocked vault/.test(combined)
+  );
+}
+
 export async function runBw(
   args: string[],
   opts: BwRunOptions = {},
