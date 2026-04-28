@@ -3,7 +3,10 @@
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { KeychainSdk } from '../sdk/keychainSdk.js';
+import {
+  AmbiguousLoginLookupError,
+  type KeychainSdk,
+} from '../sdk/keychainSdk.js';
 import type { UpdatePatch } from '../sdk/patch.js';
 import type { UriInput, UriMatch } from '../sdk/types.js';
 
@@ -93,6 +96,101 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
         ? JSON.stringify(structuredContent)
         : fallbackText;
     return [{ type: 'text' as const, text }];
+  }
+
+  function quoteText(value: string): string {
+    return JSON.stringify(value);
+  }
+
+  function stringifyScalar(value: unknown): string {
+    if (value === null || value === undefined) return 'null';
+    if (typeof value === 'string') return quoteText(value);
+    return JSON.stringify(value) ?? String(value);
+  }
+
+  function formatItemSummary(item: unknown): string {
+    if (!item || typeof item !== 'object') return `- ${stringifyScalar(item)}`;
+    const rec = item as Record<string, unknown>;
+    const parts: string[] = [];
+    if (typeof rec.id === 'string') parts.push(`id=${rec.id}`);
+    if (typeof rec.name === 'string') parts.push(`name=${quoteText(rec.name)}`);
+    if (typeof rec.type === 'string') parts.push(`type=${rec.type}`);
+    if (typeof rec.username === 'string') {
+      parts.push(`username=${quoteText(rec.username)}`);
+    }
+    if (Array.isArray(rec.uris) && rec.uris.length > 0) {
+      const uris = rec.uris
+        .map((uri) => {
+          if (!uri || typeof uri !== 'object') return null;
+          const value = (uri as Record<string, unknown>).uri;
+          return typeof value === 'string' ? value : null;
+        })
+        .filter((uri): uri is string => uri !== null);
+      if (uris.length > 0) parts.push(`uris=${quoteText(uris.join(', '))}`);
+    }
+    if (typeof rec.organizationId === 'string') {
+      parts.push(`organizationId=${rec.organizationId}`);
+    }
+    if (typeof rec.folderId === 'string')
+      parts.push(`folderId=${rec.folderId}`);
+    if (Array.isArray(rec.collectionIds) && rec.collectionIds.length > 0) {
+      parts.push(`collectionIds=${quoteText(rec.collectionIds.join(', '))}`);
+    }
+    if (typeof rec.favorite === 'boolean')
+      parts.push(`favorite=${rec.favorite}`);
+    return `- ${parts.length > 0 ? parts.join(' ') : stringifyScalar(rec)}`;
+  }
+
+  function formatResultsText(label: string, results: unknown[]): string {
+    if (textCompatMode === 'structured_json') {
+      return JSON.stringify({ results });
+    }
+    if (results.length === 0) return `Found 0 ${label}.`;
+    return [
+      `Found ${results.length} ${label}:`,
+      ...results.map(formatItemSummary),
+    ].join('\n');
+  }
+
+  function toolValueContent(
+    structuredContent: Record<string, unknown>,
+    kind: string,
+    value: unknown,
+    revealed: boolean,
+    extraLines: string[] = [],
+  ) {
+    if (textCompatMode === 'structured_json') {
+      return [
+        { type: 'text' as const, text: JSON.stringify(structuredContent) },
+      ];
+    }
+    const lines = [
+      `${kind}: ${revealed ? stringifyScalar(value) : 'not revealed'}`,
+      ...extraLines,
+    ];
+    return [{ type: 'text' as const, text: lines.join('\n') }];
+  }
+
+  function ambiguousLookupResult(error: AmbiguousLoginLookupError) {
+    const structuredContent = {
+      ok: false,
+      error: 'AMBIGUOUS_LOOKUP',
+      message: error.message,
+      candidates: error.candidates,
+    };
+    return {
+      structuredContent,
+      content: [
+        {
+          type: 'text' as const,
+          text: [
+            `${error.message}. Retry with term set to an exact id.`,
+            ...error.candidates.map(formatItemSummary),
+          ].join('\n'),
+        },
+      ],
+      isError: true,
+    };
   }
 
   const uriMatchSchema = z.enum([
@@ -333,7 +431,9 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
         });
       return {
         structuredContent: { results },
-        content: [{ type: 'text', text: `Found ${results.length} folder(s).` }],
+        content: [
+          { type: 'text', text: formatResultsText('folder(s)', results) },
+        ],
       };
     },
   );
@@ -434,7 +534,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       return {
         structuredContent: { results },
         content: [
-          { type: 'text', text: `Found ${results.length} org collection(s).` },
+          {
+            type: 'text',
+            text: formatResultsText('org collection(s)', results),
+          },
         ],
       };
     },
@@ -559,7 +662,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
         });
       return {
         structuredContent: { results },
-        content: [{ type: 'text', text: `Found ${results.length} org(s).` }],
+        content: [{ type: 'text', text: formatResultsText('org(s)', results) }],
       };
     },
   );
@@ -593,7 +696,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       return {
         structuredContent: { results },
         content: [
-          { type: 'text', text: `Found ${results.length} collection(s).` },
+          { type: 'text', text: formatResultsText('collection(s)', results) },
         ],
       };
     },
@@ -630,7 +733,9 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const minimal = items.map((i) => sdk.minimalSummary(i));
       return {
         structuredContent: { results: minimal },
-        content: [{ type: 'text', text: `Found ${minimal.length} item(s).` }],
+        content: [
+          { type: 'text', text: formatResultsText('item(s)', minimal) },
+        ],
       };
     },
   );
@@ -707,7 +812,12 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       );
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: toolValueContent(
+          structuredContent,
+          'notes',
+          notes.value,
+          notes.revealed,
+        ),
       };
     },
   );
@@ -1241,7 +1351,15 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
     async (input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
-      const username = await sdk.getUsername(input);
+      let username: Awaited<ReturnType<KeychainSdk['getUsername']>>;
+      try {
+        username = await sdk.getUsername(input);
+      } catch (error) {
+        if (error instanceof AmbiguousLoginLookupError) {
+          return ambiguousLookupResult(error);
+        }
+        throw error;
+      }
       const structuredContent = toolResult(
         'username',
         username.value,
@@ -1249,7 +1367,12 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       );
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: toolValueContent(
+          structuredContent,
+          'username',
+          username.value,
+          username.revealed,
+        ),
       };
     },
   );
@@ -1269,10 +1392,18 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     },
     async (input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
-      const password = await sdk.getPassword(
-        { term: input.term },
-        { reveal: effectiveReveal(input) },
-      );
+      let password: Awaited<ReturnType<KeychainSdk['getPassword']>>;
+      try {
+        password = await sdk.getPassword(
+          { term: input.term },
+          { reveal: effectiveReveal(input) },
+        );
+      } catch (error) {
+        if (error instanceof AmbiguousLoginLookupError) {
+          return ambiguousLookupResult(error);
+        }
+        throw error;
+      }
       const structuredContent = toolResult(
         'password',
         password.value,
@@ -1280,7 +1411,12 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       );
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: toolValueContent(
+          structuredContent,
+          'password',
+          password.value,
+          password.revealed,
+        ),
       };
     },
   );
@@ -1308,9 +1444,19 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
         period: totp.period,
         timeLeft: totp.timeLeft,
       });
+      const extraLines = [
+        `period: ${stringifyScalar(totp.period)}`,
+        `timeLeft: ${stringifyScalar(totp.timeLeft)}`,
+      ];
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: toolValueContent(
+          structuredContent,
+          'totp',
+          totp.value,
+          totp.revealed,
+          extraLines,
+        ),
       };
     },
   );

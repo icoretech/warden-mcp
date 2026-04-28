@@ -321,7 +321,7 @@ describe('registerTools: read-only tools in readonly mode', {
         arguments: { term: 'test', reveal: false },
       });
       const text = (result.content as Array<{ text: string }>)[0]?.text ?? '';
-      assert.equal(text, 'OK');
+      assert.equal(text, 'password: not revealed');
     } finally {
       await cleanup();
     }
@@ -339,7 +339,7 @@ describe('registerTools: read-only tools in readonly mode', {
         arguments: { term: 'test', reveal: false },
       });
       const text = (result.content as Array<{ text: string }>)[0]?.text ?? '';
-      assert.equal(text, 'OK');
+      assert.ok(text.includes('totp: not revealed'));
     } finally {
       await cleanup();
     }
@@ -357,7 +357,7 @@ describe('registerTools: read-only tools in readonly mode', {
         arguments: { term: 'test', reveal: false },
       });
       const text = (result.content as Array<{ text: string }>)[0]?.text ?? '';
-      assert.equal(text, 'OK');
+      assert.equal(text, 'notes: not revealed');
     } finally {
       await cleanup();
     }
@@ -451,6 +451,23 @@ printf '{}'; exit 0
   return scriptPath;
 }
 
+async function createAmbiguousLookupBwScript(dir: string): Promise<string> {
+  const scriptPath = join(dir, 'fake-bw');
+  const script = `#!/bin/sh
+if echo "$*" | grep -q 'config server'; then exit 0; fi
+if echo "$*" | grep -q 'logout'; then exit 0; fi
+if echo "$*" | grep -q 'unlock --check'; then printf 'Vault is unlocked!'; exit 0; fi
+if echo "$*" | grep -q 'unlock'; then printf 'ambiguous-session'; exit 0; fi
+if echo "$*" | grep -q 'status'; then printf '{"status":"unlocked","serverUrl":"https://bw.test","userEmail":"test@test.com"}'; exit 0; fi
+if echo "$*" | grep -q 'get username'; then printf 'More than one result was found.' >&2; exit 1; fi
+if echo "$*" | grep -q 'get password'; then printf 'More than one result was found.' >&2; exit 1; fi
+if echo "$*" | grep -q 'list items'; then printf '[{"id":"one","type":1,"name":"Backoffice Staging","login":{"username":"one@test.com","password":"pw1","uris":[{"uri":"https://backoffice-staging.example.com","match":0}]}},{"id":"two","type":1,"name":"Backoffice Staging Admin","login":{"username":"two@test.com","password":"pw2","uris":[{"uri":"https://backoffice-staging.example.com/admin","match":0}]}}]'; exit 0; fi
+printf '{}'; exit 0
+`;
+  await writeFile(scriptPath, script, { mode: 0o755 });
+  return scriptPath;
+}
+
 describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
   // Shared e2e helper: creates fake bw, starts server, calls tool, cleans up.
   async function callToolE2e(
@@ -507,6 +524,9 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
     const r = await callToolE2e('search_items', { text: 'Test' });
     assert.equal(r.isError, undefined);
     assert.ok(textOf(r).includes('1 item'));
+    assert.ok(textOf(r).includes('id=1'));
+    assert.ok(textOf(r).includes('name="Test Login"'));
+    assert.ok(textOf(r).includes('username="user"'));
   });
 
   test('get_item', async () => {
@@ -564,7 +584,7 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
   test('get_username', async () => {
     const r = await callToolE2e('get_username', { term: 'test' });
     assert.equal(r.isError, undefined);
-    assert.equal(textOf(r), 'OK');
+    assert.equal(textOf(r), 'username: "user@test.com"');
   });
 
   test('status, search_items, and get_username fallback stay ready together', async () => {
@@ -618,6 +638,7 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
       reveal: true,
     });
     assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), 'password: "secret-pw"');
   });
 
   test('get_totp with reveal=true', async () => {
@@ -626,6 +647,7 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
     try {
       const r = await callToolE2e('get_totp', { term: 'test', reveal: true });
       assert.equal(r.isError, undefined);
+      assert.ok(textOf(r).includes('totp: "123456"'));
       const structured = r.structuredContent as {
         result?: {
           kind?: unknown;
@@ -653,6 +675,64 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
   test('get_notes with reveal=true', async () => {
     const r = await callToolE2e('get_notes', { term: 'test', reveal: true });
     assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), 'notes: "my notes"');
+  });
+
+  test('ambiguous get_username returns visible candidates', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'tools-ambiguous-'));
+    const fakeBw = await createAmbiguousLookupBwScript(tmpDir);
+    const { client, cleanup } = await startTestServer({
+      BW_BIN: fakeBw,
+      BW_HOST: 'https://bw.test',
+      BW_PASSWORD: 'pw',
+      BW_USER: 'test@test.com',
+    });
+    try {
+      const result = await client.callTool({
+        name: toolName('get_username'),
+        arguments: { term: 'Staging' },
+      });
+      assert.equal(result.isError, true);
+      assert.ok(textOf(result).includes('Retry with term set to an exact id'));
+      assert.ok(textOf(result).includes('id=one'));
+      assert.ok(textOf(result).includes('username="one@test.com"'));
+      assert.ok(textOf(result).includes('id=two'));
+      const structured = result.structuredContent as {
+        error?: unknown;
+        candidates?: unknown[];
+      };
+      assert.equal(structured.error, 'AMBIGUOUS_LOOKUP');
+      assert.equal(structured.candidates?.length, 2);
+    } finally {
+      await cleanup();
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('ambiguous get_password returns visible candidates', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'tools-ambiguous-'));
+    const fakeBw = await createAmbiguousLookupBwScript(tmpDir);
+    const { client, cleanup } = await startTestServer({
+      BW_BIN: fakeBw,
+      BW_HOST: 'https://bw.test',
+      BW_PASSWORD: 'pw',
+      BW_USER: 'test@test.com',
+    });
+    try {
+      const result = await client.callTool({
+        name: toolName('get_password'),
+        arguments: { term: 'Staging', reveal: true },
+      });
+      assert.equal(result.isError, true);
+      assert.ok(textOf(result).includes('Retry with term set to an exact id'));
+      assert.ok(textOf(result).includes('id=one'));
+      assert.ok(textOf(result).includes('id=two'));
+      assert.ok(!textOf(result).includes('pw1'));
+      assert.ok(!textOf(result).includes('pw2'));
+    } finally {
+      await cleanup();
+      await rm(tmpDir, { recursive: true, force: true });
+    }
   });
 
   test('get_exposed', async () => {

@@ -21,6 +21,29 @@ Published package: [`@icoretech/warden-mcp`](https://www.npmjs.com/package/@icor
 - Safe-by-default: item reads are **redacted** unless explicitly revealed; secret helper tools return `null` unless `reveal: true`
 - Strong fit for LLM automation: pair it with a browser-capable MCP host so an agent can fetch credentials, complete sign-in flows, read TOTP codes, and keep automating after login
 
+## Text-Only MCP Client Behavior
+
+Some MCP hosts, including agent shells that optimize tool output for the model,
+only forward `content[]` text blocks and do not expose `structuredContent` to
+the agent. `warden-mcp` therefore mirrors the non-secret identifiers needed for
+follow-up calls into visible text by default.
+
+For search/list tools, the text output includes concise rows with stable ids and
+safe metadata such as names, item type, username, URI values, organization id,
+folder id, and collection ids. Secret fields are not included in those summaries.
+
+For scalar helper tools, the text output follows the reveal contract:
+
+- `get_username` shows the username because Bitwarden treats it as non-secret
+- `get_password`, `get_totp`, and `get_notes` show `not revealed` unless you pass
+  `reveal: true`
+- if `NOREVEAL=true` or `KEYCHAIN_NOREVEAL=true`, revealed values are still
+  suppressed server-side
+
+When a lookup term matches multiple login items, credential helpers return an
+`AMBIGUOUS_LOOKUP` error with visible candidate ids. Retry with `term` set to an
+exact candidate `id`, or call `get_item` with that `id`.
+
 ## LLM Automation Use Case
 
 `warden-mcp` is not only useful for vault administration. A very practical use case is pairing it with an LLM that can also drive a browser.
@@ -432,7 +455,7 @@ Mutation control:
 
 - Set `READONLY=true` to block all write operations (create/edit/delete/move/restore/attachments).
 - Set `NOREVEAL=true` to force all `reveal` parameters to `false` server-side. Clients can still request `reveal: true`, but the server will silently downgrade to redacted output. This prevents prompt injection from tricking an LLM agent into exfiltrating secrets.
-- Set `KEYCHAIN_TEXT_COMPAT_MODE=structured_json` to mirror any structured `OK` tool result into `TextContent` as serialized JSON. This is useful for text-only MCP clients that ignore `structuredContent`, but it also duplicates revealed secrets into the plain-text transcript.
+- Set `KEYCHAIN_TEXT_COMPAT_MODE=structured_json` to mirror supported structured tool results into `TextContent` as serialized JSON. This is useful for text-only MCP clients that ignore `structuredContent`, but it also duplicates revealed secrets into the plain-text transcript.
 - Tool names default to `keychain_*`. Override `TOOL_PREFIX` to change the namespace and `TOOL_SEPARATOR` to change the separator (default `_`, set `.` for legacy clients).
 - Session guardrails:
   - `KEYCHAIN_SESSION_MAX_COUNT` (default `32`)
