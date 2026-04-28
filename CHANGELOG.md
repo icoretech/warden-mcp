@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.16](https://github.com/icoretech/warden-mcp/compare/v0.2.15...v0.2.16) (2026-04-28)
+
+
+### Bug Fixes
+
+* **sdk:** report ambiguous credential candidates ([a569354](https://github.com/icoretech/warden-mcp/commit/a5693545da65beed5421783b935ff44c2a986d4d))
+* **tools:** expose actionable text results ([6e62b7a](https://github.com/icoretech/warden-mcp/commit/6e62b7ade5d9a8daa1e2ccb95ad38dd8d7c4676f))
+
 ## [0.2.15](https://github.com/icoretech/warden-mcp/compare/v0.2.14...v0.2.15) (2026-04-26)
 
 
