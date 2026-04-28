@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.17](https://github.com/icoretech/warden-mcp/compare/v0.2.16...v0.2.17) (2026-04-28)
+
+
+### Bug Fixes
+
+* **tools:** improve text compatibility output ([89356bc](https://github.com/icoretech/warden-mcp/commit/89356bc2e9699588b256d88bb1610adec0c1a566))
+
 ## [0.2.16](https://github.com/icoretech/warden-mcp/compare/v0.2.15...v0.2.16) (2026-04-28)
 
 
