@@ -144,6 +144,28 @@ export interface SearchItemsInput {
   limit?: number;
 }
 
+export interface LoginCandidateSummary {
+  id?: string;
+  name?: string;
+  type: ItemKind;
+  username?: string;
+  uris?: UriInput[];
+  organizationId: string | null;
+  folderId: string | null;
+  collectionIds?: unknown[];
+  favorite?: boolean;
+}
+
+export class AmbiguousLoginLookupError extends Error {
+  readonly candidates: LoginCandidateSummary[];
+
+  constructor(message: string, candidates: LoginCandidateSummary[]) {
+    super(message);
+    this.name = 'AmbiguousLoginLookupError';
+    this.candidates = candidates;
+  }
+}
+
 export interface ListFoldersInput {
   search?: string;
   limit?: number;
@@ -335,6 +357,95 @@ export class KeychainSdk {
     return terms.some(
       (term) => id === term || name === term || username === term,
     );
+  }
+
+  private loginCandidateSummary(item: AnyRecord): LoginCandidateSummary {
+    const login =
+      item.login && typeof item.login === 'object'
+        ? (item.login as AnyRecord)
+        : null;
+    const username = login?.username;
+    return {
+      id: typeof item.id === 'string' ? item.id : undefined,
+      name: typeof item.name === 'string' ? item.name : undefined,
+      type: kindFromItem(item),
+      username: typeof username === 'string' ? username : undefined,
+      uris: denormalizeUris(login?.uris),
+      organizationId:
+        typeof item.organizationId === 'string' ? item.organizationId : null,
+      folderId: typeof item.folderId === 'string' ? item.folderId : null,
+      collectionIds: Array.isArray(item.collectionIds)
+        ? item.collectionIds
+        : undefined,
+      favorite: typeof item.favorite === 'boolean' ? item.favorite : undefined,
+    };
+  }
+
+  private async searchLoginCandidatesForSession(
+    session: string,
+    term: string,
+  ): Promise<{ terms: string[]; candidates: AnyRecord[] }> {
+    const tokens = term
+      .split('|')
+      .map((token) => token.trim())
+      .filter((token) => token.length > 0);
+    const terms = tokens.length ? tokens : [term];
+    const byId = new Map<string, AnyRecord>();
+
+    for (const searchTerm of terms) {
+      const { stdout } = await this.bw.runForSession(
+        session,
+        ['list', 'items', '--search', searchTerm],
+        { timeoutMs: 120_000 },
+      );
+      const results = this.parseBwJson<unknown[]>(stdout);
+      for (const raw of results) {
+        if (!raw || typeof raw !== 'object') continue;
+        const item = raw as AnyRecord;
+        if (item.type !== ITEM_TYPE.login) continue;
+        const id = item.id;
+        if (typeof id === 'string' && id.length > 0) byId.set(id, item);
+      }
+    }
+
+    return { terms, candidates: [...byId.values()] };
+  }
+
+  private narrowLoginCandidates(
+    candidates: AnyRecord[],
+    terms: string[],
+  ): AnyRecord[] {
+    const exactCandidates = candidates.filter((item) =>
+      this.candidateMatchesTerm(item, terms),
+    );
+    return exactCandidates.length > 0 ? exactCandidates : candidates;
+  }
+
+  private async resolveUniqueLoginCandidateForSession(
+    session: string,
+    term: string,
+    kind: string,
+  ): Promise<AnyRecord> {
+    if (!term.trim()) throw new Error(`${kind} lookup term is empty`);
+
+    const { terms, candidates } = await this.searchLoginCandidatesForSession(
+      session,
+      term,
+    );
+
+    if (candidates.length === 0) {
+      throw new Error(`${kind} lookup failed: no login item found`);
+    }
+
+    const narrowed = this.narrowLoginCandidates(candidates, terms);
+    if (narrowed.length !== 1) {
+      throw new AmbiguousLoginLookupError(
+        `${kind} lookup failed: multiple matching login items found`,
+        narrowed.map((item) => this.loginCandidateSummary(item)),
+      );
+    }
+
+    return narrowed[0] as AnyRecord;
   }
 
   private async resolveTotpConfigForSession(
@@ -1330,37 +1441,15 @@ export class KeychainSdk {
         if (!(error instanceof BwCliError) || error.exitCode !== 1) throw error;
         if (!isUsernameLookupFailure(error)) throw error;
 
-        const { stdout } = await this.bw.runForSession(
+        const candidate = await this.resolveUniqueLoginCandidateForSession(
           session,
-          ['list', 'items', '--search', term],
-          { timeoutMs: 120_000 },
+          term,
+          'Username',
         );
-        const rawResults = this.parseBwJson<unknown[]>(stdout);
-        const candidates = rawResults.filter(
-          (raw): raw is AnyRecord =>
-            !!raw &&
-            typeof raw === 'object' &&
-            (raw as AnyRecord).type === ITEM_TYPE.login,
-        );
-
-        if (candidates.length === 0) {
-          throw new Error('Username lookup failed: no login item found');
-        }
-
-        const exactCandidates = candidates.filter((item) =>
-          this.candidateMatchesTerm(item, [term]),
-        );
-        const narrowed =
-          exactCandidates.length > 0 ? exactCandidates : candidates;
-        if (narrowed.length !== 1) {
-          throw new Error(
-            'Username lookup failed: multiple matching login items found',
-          );
-        }
 
         const login =
-          narrowed[0]?.login && typeof narrowed[0].login === 'object'
-            ? (narrowed[0].login as AnyRecord)
+          candidate.login && typeof candidate.login === 'object'
+            ? (candidate.login as AnyRecord)
             : null;
         const username = login?.username;
         if (typeof username !== 'string' || username.trim().length === 0) {
@@ -1378,14 +1467,37 @@ export class KeychainSdk {
     opts: { reveal?: boolean } = {},
   ): Promise<{ value: string | null; revealed: boolean }> {
     if (!opts.reveal) return this.valueResult(null, false);
+    const term = input.term.trim();
+    if (!term) throw new Error('Password lookup term is empty');
 
     return this.bw.withSession(async (session) => {
-      const { stdout } = await this.bw.runForSession(
-        session,
-        ['--raw', 'get', 'password', input.term],
-        { timeoutMs: 60_000 },
-      );
-      return this.valueResult(stdout.trim(), true);
+      try {
+        const { stdout } = await this.bw.runForSession(
+          session,
+          ['--raw', 'get', 'password', term],
+          { timeoutMs: 60_000 },
+        );
+        return this.valueResult(stdout.trim(), true);
+      } catch (error) {
+        if (isBwAuthSessionInvalidError(error)) throw error;
+        if (!(error instanceof BwCliError) || error.exitCode !== 1) throw error;
+        if (!isUsernameLookupFailure(error)) throw error;
+
+        const candidate = await this.resolveUniqueLoginCandidateForSession(
+          session,
+          term,
+          'Password',
+        );
+        const login =
+          candidate.login && typeof candidate.login === 'object'
+            ? (candidate.login as AnyRecord)
+            : null;
+        const password = login?.password;
+        if (typeof password !== 'string') {
+          throw new Error('Password lookup found an empty password');
+        }
+        return this.valueResult(password, true);
+      }
     });
   }
 
@@ -2030,10 +2142,17 @@ export class KeychainSdk {
   minimalSummary(item: unknown): unknown {
     if (!item || typeof item !== 'object') return item;
     const rec = item as AnyRecord;
-    return {
+    const login =
+      rec.login && typeof rec.login === 'object'
+        ? (rec.login as AnyRecord)
+        : null;
+    const username = login?.username;
+    const summary: LoginCandidateSummary = {
       id: typeof rec.id === 'string' ? rec.id : undefined,
       name: typeof rec.name === 'string' ? rec.name : undefined,
       type: kindFromItem(rec),
+      username: typeof username === 'string' ? username : undefined,
+      uris: denormalizeUris(login?.uris),
       organizationId:
         typeof rec.organizationId === 'string' ? rec.organizationId : null,
       folderId: typeof rec.folderId === 'string' ? rec.folderId : null,
@@ -2042,5 +2161,6 @@ export class KeychainSdk {
         : undefined,
       favorite: typeof rec.favorite === 'boolean' ? rec.favorite : undefined,
     };
+    return summary;
   }
 }

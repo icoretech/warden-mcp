@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, test } from 'node:test';
 import { BwCliError, type BwRunResult } from '../bw/bwCli.js';
 import type { BwSessionManager } from '../bw/bwSession.js';
-import { KeychainSdk } from './keychainSdk.js';
+import { AmbiguousLoginLookupError, KeychainSdk } from './keychainSdk.js';
 
 function decodeLastArg(calls: MockCall[], command: string): unknown {
   const call = calls.find((c) => c.args.includes(command));
@@ -933,8 +933,60 @@ describe('KeychainSdk CRUD', () => {
     const sdk = new KeychainSdk(mock);
     await assert.rejects(
       () => sdk.getUsername({ term: 'sample' }),
-      /multiple matching login items/,
+      (error) => {
+        assert.ok(error instanceof AmbiguousLoginLookupError);
+        assert.match(error.message, /multiple matching login items/);
+        assert.equal(error.candidates.length, 2);
+        assert.equal(error.candidates[0]?.id, '1');
+        assert.equal(error.candidates[0]?.username, 'a@test.com');
+        return true;
+      },
     );
+  });
+
+  test('getPassword falls back to a unique login candidate on lookup failure', async () => {
+    const mock: BwSessionManager = {
+      withSession: async (fn: (session: string) => Promise<unknown>) => {
+        return fn('mock-session');
+      },
+      runForSession: async (_session: string, args: string[]) => {
+        if (args.includes('password')) {
+          throw new BwCliError('lookup failed', {
+            exitCode: 1,
+            stdout: '',
+            stderr: 'Not found.',
+          });
+        }
+        return {
+          stdout: JSON.stringify([
+            {
+              id: '1',
+              type: 1,
+              name: 'sample login',
+              login: { username: 'alice@test.com', password: 'fallback-pw' },
+            },
+          ]),
+          stderr: '',
+        };
+      },
+    } as unknown as BwSessionManager;
+
+    const sdk = new KeychainSdk(mock);
+    const result = await sdk.getPassword({ term: 'sample' }, { reveal: true });
+
+    assert.equal(result.value, 'fallback-pw');
+    assert.equal(result.revealed, true);
+  });
+
+  test('getPassword rejects empty lookup terms before session work', async () => {
+    const { mock, calls } = createMockBw();
+    const sdk = new KeychainSdk(mock);
+
+    await assert.rejects(
+      () => sdk.getPassword({ term: '   ' }, { reveal: true }),
+      /term is empty/,
+    );
+    assert.equal(calls.length, 0);
   });
 
   test('getUsername rejects empty lookup terms before session work', async () => {
