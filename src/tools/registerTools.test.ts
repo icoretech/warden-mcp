@@ -735,6 +735,37 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
     }
   });
 
+  test('ambiguous get_password exposes structured error in text when KEYCHAIN_TEXT_COMPAT_MODE=structured_json', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'tools-ambiguous-'));
+    const fakeBw = await createAmbiguousLookupBwScript(tmpDir);
+    const { client, cleanup } = await startTestServer({
+      BW_BIN: fakeBw,
+      BW_HOST: 'https://bw.test',
+      BW_PASSWORD: 'pw',
+      BW_USER: 'test@test.com',
+      KEYCHAIN_TEXT_COMPAT_MODE: 'structured_json',
+    });
+    try {
+      const result = await client.callTool({
+        name: toolName('get_password'),
+        arguments: { term: 'Staging', reveal: true },
+      });
+      assert.equal(result.isError, true);
+      assert.equal(textOf(result), JSON.stringify(result.structuredContent));
+      const structured = result.structuredContent as {
+        error?: unknown;
+        candidates?: unknown[];
+      };
+      assert.equal(structured.error, 'AMBIGUOUS_LOOKUP');
+      assert.equal(structured.candidates?.length, 2);
+      assert.ok(!textOf(result).includes('pw1'));
+      assert.ok(!textOf(result).includes('pw2'));
+    } finally {
+      await cleanup();
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   test('get_exposed', async () => {
     const r = await callToolE2e('get_exposed', { term: 'test' });
     assert.equal(r.isError, undefined);
@@ -833,13 +864,13 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
       password: 'pw',
     });
     assert.equal(r.isError, undefined);
-    assert.equal(textOf(r), 'Created.');
+    assert.equal(textOf(r), 'Created item:\n- id=1 name="Test"');
   });
 
   test('create_note', async () => {
     const r = await callToolE2e('create_note', { name: 'Test Note' });
     assert.equal(r.isError, undefined);
-    assert.equal(textOf(r), 'Created.');
+    assert.equal(textOf(r), 'Created item:\n- id=new-1 name="Created"');
   });
 
   test('create_card', async () => {
@@ -848,7 +879,7 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
       cardholderName: 'Alice',
     });
     assert.equal(r.isError, undefined);
-    assert.equal(textOf(r), 'Created.');
+    assert.equal(textOf(r), 'Created item:\n- id=new-1 name="Created"');
   });
 
   test('create_identity', async () => {
@@ -857,7 +888,7 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
       identity: { firstName: 'Alice' },
     });
     assert.equal(r.isError, undefined);
-    assert.equal(textOf(r), 'Created.');
+    assert.equal(textOf(r), 'Created item:\n- id=new-1 name="Created"');
   });
 
   test('delete_item', async () => {
@@ -881,7 +912,7 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
       patch: { name: 'Updated' },
     });
     assert.equal(r.isError, undefined);
-    assert.equal(textOf(r), 'Updated.');
+    assert.equal(textOf(r), 'Updated item:\n- id=1 name="Updated"');
   });
 
   test('create_folder', async () => {
@@ -965,14 +996,26 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
       ],
     });
     assert.equal(r.isError, undefined);
-    assert.equal(textOf(r), 'Created.');
+    assert.equal(textOf(r), 'Created item:\n- id=1 name="Test"');
   });
 
   test('create_logins batch', async () => {
     const r = await callToolE2e('create_logins', {
-      items: [{ name: 'Login A' }, { name: 'Login B' }],
+      items: [
+        { name: 'Login A', password: 'batch-secret-a' },
+        { name: 'Login B', password: 'batch-secret-b' },
+      ],
     });
     assert.equal(r.isError, undefined);
+    assert.equal(
+      textOf(r),
+      ['Created 2 login(s):', '- id=1 name="Test"', '- id=1 name="Test"'].join(
+        '\n',
+      ),
+    );
+    assert.ok(!textOf(r).includes('batch-secret-a'));
+    assert.ok(!textOf(r).includes('batch-secret-b'));
+    assert.ok(!textOf(r).includes('"ok":true'));
   });
 
   test('set_login_uris', async () => {
@@ -1021,7 +1064,21 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
       privateKey: '-----BEGIN KEY-----',
     });
     assert.equal(r.isError, undefined);
-    assert.equal(textOf(r), 'Created.');
+    assert.equal(textOf(r), 'Created item:\n- id=new-1 name="Created"');
+  });
+
+  test('create_login exposes created item in text when KEYCHAIN_TEXT_COMPAT_MODE=structured_json', async () => {
+    const r = await callToolE2e(
+      'create_login',
+      {
+        name: 'Structured Login',
+        username: 'user',
+        password: 'pw',
+      },
+      { KEYCHAIN_TEXT_COMPAT_MODE: 'structured_json' },
+    );
+    assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), JSON.stringify(r.structuredContent));
   });
 
   test('create_login with numeric URI match', async () => {

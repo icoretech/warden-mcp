@@ -61,9 +61,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     process.env.KEYCHAIN_TEXT_COMPAT_MODE?.trim().toLowerCase();
 
   function readonlyBlocked() {
+    const structuredContent = { ok: false, error: 'READONLY' };
     return {
-      structuredContent: { ok: false, error: 'READONLY' },
-      content: [{ type: 'text' as const, text: 'Blocked: READONLY=true' }],
+      structuredContent,
+      content: toolTextContent(structuredContent, 'Blocked: READONLY=true'),
       isError: true,
     };
   }
@@ -152,6 +153,48 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     ].join('\n');
   }
 
+  function structuredTextContent(
+    structuredContent: Record<string, unknown>,
+    fallbackText: string,
+  ) {
+    return toolTextContent(structuredContent, fallbackText);
+  }
+
+  function entityTextContent(
+    structuredContent: Record<string, unknown>,
+    heading: string,
+    entity: unknown,
+  ) {
+    if (textCompatMode === 'structured_json') {
+      return [
+        { type: 'text' as const, text: JSON.stringify(structuredContent) },
+      ];
+    }
+    return [
+      {
+        type: 'text' as const,
+        text: [heading, formatItemSummary(entity)].join('\n'),
+      },
+    ];
+  }
+
+  function idTextContent(
+    structuredContent: Record<string, unknown>,
+    action: string,
+    id: string,
+  ) {
+    return structuredTextContent(structuredContent, `${action} id=${id}.`);
+  }
+
+  function formatBatchCreateResult(result: {
+    ok: boolean;
+    item?: unknown;
+    error?: string;
+  }): string {
+    if (result.ok) return formatItemSummary(result.item);
+    return `- error=${quoteText(result.error ?? 'unknown')}`;
+  }
+
   function toolValueContent(
     structuredContent: Record<string, unknown>,
     kind: string,
@@ -180,15 +223,13 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     };
     return {
       structuredContent,
-      content: [
-        {
-          type: 'text' as const,
-          text: [
-            `${error.message}. Retry with term set to an exact id.`,
-            ...error.candidates.map(formatItemSummary),
-          ].join('\n'),
-        },
-      ],
+      content: structuredTextContent(
+        structuredContent,
+        [
+          `${error.message}. Retry with term set to an exact id.`,
+          ...error.candidates.map(formatItemSummary),
+        ].join('\n'),
+      ),
       isError: true,
     };
   }
@@ -455,7 +496,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const folder = await sdk.createFolder({ name: input.name });
       return {
         structuredContent: { folder },
-        content: [{ type: 'text', text: 'Created.' }],
+        content: entityTextContent({ folder }, 'Created folder:', folder),
       };
     },
   );
@@ -478,7 +519,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const folder = await sdk.editFolder(input);
       return {
         structuredContent: { folder },
-        content: [{ type: 'text', text: 'Updated.' }],
+        content: entityTextContent({ folder }, 'Updated folder:', folder),
       };
     },
   );
@@ -498,9 +539,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       if (isReadOnly) return readonlyBlocked();
       const sdk = await deps.getSdk(extra.authInfo);
       await sdk.deleteFolder(input);
+      const structuredContent = { ok: true, id: input.id };
       return {
-        structuredContent: { ok: true },
-        content: [{ type: 'text', text: 'Deleted.' }],
+        structuredContent,
+        content: idTextContent(structuredContent, 'Deleted folder', input.id),
       };
     },
   );
@@ -561,7 +603,11 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const collection = await sdk.createOrgCollection(input);
       return {
         structuredContent: { collection },
-        content: [{ type: 'text', text: 'Created.' }],
+        content: entityTextContent(
+          { collection },
+          'Created org collection:',
+          collection,
+        ),
       };
     },
   );
@@ -585,7 +631,11 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const collection = await sdk.editOrgCollection(input);
       return {
         structuredContent: { collection },
-        content: [{ type: 'text', text: 'Updated.' }],
+        content: entityTextContent(
+          { collection },
+          'Updated org collection:',
+          collection,
+        ),
       };
     },
   );
@@ -606,9 +656,18 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       if (isReadOnly) return readonlyBlocked();
       const sdk = await deps.getSdk(extra.authInfo);
       await sdk.deleteOrgCollection(input);
+      const structuredContent = {
+        ok: true,
+        id: input.id,
+        organizationId: input.organizationId ?? null,
+      };
       return {
-        structuredContent: { ok: true },
-        content: [{ type: 'text', text: 'Deleted.' }],
+        structuredContent,
+        content: idTextContent(
+          structuredContent,
+          'Deleted org collection',
+          input.id,
+        ),
       };
     },
   );
@@ -633,7 +692,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const item = await sdk.moveItemToOrganization(input);
       return {
         structuredContent: { item },
-        content: [{ type: 'text', text: 'Moved.' }],
+        content: entityTextContent({ item }, 'Moved item:', item),
       };
     },
   );
@@ -760,7 +819,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const structuredContent = { item };
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: entityTextContent(structuredContent, 'Item:', item),
       };
     },
   );
@@ -865,7 +924,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const structuredContent = { folder };
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: entityTextContent(structuredContent, 'Folder:', folder),
       };
     },
   );
@@ -888,7 +947,11 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const structuredContent = { collection };
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: entityTextContent(
+          structuredContent,
+          'Collection:',
+          collection,
+        ),
       };
     },
   );
@@ -910,7 +973,11 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const structuredContent = { organization };
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: entityTextContent(
+          structuredContent,
+          'Organization:',
+          organization,
+        ),
       };
     },
   );
@@ -933,7 +1000,11 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const structuredContent = { collection };
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: entityTextContent(
+          structuredContent,
+          'Org collection:',
+          collection,
+        ),
       };
     },
   );
@@ -955,9 +1026,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       if (isReadOnly) return readonlyBlocked();
       const sdk = await deps.getSdk(extra.authInfo);
       await sdk.deleteItem(input);
+      const structuredContent = { ok: true, id: input.id };
       return {
-        structuredContent: { ok: true },
-        content: [{ type: 'text', text: 'Deleted.' }],
+        structuredContent,
+        content: idTextContent(structuredContent, 'Deleted item', input.id),
       };
     },
   );
@@ -980,11 +1052,13 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const sdk = await deps.getSdk(extra.authInfo);
       const results = await sdk.deleteItems(input);
       const okCount = results.filter((r) => r.ok).length;
+      const structuredContent = { results, okCount, total: results.length };
       return {
-        structuredContent: { results, okCount, total: results.length },
-        content: [
-          { type: 'text', text: `Deleted ${okCount}/${results.length}.` },
-        ],
+        structuredContent,
+        content: structuredTextContent(
+          structuredContent,
+          `Deleted ${okCount}/${results.length}: ${input.ids.join(', ')}`,
+        ),
       };
     },
   );
@@ -1006,7 +1080,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const item = await sdk.restoreItem(input);
       return {
         structuredContent: { item },
-        content: [{ type: 'text', text: 'Restored.' }],
+        content: entityTextContent({ item }, 'Restored item:', item),
       };
     },
   );
@@ -1032,7 +1106,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const item = await sdk.createAttachment(clampReveal(input));
       return {
         structuredContent: { item },
-        content: [{ type: 'text', text: 'Attached.' }],
+        content: entityTextContent({ item }, 'Attached to item:', item),
       };
     },
   );
@@ -1057,7 +1131,11 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const item = await sdk.deleteAttachment(clampReveal(input));
       return {
         structuredContent: { item },
-        content: [{ type: 'text', text: 'Deleted.' }],
+        content: entityTextContent(
+          { item },
+          'Deleted attachment from item:',
+          item,
+        ),
       };
     },
   );
@@ -1544,7 +1622,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       });
       return {
         structuredContent: { item: created },
-        content: [{ type: 'text', text: 'Created.' }],
+        content: entityTextContent({ item: created }, 'Created item:', created),
       };
     },
   );
@@ -1608,11 +1686,16 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
         })),
         continueOnError: input.continueOnError,
       });
+      const structuredContent = { results };
       return {
-        structuredContent: { results },
-        content: [
-          { type: 'text', text: `Created ${results.length} login(s).` },
-        ],
+        structuredContent,
+        content: structuredTextContent(
+          structuredContent,
+          [
+            `Created ${results.length} login(s):`,
+            ...results.map(formatBatchCreateResult),
+          ].join('\n'),
+        ),
       };
     },
   );
@@ -1648,7 +1731,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       });
       return {
         structuredContent: { item: updated },
-        content: [{ type: 'text', text: 'Updated.' }],
+        content: entityTextContent({ item: updated }, 'Updated item:', updated),
       };
     },
   );
@@ -1684,7 +1767,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const created = await sdk.createNote(input);
       return {
         structuredContent: { item: created },
-        content: [{ type: 'text', text: 'Created.' }],
+        content: entityTextContent({ item: created }, 'Created item:', created),
       };
     },
   );
@@ -1716,7 +1799,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const created = await sdk.createSshKey(input);
       return {
         structuredContent: { item: created },
-        content: [{ type: 'text', text: 'Created.' }],
+        content: entityTextContent({ item: created }, 'Created item:', created),
       };
     },
   );
@@ -1758,7 +1841,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const created = await sdk.createCard(input);
       return {
         structuredContent: { item: created },
-        content: [{ type: 'text', text: 'Created.' }],
+        content: entityTextContent({ item: created }, 'Created item:', created),
       };
     },
   );
@@ -1816,7 +1899,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const created = await sdk.createIdentity(input);
       return {
         structuredContent: { item: created },
-        content: [{ type: 'text', text: 'Created.' }],
+        content: entityTextContent({ item: created }, 'Created item:', created),
       };
     },
   );
@@ -1879,7 +1962,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const updated = await sdk.updateItem(input.id, patch);
       return {
         structuredContent: { item: updated },
-        content: [{ type: 'text', text: 'Updated.' }],
+        content: entityTextContent({ item: updated }, 'Updated item:', updated),
       };
     },
   );

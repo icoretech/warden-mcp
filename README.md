@@ -31,6 +31,10 @@ follow-up calls into visible text by default.
 For search/list tools, the text output includes concise rows with stable ids and
 safe metadata such as names, item type, username, URI values, organization id,
 folder id, and collection ids. Secret fields are not included in those summaries.
+Create/update/move/restore helpers that return a folder, collection, or item use
+the same concise visible summaries so text-only clients can immediately reuse the
+returned ids in follow-up calls. Delete helpers include the requested ids when no
+object is returned.
 
 For scalar helper tools, the text output follows the reveal contract:
 
@@ -43,6 +47,10 @@ For scalar helper tools, the text output follows the reveal contract:
 When a lookup term matches multiple login items, credential helpers return an
 `AMBIGUOUS_LOOKUP` error with visible candidate ids. Retry with `term` set to an
 exact candidate `id`, or call `get_item` with that `id`.
+
+If `KEYCHAIN_TEXT_COMPAT_MODE=structured_json` is enabled, supported success and
+ambiguity/error results mirror their `structuredContent` into the visible text as
+serialized JSON instead of the human summaries.
 
 ## LLM Automation Use Case
 
@@ -465,7 +473,7 @@ Mutation control:
   - `KEYCHAIN_METRICS_LOG_INTERVAL_MS` (default `0`, disabled)
   - `NOREVEAL` / `KEYCHAIN_NOREVEAL` (default `false`; force all reveals to false)
   - `KEYCHAIN_ALLOW_ENV_FALLBACK` (default `false`; HTTP env-var credential fallback)
-  - `KEYCHAIN_TEXT_COMPAT_MODE` (default unset; set to `structured_json` to copy structured `OK` results into `TextContent`)
+  - `KEYCHAIN_TEXT_COMPAT_MODE` (default unset; set to `structured_json` to copy structured results into `TextContent`)
 
 Redaction defaults (item reads):
 
