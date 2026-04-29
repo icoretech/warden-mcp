@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.18](https://github.com/icoretech/warden-mcp/compare/v0.2.17...v0.2.18) (2026-04-29)
+
+
+### Bug Fixes
+
+* **sdk:** download attachments from raw bytes ([c8dd867](https://github.com/icoretech/warden-mcp/commit/c8dd867b7d220641ee6a56167088f508002de7dc))
+* **tools:** expose attachment metadata in text output ([c314757](https://github.com/icoretech/warden-mcp/commit/c3147578f28ab12f6cf0ad8a3958e99d0dc66fbc))
+
 ## [0.2.17](https://github.com/icoretech/warden-mcp/compare/v0.2.16...v0.2.17) (2026-04-28)
 
 
