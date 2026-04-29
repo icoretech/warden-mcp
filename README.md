@@ -594,6 +594,8 @@ Orgs/collections:
 Attachments:
 
 - `keychain_create_attachment`, `keychain_delete_attachment`, `keychain_get_attachment`
+- `keychain_get_item` exposes safe attachment metadata (`id`, `fileName`, size) while redacting signed download URLs, so clients can discover the exact attachment id before downloading
+- `keychain_get_attachment` accepts an attachment id or an unambiguous filename and returns `{ filename, bytes, contentBase64 }`; decode `contentBase64` locally when you need the original file bytes
 
 Sends:
 
