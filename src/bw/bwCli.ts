@@ -12,6 +12,7 @@ export interface BwRunOptions {
 
 export interface BwRunResult {
   stdout: string;
+  stdoutBuffer?: Buffer;
   stderr: string;
 }
 
@@ -210,7 +211,7 @@ export async function runBw(
         if (debug) {
           console.log(`[bw] ok: ms=${Date.now() - startedAt}`);
         }
-        resolve({ stdout, stderr });
+        resolve({ stdout, stdoutBuffer: Buffer.concat(stdoutChunks), stderr });
       });
     });
   });

@@ -1849,16 +1849,13 @@ describe('KeychainSdk CRUD', () => {
 describe('KeychainSdk file I/O', () => {
   test('getAttachment writes file and returns base64', async () => {
     const { mock } = createMockBw({
-      runResponses: new Map([['get attachment', { stdout: '', stderr: '' }]]),
+      runResponses: new Map([
+        ['get attachment', { stdout: 'file-content', stderr: '' }],
+      ]),
       sideEffect: async (args) => {
-        // Simulate bw writing a file to the --output dir
-        const outputIdx = args.indexOf('--output');
-        if (outputIdx >= 0) {
-          const dir = args[outputIdx + 1];
-          if (dir) {
-            await writeFile(join(dir, 'downloaded.txt'), 'file-content');
-          }
-        }
+        if (!args.includes('attachment')) return;
+        assert.ok(args.includes('--raw'));
+        assert.ok(!args.includes('--output'));
       },
     });
 
@@ -1867,12 +1864,44 @@ describe('KeychainSdk file I/O', () => {
       itemId: 'item-1',
       attachmentId: 'att-1',
     });
-    assert.equal(result.filename, 'downloaded.txt');
+    assert.equal(result.filename, 'att-1');
     assert.equal(result.bytes, 12); // 'file-content'.length
     assert.equal(
       Buffer.from(result.contentBase64, 'base64').toString(),
       'file-content',
     );
+  });
+
+  test('getAttachment resolves filename to attachment id before raw download', async () => {
+    const item = {
+      id: 'item-1',
+      type: 1,
+      attachments: [{ id: 'att-id-1', fileName: 'client-key.pem' }],
+    };
+    const { mock, calls } = createMockBw({
+      runResponses: new Map([
+        ['get item', { stdout: JSON.stringify(item), stderr: '' }],
+        ['get attachment', { stdout: 'pem-content', stderr: '' }],
+      ]),
+    });
+
+    const sdk = new KeychainSdk(mock);
+    const result = await sdk.getAttachment({
+      itemId: 'item-1',
+      attachmentId: 'client-key.pem',
+    });
+
+    assert.equal(result.filename, 'client-key.pem');
+    assert.equal(
+      Buffer.from(result.contentBase64, 'base64').toString(),
+      'pem-content',
+    );
+    const attachmentCall = calls.find(
+      (c) => c.args.includes('get') && c.args.includes('attachment'),
+    );
+    assert.ok(attachmentCall);
+    assert.ok(attachmentCall.args.includes('att-id-1'));
+    assert.ok(attachmentCall.args.includes('--raw'));
   });
 
   test('createLogin with attachments writes temp files', async () => {
@@ -2383,10 +2412,10 @@ describe('KeychainSdk additional coverage', () => {
   });
 
   test('readSingleFileAsBase64 throws when dir has multiple files', async () => {
-    // getAttachment calls readSingleFileAsBase64 internally.
+    // sendGet downloadFile calls readSingleFileAsBase64 internally.
     // If bw writes multiple files, it should throw.
     const { mock } = createMockBw({
-      runResponses: new Map([['get attachment', { stdout: '', stderr: '' }]]),
+      runResponses: new Map([['send get', { stdout: '', stderr: '' }]]),
       sideEffect: async (args) => {
         const outputIdx = args.indexOf('--output');
         if (outputIdx >= 0) {
@@ -2401,7 +2430,7 @@ describe('KeychainSdk additional coverage', () => {
 
     const sdk = new KeychainSdk(mock);
     await assert.rejects(
-      () => sdk.getAttachment({ itemId: '1', attachmentId: 'a1' }),
+      () => sdk.sendGet({ id: 's1', downloadFile: true }),
       /Expected exactly 1 downloaded file/,
     );
   });

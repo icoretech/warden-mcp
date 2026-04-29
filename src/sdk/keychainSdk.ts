@@ -17,6 +17,12 @@ import {
 
 type AnyRecord = Record<string, unknown>;
 type TotpMetadata = { period: number | null; timeLeft: number | null };
+type AttachmentMetadata = {
+  id?: string;
+  fileName?: string;
+  size?: string | number;
+  sizeName?: string;
+};
 
 const ITEM_TYPE = {
   login: 1,
@@ -543,6 +549,49 @@ export class KeychainSdk {
     };
   }
 
+  private attachmentsFromItem(item: unknown): AttachmentMetadata[] {
+    if (!item || typeof item !== 'object') return [];
+    const attachments = (item as AnyRecord).attachments;
+    if (!Array.isArray(attachments)) return [];
+    return attachments
+      .filter((a): a is AnyRecord => Boolean(a) && typeof a === 'object')
+      .map((a) => ({
+        id: typeof a.id === 'string' ? a.id : undefined,
+        fileName: typeof a.fileName === 'string' ? a.fileName : undefined,
+        size:
+          typeof a.size === 'string' || typeof a.size === 'number'
+            ? a.size
+            : undefined,
+        sizeName: typeof a.sizeName === 'string' ? a.sizeName : undefined,
+      }));
+  }
+
+  private resolveAttachment(
+    item: unknown,
+    selector: string,
+  ): AttachmentMetadata | null {
+    const needle = selector.toLowerCase();
+    const matches = this.attachmentsFromItem(item).filter((a) => {
+      const id = a.id?.toLowerCase();
+      const fileName = a.fileName?.toLowerCase();
+      return id === needle || Boolean(fileName?.includes(needle));
+    });
+
+    const exactFileNameMatches = matches.filter(
+      (a) => a.fileName?.toLowerCase() === needle,
+    );
+    if (exactFileNameMatches.length === 1) return exactFileNameMatches[0];
+    if (matches.length === 0) return null;
+    if (matches.length === 1) return matches[0];
+
+    const ids = matches
+      .map((a) => a.id)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0);
+    throw new Error(
+      `Attachment selector matched multiple attachments: ${ids.join(', ')}`,
+    );
+  }
+
   private redactPasswordHistoryForTool(history: unknown[]): unknown[] {
     // For secret-returning tools we avoid returning sentinel strings like "[REDACTED]"
     // because downstream utilities might accidentally pass them through.
@@ -621,25 +670,33 @@ export class KeychainSdk {
     attachmentId: string;
   }): Promise<{ filename: string; bytes: number; contentBase64: string }> {
     return this.bw.withSession(async (session) => {
-      const dir = await mkdtemp(join(tmpdir(), 'keychain-attachment-'));
-      try {
-        await this.bw.runForSession(
-          session,
-          [
-            'get',
-            'attachment',
-            input.attachmentId,
-            '--itemid',
-            input.itemId,
-            '--output',
-            dir,
-          ],
-          { timeoutMs: 120_000 },
-        );
-        return await this.readSingleFileAsBase64(dir);
-      } finally {
-        await rm(dir, { recursive: true, force: true });
-      }
+      const { stdout: itemOut } = await this.bw.runForSession(
+        session,
+        ['get', 'item', input.itemId],
+        { timeoutMs: 60_000 },
+      );
+      const item = this.parseBwJson(itemOut);
+      const metadata = this.resolveAttachment(item, input.attachmentId);
+      const attachmentSelector = metadata?.id ?? input.attachmentId;
+
+      const { stdout, stdoutBuffer } = await this.bw.runForSession(
+        session,
+        [
+          'get',
+          'attachment',
+          attachmentSelector,
+          '--itemid',
+          input.itemId,
+          '--raw',
+        ],
+        { timeoutMs: 120_000 },
+      );
+      const buf = stdoutBuffer ?? Buffer.from(stdout, 'utf8');
+      return {
+        filename: metadata?.fileName ?? input.attachmentId,
+        bytes: buf.byteLength,
+        contentBase64: buf.toString('base64'),
+      };
     });
   }
 

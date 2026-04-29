@@ -365,10 +365,33 @@ test('mcp e2e: can initialize, list tools, and call keychain_status over /sse', 
     assert.ok(Array.isArray(attachments));
     assert.ok(attachments.length >= 1);
     const a0 = attachments[0];
+    let attachmentId = '';
     if (a0 && typeof a0 === 'object') {
+      const id = (a0 as Record<string, unknown>).id;
+      if (typeof id === 'string') attachmentId = id;
       const url = (a0 as Record<string, unknown>).url;
       if (typeof url === 'string') assert.equal(url, '[REDACTED]');
     }
+    assert.ok(attachmentId.length > 0);
+
+    const downloadedAttachment = await client.callTool({
+      name: toolName('get_attachment'),
+      arguments: { itemId: createdLoginId, attachmentId },
+    });
+    assert.equal(downloadedAttachment.isError, undefined);
+    const downloaded = (
+      downloadedAttachment.structuredContent as { attachment?: unknown }
+    ).attachment;
+    assert.ok(downloaded && typeof downloaded === 'object');
+    const downloadedRec = downloaded as Record<string, unknown>;
+    assert.equal(downloadedRec.filename, 'e2e.txt');
+    assert.equal(downloadedRec.bytes, 5);
+    assert.equal(
+      Buffer.from(String(downloadedRec.contentBase64), 'base64').toString(
+        'utf8',
+      ),
+      'hello',
+    );
 
     // Secret helper tools: they must return a consistent shape and not leak values by default.
     const term = createdRec.name as string;
