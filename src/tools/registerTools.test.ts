@@ -388,18 +388,21 @@ if echo "$*" | grep -q 'get uri'; then printf 'https://example.com'; exit 0; fi
 if echo "$*" | grep -q 'get notes'; then printf 'my notes'; exit 0; fi
 if echo "$*" | grep -q 'get exposed'; then printf '3'; exit 0; fi
 if echo "$*" | grep -q 'get attachment'; then
-  for arg in "$@"; do
-    case "$prev" in --output) outdir="$arg";; esac
-    prev="$arg"
-  done
-  if [ -n "$outdir" ]; then printf 'file-data' > "$outdir/downloaded.bin"; fi
+  printf 'file-data'
   exit 0
 fi
 if echo "$*" | grep -q 'get folder'; then printf '{"id":"f1","name":"Folder1"}'; exit 0; fi
 if echo "$*" | grep -q 'get collection'; then printf '{"id":"c1","name":"Col1"}'; exit 0; fi
 if echo "$*" | grep -q 'get organization'; then printf '{"id":"org1","name":"Org1"}'; exit 0; fi
 if echo "$*" | grep -q 'get org-collection'; then printf '{"id":"oc1","name":"OrgCol1"}'; exit 0; fi
-if echo "$*" | grep -q 'get item'; then printf '{"id":"1","type":1,"name":"Test","login":{"username":"u","password":"secret","totp":"otpauth://totp/Test?secret=JBSWY3DPEHPK3PXP&issuer=Test&period=45","uris":[]},"passwordHistory":[{"password":"old","lastUsedDate":"2024-01-01"}]}'; exit 0; fi
+if echo "$*" | grep -q 'get item'; then
+  if [ "$FAKE_BW_ITEM_ATTACHMENTS" = "true" ]; then
+    printf '{"id":"1","type":1,"name":"Test","login":{"username":"u","password":"secret","totp":"otpauth://totp/Test?secret=JBSWY3DPEHPK3PXP&issuer=Test&period=45","uris":[]},"attachments":[{"id":"att-1","fileName":"downloaded.bin","size":"9","sizeName":"9 B","url":"https://signed.example/token"}],"passwordHistory":[{"password":"old","lastUsedDate":"2024-01-01"}]}'
+  else
+    printf '{"id":"1","type":1,"name":"Test","login":{"username":"u","password":"secret","totp":"otpauth://totp/Test?secret=JBSWY3DPEHPK3PXP&issuer=Test&period=45","uris":[]},"passwordHistory":[{"password":"old","lastUsedDate":"2024-01-01"}]}'
+  fi
+  exit 0
+fi
 if echo "$*" | grep -q 'list items'; then printf '[{"id":"1","type":1,"name":"Test Login","login":{"username":"user","password":"pw","uris":[]}}]'; exit 0; fi
 if echo "$*" | grep -q 'list folders'; then printf '[{"id":"f1","name":"Folder1"}]'; exit 0; fi
 if echo "$*" | grep -q 'list org-collections'; then printf '[{"id":"oc1","name":"OrgCol1"}]'; exit 0; fi
@@ -537,6 +540,19 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
   test('get_item with reveal', async () => {
     const r = await callToolE2e('get_item', { id: '1', reveal: true });
     assert.equal(r.isError, undefined);
+  });
+
+  test('get_item exposes safe attachment metadata in text', async () => {
+    const r = await callToolE2e(
+      'get_item',
+      { id: '1' },
+      { FAKE_BW_ITEM_ATTACHMENTS: 'true' },
+    );
+    assert.equal(r.isError, undefined);
+    assert.match(textOf(r), /attachments=/);
+    assert.match(textOf(r), /id=att-1/);
+    assert.match(textOf(r), /fileName=\\"downloaded\.bin\\"/);
+    assert.doesNotMatch(textOf(r), /signed\.example/);
   });
 
   test('list_folders', async () => {
@@ -1044,12 +1060,12 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
   });
 
   test('get_attachment', async () => {
-    // This will fail at bw level (no real file output), but exercises the handler
-    await callToolE2e('get_attachment', {
+    const r = await callToolE2e('get_attachment', {
       itemId: '1',
       attachmentId: 'att-1',
     });
-    // May error since fake bw doesn't write output files, but handler path is exercised
+    assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), 'Downloaded attachment: filename="att-1" bytes=9');
   });
 
   test('send_create_encoded with text', async () => {

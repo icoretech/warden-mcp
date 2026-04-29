@@ -137,6 +137,29 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     if (Array.isArray(rec.collectionIds) && rec.collectionIds.length > 0) {
       parts.push(`collectionIds=${quoteText(rec.collectionIds.join(', '))}`);
     }
+    if (Array.isArray(rec.attachments) && rec.attachments.length > 0) {
+      const attachments = rec.attachments
+        .map((attachment) => {
+          if (!attachment || typeof attachment !== 'object') return null;
+          const att = attachment as Record<string, unknown>;
+          const attParts: string[] = [];
+          if (typeof att.id === 'string') attParts.push(`id=${att.id}`);
+          if (typeof att.fileName === 'string') {
+            attParts.push(`fileName=${quoteText(att.fileName)}`);
+          }
+          if (typeof att.size === 'string' || typeof att.size === 'number') {
+            attParts.push(`size=${att.size}`);
+          }
+          if (typeof att.sizeName === 'string') {
+            attParts.push(`sizeName=${quoteText(att.sizeName)}`);
+          }
+          return attParts.length > 0 ? `{${attParts.join(' ')}}` : null;
+        })
+        .filter((attachment): attachment is string => attachment !== null);
+      if (attachments.length > 0) {
+        parts.push(`attachments=${quoteText(attachments.join(', '))}`);
+      }
+    }
     if (typeof rec.favorite === 'boolean')
       parts.push(`favorite=${rec.favorite}`);
     return `- ${parts.length > 0 ? parts.join(' ') : stringifyScalar(rec)}`;
@@ -1159,7 +1182,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const structuredContent = { attachment };
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: toolTextContent(
+          structuredContent,
+          `Downloaded attachment: filename=${quoteText(attachment.filename)} bytes=${attachment.bytes}`,
+        ),
       };
     },
   );
