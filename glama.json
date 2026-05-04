@@ -1,5 +1,6 @@
 {
   "$schema": "https://glama.ai/mcp/schemas/server.json",
+  "description": "Focused Bitwarden and Vaultwarden vault management MCP server with safe default redaction and stdio plus Streamable HTTP transports.",
   "maintainers": [
     "masterkain"
   ]
