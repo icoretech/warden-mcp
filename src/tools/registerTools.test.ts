@@ -6,6 +6,9 @@ import { describe, test } from 'node:test';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from 'zod';
 
 import { createKeychainApp } from '../transports/http.js';
 
@@ -15,6 +18,146 @@ const DEFAULT_TOOL_SEPARATOR = '_';
 function toolName(name: string, separator: string = DEFAULT_TOOL_SEPARATOR) {
   return `${DEFAULT_TOOL_PREFIX}${separator}${name}`;
 }
+
+type ToolListEntry = Awaited<ReturnType<Client['listTools']>>['tools'][number];
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === 'object'
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function toolInputSchemaProperties(
+  tool: ToolListEntry,
+): Record<string, unknown> {
+  const schema = asRecord(tool.inputSchema);
+  const properties = asRecord(schema?.properties);
+  return properties ?? {};
+}
+
+function toolInputSchemaProperty(
+  tool: ToolListEntry,
+  propertyName: string,
+): Record<string, unknown> | undefined {
+  return asRecord(toolInputSchemaProperties(tool)[propertyName]);
+}
+
+function toolArrayItemProperty(
+  tool: ToolListEntry,
+  propertyName: string,
+  itemPropertyName: string,
+): Record<string, unknown> | undefined {
+  const property = toolInputSchemaProperty(tool, propertyName);
+  const items = asRecord(property?.items);
+  const properties = asRecord(items?.properties);
+  return asRecord(properties?.[itemPropertyName]);
+}
+
+function schemaDescription(
+  schema: Record<string, unknown> | undefined,
+): string {
+  return typeof schema?.description === 'string' ? schema.description : '';
+}
+
+async function closeIgnoringErrors(
+  label: string,
+  closeable: { close: () => Promise<unknown> },
+) {
+  try {
+    await closeable.close();
+  } catch (error) {
+    // In-memory transports can already be torn down by the paired close, so
+    // cleanup ignores close-order races instead of masking them with an empty catch.
+    void label;
+    void error;
+  }
+}
+
+function hasDescriptionCue(description: string): boolean {
+  const cues = [
+    'bitwarden',
+    'vault',
+    'bw',
+    'item',
+    'folder',
+    'send',
+    'attachment',
+    'username',
+    'password',
+    'totp',
+    'uri',
+    'sync',
+    'status',
+    'encode',
+    'generate',
+    'search',
+    'receive',
+    'list',
+    'update',
+    'create',
+    'edit',
+    'delete',
+    'move',
+    'restore',
+    'organization',
+    'collection',
+  ];
+  const lower = description.toLowerCase();
+  return cues.some((cue) => lower.includes(cue));
+}
+
+const READ_ONLY_TOOL_NAMES = new Set([
+  toolName('status'),
+  toolName('sync'),
+  toolName('sdk_version'),
+  toolName('encode'),
+  toolName('generate'),
+  toolName('generate_username'),
+  toolName('list_folders'),
+  toolName('list_org_collections'),
+  toolName('list_organizations'),
+  toolName('list_collections'),
+  toolName('search_items'),
+  toolName('get_item'),
+  toolName('get_uri'),
+  toolName('get_notes'),
+  toolName('get_exposed'),
+  toolName('get_folder'),
+  toolName('get_collection'),
+  toolName('get_organization'),
+  toolName('get_org_collection'),
+  toolName('get_attachment'),
+  toolName('send_list'),
+  toolName('send_template'),
+  toolName('send_get'),
+  toolName('receive'),
+  toolName('get_username'),
+  toolName('get_password'),
+  toolName('get_totp'),
+  toolName('get_password_history'),
+]);
+
+const DESTRUCTIVE_TOOL_NAMES = new Set([
+  toolName('delete_folder'),
+  toolName('delete_org_collection'),
+  toolName('delete_item'),
+  toolName('delete_items'),
+  toolName('delete_attachment'),
+  toolName('send_remove_password'),
+  toolName('send_delete'),
+]);
+
+const OPEN_WORLD_TOOL_NAMES = new Set([
+  toolName('send_list'),
+  toolName('send_template'),
+  toolName('send_get'),
+  toolName('send_create'),
+  toolName('send_create_encoded'),
+  toolName('send_edit'),
+  toolName('send_remove_password'),
+  toolName('send_delete'),
+  toolName('receive'),
+]);
 
 // ---------------------------------------------------------------------------
 // We test tool registration and behavior through an HTTP integration layer
@@ -87,18 +230,499 @@ describe('registerTools: tool listing', { concurrency: 1 }, () => {
     }
   });
 
-  test('all tools have descriptions', async () => {
+  test('all tools expose human-readable titles, descriptions, and schema-ready input properties', async () => {
     const { client, cleanup } = await startTestServer();
     try {
       const tools = await client.listTools();
       for (const tool of tools.tools) {
         assert.ok(
-          typeof tool.description === 'string' && tool.description.length > 0,
-          `Tool ${tool.name} missing description`,
+          typeof tool.title === 'string' &&
+            tool.title.trim().length >= 3 &&
+            tool.title !== tool.name &&
+            (/\s/.test(tool.title) || /[A-Z]/.test(tool.title)),
+          `Tool ${tool.name} missing human-readable title`,
+        );
+
+        const description = tool.description?.trim() ?? '';
+        assert.ok(
+          description.length >= 80,
+          `Tool ${tool.name} description is too short`,
+        );
+        assert.ok(
+          description.length <= 700,
+          `Tool ${tool.name} description is too long`,
+        );
+        assert.ok(
+          hasDescriptionCue(description),
+          `Tool ${tool.name} description lacks an expected cue`,
+        );
+
+        const properties = toolInputSchemaProperties(tool);
+        for (const [propertyName, propertySchemaValue] of Object.entries(
+          properties,
+        )) {
+          const propertySchema = asRecord(propertySchemaValue);
+          assert.ok(
+            propertySchema,
+            `Tool ${tool.name} inputSchema property ${propertyName} is not schema-like`,
+          );
+
+          const description = propertySchema.description;
+          if (description !== undefined && description !== null) {
+            assert.equal(
+              typeof description,
+              'string',
+              `Tool ${tool.name} inputSchema property ${propertyName} description must be a string`,
+            );
+            if (typeof description === 'string') {
+              assert.ok(
+                description.trim().length >= 12,
+                `Tool ${tool.name} inputSchema property ${propertyName} description must be at least 12 non-blank characters`,
+              );
+            }
+          }
+        }
+      }
+    } finally {
+      await cleanup();
+    }
+  });
+
+  test('all tools use the expected annotation classification', async () => {
+    const { client, cleanup } = await startTestServer();
+    try {
+      const tools = await client.listTools();
+      for (const tool of tools.tools) {
+        const annotations = tool.annotations ?? {};
+        assert.equal(
+          annotations.readOnlyHint ?? false,
+          READ_ONLY_TOOL_NAMES.has(tool.name),
+          `Tool ${tool.name} readOnlyHint classification drifted`,
+        );
+        assert.equal(
+          annotations.destructiveHint ?? false,
+          DESTRUCTIVE_TOOL_NAMES.has(tool.name),
+          `Tool ${tool.name} destructiveHint classification drifted`,
+        );
+        assert.equal(
+          annotations.openWorldHint ?? false,
+          OPEN_WORLD_TOOL_NAMES.has(tool.name),
+          `Tool ${tool.name} openWorldHint classification drifted`,
         );
       }
     } finally {
       await cleanup();
+    }
+  });
+
+  test('category-specific metadata checks cover the main tool groups', async () => {
+    const { client, cleanup } = await startTestServer();
+    try {
+      const tools = await client.listTools();
+      const byName = new Map(tools.tools.map((tool) => [tool.name, tool]));
+
+      const createLogin = byName.get(toolName('create_login'));
+      if (!createLogin) throw new Error('create_login tool missing');
+      assert.equal(createLogin.title, 'Create Login');
+      assert.ok((createLogin.description ?? '').includes('login'));
+      assert.equal(createLogin.annotations?.readOnlyHint ?? false, false);
+      assert.equal(createLogin.annotations?.destructiveHint ?? false, false);
+      const createLoginProps = toolInputSchemaProperties(createLogin);
+      for (const name of [
+        'name',
+        'username',
+        'password',
+        'uris',
+        'fields',
+        'attachments',
+      ]) {
+        assert.ok(name in createLoginProps, `create_login missing ${name}`);
+      }
+
+      const sendCreate = byName.get(toolName('send_create'));
+      if (!sendCreate) throw new Error('send_create tool missing');
+      assert.equal(sendCreate.title, 'Send Create');
+      assert.equal(sendCreate.annotations?.readOnlyHint ?? false, false);
+      assert.equal(sendCreate.annotations?.destructiveHint ?? false, false);
+      assert.equal(sendCreate.annotations?.openWorldHint, true);
+      const sendCreateProps = toolInputSchemaProperties(sendCreate);
+      for (const name of ['type', 'text', 'filename', 'contentBase64']) {
+        assert.ok(name in sendCreateProps, `send_create missing ${name}`);
+      }
+
+      const searchItems = byName.get(toolName('search_items'));
+      if (!searchItems) throw new Error('search_items tool missing');
+      assert.equal(searchItems.title, 'Search Items');
+      assert.equal(searchItems.annotations?.readOnlyHint ?? false, true);
+      assert.equal(searchItems.annotations?.destructiveHint ?? false, false);
+      const searchItemsProps = toolInputSchemaProperties(searchItems);
+      for (const name of ['text', 'type', 'limit']) {
+        assert.ok(name in searchItemsProps, `search_items missing ${name}`);
+      }
+    } finally {
+      await cleanup();
+    }
+  });
+
+  test('send attachment destructive and helper tools expose durable task-7 metadata', async () => {
+    const { client, cleanup } = await startTestServer();
+    try {
+      const tools = await client.listTools();
+      const byName = new Map(tools.tools.map((tool) => [tool.name, tool]));
+      const requireTool = (name: string): ToolListEntry => {
+        const tool = byName.get(toolName(name));
+        if (!tool) throw new Error(`${name} tool missing`);
+        return tool;
+      };
+      const descriptionOf = (name: string): string =>
+        requireTool(name).description ?? '';
+      const propertyDescription = (name: string, property: string): string =>
+        schemaDescription(toolInputSchemaProperty(requireTool(name), property));
+
+      assert.match(descriptionOf('send_create'), /Quick-create/);
+      assert.match(descriptionOf('send_create'), /deleteInDays/);
+      assert.match(descriptionOf('send_create'), /maxAccessCount/);
+      assert.match(descriptionOf('send_create'), /password protects/);
+      assert.match(
+        propertyDescription('send_create', 'type'),
+        /text uses text/,
+      );
+      assert.match(
+        propertyDescription('send_create', 'contentBase64'),
+        /file sends/,
+      );
+      assert.match(
+        propertyDescription('send_create', 'deleteInDays'),
+        /1-3650/,
+      );
+      assert.match(
+        propertyDescription('send_create', 'maxAccessCount'),
+        /Maximum number/,
+      );
+
+      assert.match(descriptionOf('send_template'), /text or file template/);
+      assert.match(
+        propertyDescription('send_template', 'object'),
+        /send\.file/,
+      );
+      assert.match(descriptionOf('send_create_encoded'), /advanced/);
+      assert.match(descriptionOf('send_create_encoded'), /encodedJson/);
+      assert.match(
+        propertyDescription('send_create_encoded', 'json'),
+        /server encodes/,
+      );
+      assert.match(
+        propertyDescription('send_create_encoded', 'file'),
+        /filename and contentBase64/,
+      );
+      assert.match(descriptionOf('send_edit'), /bw send edit/);
+      assert.match(propertyDescription('send_edit', 'itemId'), /--itemid/);
+      assert.match(descriptionOf('send_remove_password'), /does not delete/);
+      assert.match(descriptionOf('send_delete'), /destructive/);
+      assert.match(descriptionOf('receive'), /HTTPS url/);
+      assert.match(
+        propertyDescription('receive', 'downloadFile'),
+        /contentBase64/,
+      );
+
+      assert.match(
+        descriptionOf('get_attachment'),
+        /raw bytes as contentBase64/,
+      );
+      assert.match(descriptionOf('get_attachment'), /filename selector/);
+      assert.match(
+        propertyDescription('get_attachment', 'attachmentId'),
+        /filename selector/,
+      );
+      assert.match(descriptionOf('delete_attachment'), /parent item/);
+      assert.match(descriptionOf('delete_attachment'), /destructive/);
+
+      assert.match(descriptionOf('move_item_to_organization'), /collectionIds/);
+      assert.match(
+        descriptionOf('move_item_to_organization'),
+        /not personal folders/,
+      );
+      assert.match(descriptionOf('delete_item'), /soft delete to trash/);
+      assert.match(descriptionOf('delete_item'), /permanent=true/);
+      assert.match(
+        propertyDescription('delete_item', 'permanent'),
+        /Hard delete/,
+      );
+      assert.match(descriptionOf('delete_items'), /per-id ok\/error results/);
+      assert.match(
+        propertyDescription('delete_items', 'ids'),
+        /one result per id/,
+      );
+      assert.match(descriptionOf('restore_item'), /soft-deleted/);
+      assert.match(descriptionOf('restore_item'), /hard-deleted items cannot/);
+
+      assert.match(descriptionOf('get_uri'), /ambiguous/);
+      assert.match(propertyDescription('get_uri', 'term'), /exact item id/);
+      assert.match(
+        descriptionOf('get_notes'),
+        /value is null unless reveal=true/,
+      );
+      assert.match(propertyDescription('get_notes', 'term'), /exact item id/);
+      assert.match(descriptionOf('get_exposed'), /Not-found results/);
+      assert.match(propertyDescription('get_exposed', 'term'), /exact item id/);
+    } finally {
+      await cleanup();
+    }
+  });
+
+  test('score-buffer helper tools spell out reveal and vault behavior', async () => {
+    const { client, cleanup } = await startTestServer();
+    try {
+      const tools = await client.listTools();
+      const byName = new Map(tools.tools.map((tool) => [tool.name, tool]));
+      const requireTool = (name: string): ToolListEntry => {
+        const tool = byName.get(toolName(name));
+        if (!tool) throw new Error(`${name} tool missing`);
+        return tool;
+      };
+      const descriptionOf = (name: string): string =>
+        requireTool(name).description ?? '';
+      const propertyDescription = (name: string, property: string): string =>
+        schemaDescription(toolInputSchemaProperty(requireTool(name), property));
+
+      assert.match(descriptionOf('encode'), /never mutates the vault/);
+      assert.match(descriptionOf('encode'), /bw encode/);
+
+      assert.match(descriptionOf('generate'), /never mutates the vault/);
+      assert.match(descriptionOf('generate'), /reveal=true/);
+      assert.match(descriptionOf('generate'), /KEYCHAIN_NOREVEAL/);
+
+      assert.match(
+        descriptionOf('generate_username'),
+        /never mutates the vault/,
+      );
+      assert.match(descriptionOf('generate_username'), /reveal=true/);
+      assert.match(descriptionOf('generate_username'), /KEYCHAIN_NOREVEAL/);
+
+      assert.match(
+        descriptionOf('get_password'),
+        /value is null unless reveal=true/,
+      );
+      assert.match(descriptionOf('get_password'), /KEYCHAIN_NOREVEAL/);
+
+      assert.match(descriptionOf('get_totp'), /current TOTP code/);
+      assert.match(
+        descriptionOf('get_totp'),
+        /value is null unless reveal=true/,
+      );
+      assert.match(descriptionOf('get_totp'), /KEYCHAIN_NOREVEAL/);
+
+      assert.match(descriptionOf('send_list'), /read-only/);
+      assert.match(descriptionOf('send_list'), /does not mutate the vault/);
+
+      assert.match(descriptionOf('set_login_uris'), /URI list on a login item/);
+      assert.match(
+        descriptionOf('set_login_uris'),
+        /mode=replace overwrites the full list/,
+      );
+      assert.match(
+        descriptionOf('set_login_uris'),
+        /mode=merge updates existing URIs/,
+      );
+      assert.match(
+        propertyDescription('set_login_uris', 'mode'),
+        /merge updates existing URIs/,
+      );
+      assert.match(
+        propertyDescription('set_login_uris', 'uris'),
+        /URI entries to store or update/,
+      );
+      assert.match(
+        schemaDescription(
+          toolArrayItemProperty(requireTool('set_login_uris'), 'uris', 'uri'),
+        ),
+        /URI value to store on the login item/,
+      );
+      assert.match(
+        schemaDescription(
+          toolArrayItemProperty(requireTool('set_login_uris'), 'uris', 'match'),
+        ),
+        /URI match semantics/,
+      );
+    } finally {
+      await cleanup();
+    }
+  });
+
+  test('shared repeated input parameters expose stable descriptions', async () => {
+    const { client, cleanup } = await startTestServer();
+    try {
+      const tools = await client.listTools();
+      const byName = new Map(tools.tools.map((tool) => [tool.name, tool]));
+
+      const createAttachment = byName.get(toolName('create_attachment'));
+      if (!createAttachment) throw new Error('create_attachment tool missing');
+      assert.ok(
+        schemaDescription(
+          toolInputSchemaProperty(createAttachment, 'itemId'),
+        ).includes('attachment or item-specific operations'),
+      );
+      assert.ok(
+        schemaDescription(
+          toolInputSchemaProperty(createAttachment, 'filename'),
+        ).includes('Visible attachment or send filename'),
+      );
+      assert.ok(
+        schemaDescription(
+          toolInputSchemaProperty(createAttachment, 'contentBase64'),
+        ).includes('Base64-encoded file bytes'),
+      );
+      assert.ok(
+        schemaDescription(
+          toolInputSchemaProperty(createAttachment, 'reveal'),
+        ).includes('forced false by NOREVEAL'),
+      );
+
+      const searchItems = byName.get(toolName('search_items'));
+      if (!searchItems) throw new Error('search_items tool missing');
+      assert.ok(
+        schemaDescription(
+          toolInputSchemaProperty(searchItems, 'collectionId'),
+        ).includes('collection id, not a folder id'),
+      );
+      assert.ok(
+        schemaDescription(
+          toolInputSchemaProperty(searchItems, 'folderId'),
+        ).includes('organization collection id'),
+      );
+      assert.ok(
+        schemaDescription(
+          toolInputSchemaProperty(searchItems, 'limit'),
+        ).includes('Maximum returned rows'),
+      );
+
+      const listFolders = byName.get(toolName('list_folders'));
+      if (!listFolders) throw new Error('list_folders tool missing');
+      assert.ok(
+        schemaDescription(listFolders).includes('personal Bitwarden folders'),
+      );
+      assert.ok(schemaDescription(listFolders).includes('folder ids'));
+
+      const editFolder = byName.get(toolName('edit_folder'));
+      if (!editFolder) throw new Error('edit_folder tool missing');
+      assert.ok(
+        schemaDescription(editFolder).includes(
+          'Rename an existing personal Bitwarden folder',
+        ),
+      );
+      assert.ok(
+        schemaDescription(editFolder).includes('not the items inside it'),
+      );
+
+      const getItem = byName.get(toolName('get_item'));
+      if (!getItem) throw new Error('get_item tool missing');
+      assert.ok(schemaDescription(getItem).includes('Secret fields'));
+      assert.ok(schemaDescription(getItem).includes('redacted by default'));
+      assert.ok(schemaDescription(getItem).includes('reveal=true'));
+
+      const getFolder = byName.get(toolName('get_folder'));
+      if (!getFolder) throw new Error('get_folder tool missing');
+      assert.ok(
+        schemaDescription(getFolder).includes('personal Bitwarden folder'),
+      );
+      assert.ok(schemaDescription(getFolder).includes('safe folder metadata'));
+
+      const getOrganization = byName.get(toolName('get_organization'));
+      if (!getOrganization) throw new Error('get_organization tool missing');
+      assert.ok(
+        schemaDescription(getOrganization).includes('Bitwarden organization'),
+      );
+      assert.ok(
+        schemaDescription(getOrganization).includes('list_organizations'),
+      );
+
+      const getOrgCollection = byName.get(toolName('get_org_collection'));
+      if (!getOrgCollection) throw new Error('get_org_collection tool missing');
+      assert.ok(
+        schemaDescription(
+          toolInputSchemaProperty(getOrgCollection, 'organizationId'),
+        ).includes(
+          'Optional organization id used to disambiguate the org collection lookup.',
+        ),
+      );
+      assert.ok(
+        schemaDescription(getOrgCollection).includes(
+          'organizationId is optional and narrows the org-scoped lookup when provided.',
+        ),
+      );
+
+      const setLoginUris = byName.get(toolName('set_login_uris'));
+      if (!setLoginUris) throw new Error('set_login_uris tool missing');
+      assert.ok(
+        schemaDescription(
+          toolInputSchemaProperty(setLoginUris, 'mode'),
+        ).includes('replace overwrites the full list'),
+      );
+      assert.ok(
+        schemaDescription(
+          toolInputSchemaProperty(setLoginUris, 'uris'),
+        ).includes('URI entries to store or update'),
+      );
+      assert.ok(
+        schemaDescription(
+          toolArrayItemProperty(setLoginUris, 'uris', 'uri'),
+        ).includes('URI value to store on the login item'),
+      );
+      assert.ok(
+        schemaDescription(
+          toolArrayItemProperty(setLoginUris, 'uris', 'match'),
+        ).includes('URI match semantics'),
+      );
+    } finally {
+      await cleanup();
+    }
+  });
+
+  test('zod property descriptions flow through listTools via in-memory transport', async () => {
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client(
+      { name: 'schema-description-smoke', version: '0.0.0' },
+      { capabilities: {} },
+    );
+    const server = new McpServer({
+      name: 'schema-description-smoke-server',
+      version: '0.0.0',
+    });
+
+    server.registerTool(
+      'described_tool',
+      {
+        title: 'Described Tool',
+        description: 'Proves top-level schema descriptions reach listTools.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+          displayName: z.string().describe('Human readable display name'),
+          retryCount: z.number().int().optional().describe('Retry budget'),
+        },
+      },
+      async () => ({
+        content: [{ type: 'text', text: 'ok' }],
+      }),
+    );
+
+    try {
+      await server.connect(serverTransport);
+      await client.connect(clientTransport);
+
+      const tools = await client.listTools();
+      const tool = tools.tools.find((entry) => entry.name === 'described_tool');
+      if (!tool) throw new Error('described_tool missing from listTools');
+      const properties = toolInputSchemaProperties(tool);
+      const displayName = asRecord(properties.displayName);
+      const retryCount = asRecord(properties.retryCount);
+      assert.equal(displayName?.description, 'Human readable display name');
+      assert.equal(retryCount?.description, 'Retry budget');
+    } finally {
+      await closeIgnoringErrors('client', client);
+      await closeIgnoringErrors('server', server);
+      await closeIgnoringErrors('clientTransport', clientTransport);
+      await closeIgnoringErrors('serverTransport', serverTransport);
     }
   });
 

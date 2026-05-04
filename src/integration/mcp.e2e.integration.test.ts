@@ -18,6 +18,21 @@ function toolName(name: string) {
   return `${TOOL_PREFIX}${TOOL_SEPARATOR}${name}`;
 }
 
+const SIMPLE_OUTPUT_SCHEMA_TOOLS = [
+  'status',
+  'sdk_version',
+  'encode',
+  'generate',
+  'generate_username',
+  'get_username',
+  'get_password',
+  'get_totp',
+  'get_notes',
+  'get_password_history',
+  'get_uri',
+  'get_exposed',
+] as const;
+
 function assertReadyStatus(status: unknown) {
   assert.ok(status && typeof status === 'object');
   const rec = status as {
@@ -41,6 +56,66 @@ function assertReadyStatus(status: unknown) {
 function isAuthSmokeProfile() {
   return process.env.KEYCHAIN_INTEGRATION_PROFILE === AUTH_SMOKE_PROFILE;
 }
+
+async function ignoreCleanupError(label: string, operation: Promise<unknown>) {
+  try {
+    await operation;
+  } catch (error) {
+    void label;
+    void error;
+  }
+}
+
+test('mcp e2e: advertises simple helper output schemas over /sse', async () => {
+  const bwHomeRoot = await mkdtemp(join(tmpdir(), 'keychain-mcp-schema-'));
+  const app = createKeychainApp({ bwHomeRoot });
+  const httpServer = app.listen(0, '127.0.0.1');
+  await new Promise<void>((resolve) => httpServer.once('listening', resolve));
+
+  const addr = httpServer.address();
+  if (!addr || typeof addr === 'string') {
+    await rm(bwHomeRoot, { recursive: true, force: true });
+    httpServer.close();
+    throw new Error('Unexpected server address');
+  }
+
+  const url = new URL(`http://127.0.0.1:${addr.port}/sse`);
+  const transport = new StreamableHTTPClientTransport(url);
+  const client = new Client(
+    { name: 'keychain-mcp-schema-test', version: '0.0.0' },
+    { capabilities: {} },
+  );
+
+  try {
+    await client.connect(transport);
+    const tools = await client.listTools();
+
+    for (const name of SIMPLE_OUTPUT_SCHEMA_TOOLS) {
+      const tool = tools.tools.find(
+        (candidate) => candidate.name === toolName(name),
+      );
+      assert.ok(tool, `${toolName(name)} should be registered`);
+      assert.ok(
+        tool.outputSchema && typeof tool.outputSchema === 'object',
+        `${toolName(name)} should advertise an output schema`,
+      );
+      assert.equal(tool.outputSchema.type, 'object');
+      assert.ok(
+        tool.outputSchema.properties &&
+          typeof tool.outputSchema.properties === 'object',
+        `${toolName(name)} should expose output schema properties`,
+      );
+    }
+  } finally {
+    await ignoreCleanupError(
+      'terminate schema test session',
+      transport.terminateSession(),
+    );
+    await ignoreCleanupError('close schema test transport', transport.close());
+    await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+    await rm(bwHomeRoot, { recursive: true, force: true });
+  }
+});
 
 test('mcp e2e: can initialize, list tools, and call keychain_status over /sse', {
   timeout: 180_000,
@@ -631,15 +706,16 @@ test('mcp e2e: can initialize, list tools, and call keychain_status over /sse', 
         );
       } finally {
         if (orgCollectionId) {
-          await client
-            .callTool({
+          await ignoreCleanupError(
+            'delete temporary org collection',
+            client.callTool({
               name: 'keychain_delete_org_collection',
               arguments: {
                 organizationId,
                 id: orgCollectionId,
               },
-            })
-            .catch(() => {});
+            }),
+          );
         }
       }
     }
@@ -683,15 +759,19 @@ test('mcp e2e: can initialize, list tools, and call keychain_status over /sse', 
     }
   } finally {
     if (typeof createdLoginId === 'string' && createdLoginId.length > 0) {
-      await client
-        .callTool({
+      await ignoreCleanupError(
+        'delete temporary login item',
+        client.callTool({
           name: toolName('delete_item'),
           arguments: { id: createdLoginId, permanent: true },
-        })
-        .catch(() => {});
+        }),
+      );
     }
-    await transport.terminateSession().catch(() => {});
-    await transport.close().catch(() => {});
+    await ignoreCleanupError(
+      'terminate e2e session',
+      transport.terminateSession(),
+    );
+    await ignoreCleanupError('close e2e transport', transport.close());
     await new Promise<void>((resolve) => httpServer.close(() => resolve()));
     await rm(bwHomeRoot, { recursive: true, force: true });
   }
