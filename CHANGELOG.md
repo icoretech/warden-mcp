@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.22](https://github.com/icoretech/warden-mcp/compare/v0.2.21...v0.2.22) (2026-05-31)
+
+
+### Bug Fixes
+
+* **sdk:** filter url search text locally ([8f52511](https://github.com/icoretech/warden-mcp/commit/8f52511aaef262666c7e6a65ca86e236c09fd52b))
+
 ## [0.2.21](https://github.com/icoretech/warden-mcp/compare/v0.2.20...v0.2.21) (2026-05-31)
 
 
