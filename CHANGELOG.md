@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.21](https://github.com/icoretech/warden-mcp/compare/v0.2.20...v0.2.21) (2026-05-31)
+
+
+### Bug Fixes
+
+* **tools:** expose generated secrets in text output ([a3b8c51](https://github.com/icoretech/warden-mcp/commit/a3b8c5144926e133143e97db3c2a45de0e823812))
+* **tools:** expose scalar tool payloads in text output ([0cdcc14](https://github.com/icoretech/warden-mcp/commit/0cdcc14ef992931cffa6d0a1b77f8251a788ed2f))
+
 ## [0.2.20](https://github.com/icoretech/warden-mcp/compare/v0.2.19...v0.2.20) (2026-05-04)
 
 
