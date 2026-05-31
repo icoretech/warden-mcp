@@ -1310,6 +1310,7 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
   test('get_uri', async () => {
     const r = await callToolE2e('get_uri', { term: 'test' });
     assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), 'uri: "https://example.com"');
   });
 
   test('get_notes with reveal=true', async () => {
@@ -1409,16 +1410,19 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
   test('get_exposed', async () => {
     const r = await callToolE2e('get_exposed', { term: 'test' });
     assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), 'exposed: "3"');
   });
 
   test('get_password_history', async () => {
     const r = await callToolE2e('get_password_history', { id: '1' });
     assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), 'password_history: not revealed');
   });
 
   test('encode', async () => {
     const r = await callToolE2e('encode', { value: 'hello' });
     assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), 'encoded: "aGVsbG8K"');
   });
 
   test('generate with reveal=true', async () => {
@@ -1473,26 +1477,34 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
   test('send_list', async () => {
     const r = await callToolE2e('send_list', {});
     assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), 'sends: []');
   });
 
   test('send_template', async () => {
     const r = await callToolE2e('send_template', { object: 'send.text' });
     assert.equal(r.isError, undefined);
+    assert.equal(
+      textOf(r),
+      'template: {"type":0,"text":{"text":"","hidden":false}}',
+    );
   });
 
   test('send_get', async () => {
     const r = await callToolE2e('send_get', { id: 's1' });
     assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), 'result: {"id":"s1","name":"Send1"}');
   });
 
   test('send_delete', async () => {
     const r = await callToolE2e('send_delete', { id: 's1' });
     assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), 'result: {}');
   });
 
   test('send_remove_password', async () => {
     const r = await callToolE2e('send_remove_password', { id: 's1' });
     assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), 'result: {}');
   });
 
   // --- Mutating tools ---
@@ -1608,6 +1620,7 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
       url: 'https://send.bw/abc',
     });
     assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), 'result: {"text":"received text"}');
   });
 
   test('send_create with text', async () => {
@@ -1617,6 +1630,7 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
       name: 'test send',
     });
     assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), 'send: {}');
   });
 
   test('send_edit with encodedJson', async () => {
@@ -1624,6 +1638,7 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
       encodedJson: Buffer.from('{}').toString('base64'),
     });
     assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), 'send: {}');
   });
 
   test('create_login with uris exercises normalizeUrisInput', async () => {
@@ -1695,6 +1710,7 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
   test('send_create_encoded with text', async () => {
     const r = await callToolE2e('send_create_encoded', { text: 'hello' });
     assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), 'send: {}');
   });
 
   test('create_ssh_key', async () => {

@@ -273,6 +273,21 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     return [{ type: 'text' as const, text: lines.join('\n') }];
   }
 
+  function toolScalarContent(
+    structuredContent: Record<string, unknown>,
+    label: string,
+    value: unknown,
+  ) {
+    if (textCompatMode === 'structured_json') {
+      return [
+        { type: 'text' as const, text: JSON.stringify(structuredContent) },
+      ];
+    }
+    return [
+      { type: 'text' as const, text: `${label}: ${stringifyScalar(value)}` },
+    ];
+  }
+
   function ambiguousLookupResult(error: AmbiguousLoginLookupError) {
     const structuredContent = {
       ok: false,
@@ -636,7 +651,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const encoded = await sdk.encode(input);
       return {
         structuredContent: encoded,
-        content: toolTextContent(encoded, 'OK'),
+        content: toolScalarContent(encoded, 'encoded', encoded.encoded),
       };
     },
   );
@@ -1235,7 +1250,12 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const structuredContent = toolResult('uri', uri.value, uri.revealed);
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: toolValueContent(
+          structuredContent,
+          'uri',
+          uri.value,
+          uri.revealed,
+        ),
       };
     },
   );
@@ -1308,7 +1328,12 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       );
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: toolValueContent(
+          structuredContent,
+          'exposed',
+          exposed.value,
+          exposed.revealed,
+        ),
       };
     },
   );
@@ -1618,7 +1643,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const structuredContent = { sends };
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: toolScalarContent(structuredContent, 'sends', sends),
       };
     },
   );
@@ -1645,7 +1670,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const structuredContent = { template };
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: toolScalarContent(structuredContent, 'template', template),
       };
     },
   );
@@ -1676,7 +1701,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const structuredContent = { result };
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: toolScalarContent(structuredContent, 'result', result),
       };
     },
   );
@@ -1753,7 +1778,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const structuredContent = { send };
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: toolScalarContent(structuredContent, 'send', send),
       };
     },
   );
@@ -1809,7 +1834,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const structuredContent = { send };
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: toolScalarContent(structuredContent, 'send', send),
       };
     },
   );
@@ -1853,7 +1878,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const structuredContent = { send };
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: toolScalarContent(structuredContent, 'send', send),
       };
     },
   );
@@ -1881,7 +1906,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const structuredContent = { result };
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: toolScalarContent(structuredContent, 'result', result),
       };
     },
   );
@@ -1909,7 +1934,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const structuredContent = { result };
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: toolScalarContent(structuredContent, 'result', result),
       };
     },
   );
@@ -1948,7 +1973,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       const structuredContent = { result };
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: toolScalarContent(structuredContent, 'result', result),
       };
     },
   );
@@ -2112,7 +2137,12 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       );
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: toolValueContent(
+          structuredContent,
+          'password_history',
+          history.value,
+          history.revealed,
+        ),
       };
     },
   );

@@ -38,12 +38,17 @@ object is returned.
 
 For scalar helper tools, the text output follows the reveal contract:
 
+- `encode`, `get_uri`, and `get_exposed` show their returned scalar value
 - `get_username` shows the username because Bitwarden treats it as non-secret
 - `get_password`, `get_totp`, and `get_notes` show `not revealed` unless you pass
   `reveal: true`
 - `generate` and `generate_username` follow the same reveal contract: they show
   `generated: not revealed` by default and the generated value only with
   `reveal: true`
+- `get_password_history` shows `not revealed` unless you pass `reveal: true`
+- Send helpers mirror their returned Send payloads into visible text so
+  text-only clients can use created Send links, fetched Send metadata, received
+  text, and file-download metadata without reading `structuredContent`
 - if `NOREVEAL=true` or `KEYCHAIN_NOREVEAL=true`, revealed values are still
   suppressed server-side
 
