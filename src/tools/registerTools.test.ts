@@ -888,13 +888,13 @@ describe('registerTools: read-only tools in readonly mode', {
       });
       const text = (result.content as Array<{ text: string }>)[0]?.text ?? '';
       assert.ok(!text.includes('READONLY'));
-      assert.equal(text, 'OK');
+      assert.equal(text, 'generated: not revealed');
     } finally {
       await cleanup();
     }
   });
 
-  test('generate with reveal=false returns OK without calling bw', async () => {
+  test('generate with reveal=false returns not revealed without calling bw', async () => {
     const { client, cleanup } = await startTestServer({
       READONLY: 'true',
       BW_HOST: 'https://bw.test',
@@ -907,7 +907,7 @@ describe('registerTools: read-only tools in readonly mode', {
         arguments: { reveal: false },
       });
       const text = (result.content as Array<{ text: string }>)[0]?.text ?? '';
-      assert.equal(text, 'OK');
+      assert.equal(text, 'generated: not revealed');
     } finally {
       await cleanup();
     }
@@ -926,7 +926,7 @@ describe('registerTools: read-only tools in readonly mode', {
         arguments: { reveal: true, type: 'random_word' },
       });
       const text = (result.content as Array<{ text: string }>)[0]?.text ?? '';
-      assert.equal(text, 'OK');
+      assert.match(text, /^generated: ".+"$/);
       assert.equal(result.isError, undefined);
     } finally {
       await cleanup();
@@ -1424,7 +1424,7 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
   test('generate with reveal=true', async () => {
     const r = await callToolE2e('generate', { reveal: true, length: 12 });
     assert.equal(r.isError, undefined);
-    assert.equal(textOf(r), 'OK');
+    assert.equal(textOf(r), 'generated: "xK9mP2vL"');
   });
 
   test('generate_username with reveal=true', async () => {

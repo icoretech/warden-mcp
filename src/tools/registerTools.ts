@@ -730,7 +730,12 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       );
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: toolValueContent(
+          structuredContent,
+          'generated',
+          result.value,
+          result.revealed,
+        ),
       };
     },
   );
@@ -787,7 +792,12 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       );
       return {
         structuredContent,
-        content: toolTextContent(structuredContent, 'OK'),
+        content: toolValueContent(
+          structuredContent,
+          'generated',
+          result.value,
+          result.revealed,
+        ),
       };
     },
   );

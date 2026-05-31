@@ -41,6 +41,9 @@ For scalar helper tools, the text output follows the reveal contract:
 - `get_username` shows the username because Bitwarden treats it as non-secret
 - `get_password`, `get_totp`, and `get_notes` show `not revealed` unless you pass
   `reveal: true`
+- `generate` and `generate_username` follow the same reveal contract: they show
+  `generated: not revealed` by default and the generated value only with
+  `reveal: true`
 - if `NOREVEAL=true` or `KEYCHAIN_NOREVEAL=true`, revealed values are still
   suppressed server-side
 
