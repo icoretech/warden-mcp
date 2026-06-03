@@ -22,7 +22,7 @@ services:
       retries: 30
 
   vaultwarden-https:
-    image: caddy:2.11.3-alpine
+    image: caddy:2.11.4-alpine
     ports:
       - "8443:443"
     volumes:
