@@ -57,7 +57,7 @@ MCP tools are callable by any connected MCP host. When the host is an LLM agent,
 |-------|---------|
 | `BW_HOST`, `BW_PASSWORD`, `BW_CLIENTID`, `BW_CLIENTSECRET`, `BW_USER` | Bitwarden credentials for stdio mode |
 | `BW_BIN` | Path to `bw` binary (same trust as PATH) |
-| `READONLY` / `KEYCHAIN_READONLY` | Disable all mutating tools |
+| `READONLY` / `KEYCHAIN_READONLY` | Hide and disable all mutating tools |
 | `NOREVEAL` / `KEYCHAIN_NOREVEAL` | Force all `reveal` to false server-side |
 | `KEYCHAIN_ALLOW_ENV_FALLBACK` | Allow HTTP mode to fall back to env credentials (default: `false`) |
 | `KEYCHAIN_SESSION_MAX_COUNT`, `KEYCHAIN_SESSION_TTL_MS`, `KEYCHAIN_MAX_HEAP_USED_MB` | Resource limits |
@@ -72,7 +72,7 @@ MCP tools are callable by any connected MCP host. When the host is an LLM agent,
 | `receive` URL validation | `src/sdk/keychainSdk.ts` | `receive()` rejects non-HTTPS URLs before passing to `bw` |
 | `--` end-of-options | `src/sdk/keychainSdk.ts` | All user-controlled positional args in `sendCreate`, `sendCreateEncoded`, `sendEdit`, `receive` are preceded by `--` |
 | Safe-by-default redaction | `src/sdk/redact.ts` | Passwords, TOTP, card numbers, SSN, hidden fields, attachment URLs, password history redacted unless `reveal: true` |
-| READONLY mode | `src/tools/registerTools.ts` | Blocks create/edit/delete/move/restore/attachment tools |
+| READONLY mode | `src/tools/registerTools.ts` | Hides create/edit/delete/move/restore/attachment tools from the advertised MCP catalog and rejects direct write calls |
 | NOREVEAL mode | `src/tools/registerTools.ts` | Forces all `reveal` to `false`, preventing prompt-injection exfiltration |
 | Env fallback disabled by default | `src/bw/bwHeaders.ts`, `src/transports/http.ts` | HTTP mode requires `X-BW-*` headers; env fallback requires explicit `KEYCHAIN_ALLOW_ENV_FALLBACK=true` |
 | Error message sanitization | `src/sdk/keychainSdk.ts`, `src/bw/bwSession.ts` | JSON parse errors include byte count only, never raw CLI output |

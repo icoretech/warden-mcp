@@ -469,7 +469,7 @@ Credential resolution:
 
 Mutation control:
 
-- Set `READONLY=true` to block all write operations (create/edit/delete/move/restore/attachments).
+- Set `READONLY=true` to hide mutating tools from the advertised MCP catalog and reject direct write calls (create/edit/delete/move/restore/attachments).
 - Set `NOREVEAL=true` to force all `reveal` parameters to `false` server-side. Clients can still request `reveal: true`, but the server will silently downgrade to redacted output. This prevents prompt injection from tricking an LLM agent into exfiltrating secrets.
 - Set `KEYCHAIN_TEXT_COMPAT_MODE=structured_json` to mirror supported structured tool results into `TextContent` as serialized JSON. This is useful for text-only MCP clients that ignore `structuredContent`, but it also duplicates revealed secrets into the plain-text transcript.
 - Tool names default to `keychain_*`. Override `TOOL_PREFIX` to change the namespace and `TOOL_SEPARATOR` to change the separator (default `_`, set `.` for legacy clients).
@@ -508,7 +508,7 @@ If you run `warden-mcp` beyond local development, review these items:
 
 3. **Do not enable `KEYCHAIN_ALLOW_ENV_FALLBACK` on shared networks.** This flag makes the server's own vault credentials available to any HTTP client that omits headers. Only use it in single-tenant setups where the network is fully trusted.
 
-4. **Enable `READONLY=true` when writes are not needed.** This blocks all mutating tools at the MCP layer, limiting blast radius if an agent or client is compromised.
+4. **Enable `READONLY=true` when writes are not needed.** This hides mutating tools from the advertised MCP catalog and rejects direct write calls at the MCP layer, limiting blast radius if an agent or client is compromised.
 
 5. **Restrict filesystem access to `/data/bw-profiles`.** The `bw` CLI stores decrypted state under its HOME directory. Ensure the profile directory is not world-readable and is mounted with appropriate permissions (the Docker image runs as non-root by default).
 
