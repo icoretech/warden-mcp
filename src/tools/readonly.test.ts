@@ -9,7 +9,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 
 import { createKeychainApp } from '../transports/http.js';
 
-test('READONLY=true blocks mutating tools before BW headers are required', async () => {
+test('READONLY=true hides and rejects mutating tools before BW headers are required', async () => {
   const prev = process.env.READONLY;
   process.env.READONLY = 'true';
 
@@ -40,12 +40,19 @@ test('READONLY=true blocks mutating tools before BW headers are required', async
     const names = tools.tools.map((x) => x.name);
     assert.ok(names.includes('keychain_send_list'));
     assert.ok(names.includes('keychain_send_get'));
-    assert.ok(names.includes('keychain_send_create'));
-    assert.ok(names.includes('keychain_send_create_encoded'));
-    assert.ok(names.includes('keychain_send_edit'));
-    assert.ok(names.includes('keychain_send_delete'));
     assert.ok(names.includes('keychain_receive'));
     assert.ok(names.includes('keychain_get_attachment'));
+
+    assert.ok(!names.includes('keychain_send_create'));
+    assert.ok(!names.includes('keychain_send_create_encoded'));
+    assert.ok(!names.includes('keychain_send_edit'));
+    assert.ok(!names.includes('keychain_send_delete'));
+    assert.ok(!names.includes('keychain_create_note'));
+    assert.ok(!names.includes('keychain_create_login'));
+    assert.ok(!names.includes('keychain_update_item'));
+    assert.ok(!names.includes('keychain_delete_item'));
+    assert.ok(!names.includes('keychain_create_attachment'));
+    assert.ok(!names.includes('keychain_delete_attachment'));
 
     const blockedCalls: Array<{
       name: string;
@@ -97,12 +104,8 @@ test('READONLY=true blocks mutating tools before BW headers are required', async
     for (const c of blockedCalls) {
       const res = await client.callTool(c);
       assert.equal(res.isError, true, c.name);
-      assert.ok(
-        res.structuredContent && typeof res.structuredContent === 'object',
-      );
-      const sc = res.structuredContent as { ok?: unknown; error?: unknown };
-      assert.equal(sc.ok, false, c.name);
-      assert.equal(sc.error, 'READONLY', c.name);
+      const text = (res.content as Array<{ text: string }>)[0]?.text ?? '';
+      assert.ok(text.includes('not found'), c.name);
     }
   } finally {
     process.env.READONLY = prev;
@@ -113,7 +116,7 @@ test('READONLY=true blocks mutating tools before BW headers are required', async
   }
 });
 
-test('READONLY=true blocks mutating tools even when BW headers are present', async () => {
+test('READONLY=true hides and rejects mutating tools even when BW headers are present', async () => {
   const prev = process.env.READONLY;
   process.env.READONLY = 'true';
 
@@ -135,8 +138,6 @@ test('READONLY=true blocks mutating tools even when BW headers are present', asy
   const url = new URL(`http://127.0.0.1:${addr.port}/sse`);
   const transport = new StreamableHTTPClientTransport(url, {
     requestInit: {
-      // These are intentionally fake values: the assertion is that READONLY
-      // blocks *before* attempting to use bw, even when headers are present.
       headers: {
         'X-BW-Host': 'https://example.invalid',
         'X-BW-Password': 'test-only',
@@ -153,17 +154,17 @@ test('READONLY=true blocks mutating tools even when BW headers are present', asy
   try {
     await client.connect(transport);
 
+    const tools = await client.listTools();
+    const names = tools.tools.map((tool) => tool.name);
+    assert.ok(!names.includes('keychain_create_note'));
+
     const res = await client.callTool({
       name: 'keychain_create_note',
       arguments: { name: 'x' },
     });
     assert.equal(res.isError, true);
-    assert.ok(
-      res.structuredContent && typeof res.structuredContent === 'object',
-    );
-    const sc = res.structuredContent as { ok?: unknown; error?: unknown };
-    assert.equal(sc.ok, false);
-    assert.equal(sc.error, 'READONLY');
+    const text = (res.content as Array<{ text: string }>)[0]?.text ?? '';
+    assert.ok(text.includes('not found'));
   } finally {
     process.env.READONLY = prev;
     await transport.terminateSession().catch(() => {});

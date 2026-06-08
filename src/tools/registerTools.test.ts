@@ -810,32 +810,40 @@ describe('registerTools: tool listing', { concurrency: 1 }, () => {
 });
 
 describe('registerTools: READONLY behavior', { concurrency: 1 }, () => {
-  test('readonly=on blocks create_login', async () => {
+  test('readonly=on hides and rejects create_login', async () => {
     const { client, cleanup } = await startTestServer({
       READONLY: 'on',
     });
     try {
+      const tools = await client.listTools();
+      const names = tools.tools.map((tool) => tool.name);
+      assert.ok(!names.includes(toolName('create_login')));
+
       const result = await client.callTool({
         name: toolName('create_login'),
         arguments: { name: 'test' },
       });
       const text = (result.content as Array<{ text: string }>)[0]?.text ?? '';
-      assert.ok(text.includes('READONLY'));
+      assert.ok(text.includes('not found'));
       assert.equal(result.isError, true);
     } finally {
       await cleanup();
     }
   });
 
-  test('readonly=1 blocks delete_item', async () => {
+  test('readonly=1 hides and rejects delete_item', async () => {
     const { client, cleanup } = await startTestServer({ READONLY: '1' });
     try {
+      const tools = await client.listTools();
+      const names = tools.tools.map((tool) => tool.name);
+      assert.ok(!names.includes(toolName('delete_item')));
+
       const result = await client.callTool({
         name: toolName('delete_item'),
         arguments: { id: 'x' },
       });
       const text = (result.content as Array<{ text: string }>)[0]?.text ?? '';
-      assert.ok(text.includes('READONLY'));
+      assert.ok(text.includes('not found'));
       assert.equal(result.isError, true);
     } finally {
       await cleanup();

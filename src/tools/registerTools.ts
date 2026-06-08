@@ -36,8 +36,28 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     const publicName = name.startsWith(legacyPrefix)
       ? `${publicPrefix}${name.slice(legacyPrefix.length)}`
       : name;
+
+    if (isReadOnly && isMutatingToolRegistration(args)) {
+      return undefined;
+    }
+
     return rawRegisterTool(publicName, ...args);
   }) as McpServer['registerTool'];
+
+  function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+  }
+
+  function isMutatingToolRegistration(args: unknown[]): boolean {
+    const options = args[0];
+    if (!isRecord(options)) return false;
+
+    const annotations = options.annotations;
+    if (!isRecord(annotations)) return false;
+
+    return annotations.readOnlyHint === false;
+  }
+
   function parseBoolEnv(...names: string[]): boolean {
     for (const name of names) {
       const v = process.env[name];
