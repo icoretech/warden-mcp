@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.23](https://github.com/icoretech/warden-mcp/compare/v0.2.22...v0.2.23) (2026-06-08)
+
+
+### Bug Fixes
+
+* **tools:** hide mutating tools in readonly mode ([9d4c682](https://github.com/icoretech/warden-mcp/commit/9d4c6826d600302225a30d361b391e545e4865c2))
+
 ## [0.2.22](https://github.com/icoretech/warden-mcp/compare/v0.2.21...v0.2.22) (2026-05-31)
 
 
