@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.24](https://github.com/icoretech/warden-mcp/compare/v0.2.23...v0.2.24) (2026-06-15)
+
+
+### Bug Fixes
+
+* **tools:** guide stale attachment recovery ([bbc84fb](https://github.com/icoretech/warden-mcp/commit/bbc84fba8d77338642b82194bc74b6d8b9e34e5e))
+
 ## [0.2.23](https://github.com/icoretech/warden-mcp/compare/v0.2.22...v0.2.23) (2026-06-08)
 
 
