@@ -353,6 +353,51 @@ wait "$bg_pid"
     }
   });
 
+  test('redacts sensitive flag values in error messages', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-cli-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const bw = await createScript(dir, 'bw', '#!/bin/sh\nexit 1\n');
+      process.env.BW_BIN = bw;
+      const sensitiveValues = [
+        'send-password',
+        'recipient@example.com',
+        'BW_SEND_PASSWORD',
+      ];
+
+      try {
+        await runBw(
+          [
+            'send',
+            '--password',
+            sensitiveValues[0],
+            '--emails',
+            sensitiveValues[1],
+            'receive',
+            '--passwordenv',
+            sensitiveValues[2],
+          ],
+          { timeoutMs: 5000 },
+        );
+        assert.fail('should have thrown');
+      } catch (err) {
+        const msg = (err as Error).message;
+        for (const sensitiveValue of sensitiveValues) {
+          assert.ok(
+            !msg.includes(sensitiveValue),
+            `error message must not contain ${sensitiveValue}`,
+          );
+        }
+        assert.ok(msg.includes('--password <redacted>'));
+        assert.ok(msg.includes('--emails <redacted>'));
+        assert.ok(msg.includes('--passwordenv <redacted>'));
+      }
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   test('redacts long arguments in error messages', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'bw-cli-test-'));
     const savedBin = process.env.BW_BIN;

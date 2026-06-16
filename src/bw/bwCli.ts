@@ -16,6 +16,16 @@ export interface BwRunResult {
   stderr: string;
 }
 
+const SENSITIVE_ARG_FLAGS = new Set([
+  '--apikey',
+  '--clientsecret',
+  '--emails',
+  '--password',
+  '--passwordenv',
+  '--passwordfile',
+  '--session',
+]);
+
 export class BwCliError extends Error {
   readonly exitCode: number;
   readonly stdout: string;
@@ -99,8 +109,8 @@ export async function runBw(
     const out: string[] = [];
     for (let i = 0; i < argv.length; i++) {
       const a = argv[i];
-      if (a === '--session') {
-        out.push('--session');
+      if (typeof a === 'string' && SENSITIVE_ARG_FLAGS.has(a)) {
+        out.push(a);
         if (i + 1 < argv.length) {
           out.push('<redacted>');
           i++;

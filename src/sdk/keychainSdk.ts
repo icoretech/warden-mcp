@@ -1,6 +1,6 @@
 // src/sdk/keychainSdk.ts
 
-import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { BwCliError, isBwAuthSessionInvalidError } from '../bw/bwCli.js';
@@ -559,26 +559,6 @@ export class KeychainSdk {
     }
   }
 
-  private async readSingleFileAsBase64(dir: string): Promise<{
-    filename: string;
-    bytes: number;
-    contentBase64: string;
-  }> {
-    const files = await readdir(dir);
-    if (files.length !== 1) {
-      throw new Error(
-        `Expected exactly 1 downloaded file, found ${files.length}`,
-      );
-    }
-    const filename = files[0] ?? '';
-    const buf = await readFile(join(dir, filename));
-    return {
-      filename,
-      bytes: buf.byteLength,
-      contentBase64: buf.toString('base64'),
-    };
-  }
-
   private attachmentsFromItem(item: unknown): AttachmentMetadata[] {
     if (!item || typeof item !== 'object') return [];
     const attachments = (item as AnyRecord).attachments;
@@ -797,6 +777,12 @@ export class KeychainSdk {
     text?: boolean;
     downloadFile?: boolean;
   }): Promise<unknown> {
+    if (input.downloadFile) {
+      throw new Error(
+        'keychain_send_get cannot download file Sends because bw send get --output is not implemented by the bundled Bitwarden CLI; use keychain_receive with the Send accessUrl and downloadFile=true instead',
+      );
+    }
+
     return this.bw.withSession(async (session) => {
       if (input.text) {
         const { stdout } = await this.bw.runForSession(
@@ -805,21 +791,6 @@ export class KeychainSdk {
           { timeoutMs: 60_000 },
         );
         return { text: stdout.trim() };
-      }
-
-      if (input.downloadFile) {
-        const dir = await mkdtemp(join(tmpdir(), 'keychain-sendfile-'));
-        try {
-          await this.bw.runForSession(
-            session,
-            ['send', 'get', input.id, '--output', dir],
-            { timeoutMs: 120_000 },
-          );
-          const file = await this.readSingleFileAsBase64(dir);
-          return { file };
-        } finally {
-          await rm(dir, { recursive: true, force: true });
-        }
       }
 
       const { stdout } = await this.bw.runForSession(
@@ -864,6 +835,7 @@ export class KeychainSdk {
     contentBase64?: string;
     deleteInDays?: number;
     password?: string;
+    emails?: readonly string[];
     maxAccessCount?: number;
     hidden?: boolean;
     name?: string;
@@ -872,11 +844,18 @@ export class KeychainSdk {
   }): Promise<unknown> {
     return this.bw.withSession(async (session) => {
       const args: string[] = ['send'];
+      const emails = input.emails
+        ?.map((email) => email.trim())
+        .filter((email) => email.length > 0);
+      if (emails && emails.length > 0 && typeof input.password === 'string') {
+        throw new Error('Send emails and password are mutually exclusive');
+      }
       if (input.type === 'file') args.push('--file');
       if (typeof input.deleteInDays === 'number')
         args.push('--deleteInDays', String(input.deleteInDays));
       if (typeof input.password === 'string')
         args.push('--password', input.password);
+      if (emails && emails.length > 0) args.push('--emails', emails.join(','));
       if (typeof input.maxAccessCount === 'number')
         args.push('--maxAccessCount', String(input.maxAccessCount));
       if (input.hidden) args.push('--hidden');

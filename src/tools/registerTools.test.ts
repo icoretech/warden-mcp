@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -20,6 +21,40 @@ function toolName(name: string, separator: string = DEFAULT_TOOL_SEPARATOR) {
 }
 
 type ToolListEntry = Awaited<ReturnType<Client['listTools']>>['tools'][number];
+
+const BW_SEND_QUICK_OPTION_MAPPINGS = [
+  { option: 'file', properties: ['type', 'filename', 'contentBase64'] },
+  { option: 'deleteInDays', properties: ['deleteInDays'] },
+  { option: 'password', properties: ['password'] },
+  { option: 'emails', properties: ['emails'] },
+  { option: 'maxAccessCount', properties: ['maxAccessCount'] },
+  { option: 'hidden', properties: ['hidden'] },
+  { option: 'name', properties: ['name'] },
+  { option: 'notes', properties: ['notes'] },
+  { option: 'fullObject', properties: ['fullObject'] },
+] as const;
+
+function bwSendQuickOptionNames(): string[] {
+  const help = execFileSync('./node_modules/.bin/bw', ['send', '--help'], {
+    encoding: 'utf8',
+  });
+  const options = new Set<string>();
+  for (const match of help.matchAll(
+    /^\s+(?:-[A-Za-z],\s+)?--([A-Za-z][A-Za-z0-9]*)\b/gm,
+  )) {
+    const optionName = match[1];
+    if (optionName && optionName !== 'help') options.add(optionName);
+  }
+  return [...options].sort();
+}
+
+function toolPropertiesForBwSendOption(
+  optionName: string,
+): readonly string[] | undefined {
+  return BW_SEND_QUICK_OPTION_MAPPINGS.find(
+    (mapping) => mapping.option === optionName,
+  )?.properties;
+}
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === 'object'
@@ -346,8 +381,27 @@ describe('registerTools: tool listing', { concurrency: 1 }, () => {
       assert.equal(sendCreate.annotations?.destructiveHint ?? false, false);
       assert.equal(sendCreate.annotations?.openWorldHint, true);
       const sendCreateProps = toolInputSchemaProperties(sendCreate);
-      for (const name of ['type', 'text', 'filename', 'contentBase64']) {
+      for (const name of [
+        'type',
+        'text',
+        'filename',
+        'contentBase64',
+        'emails',
+      ]) {
         assert.ok(name in sendCreateProps, `send_create missing ${name}`);
+      }
+      for (const optionName of bwSendQuickOptionNames()) {
+        const mappedProperties = toolPropertiesForBwSendOption(optionName);
+        assert.ok(
+          mappedProperties,
+          `bw send --${optionName} has no send_create schema mapping`,
+        );
+        for (const propertyName of mappedProperties) {
+          assert.ok(
+            propertyName in sendCreateProps,
+            `send_create missing ${propertyName} for bw send --${optionName}`,
+          );
+        }
       }
 
       const searchItems = byName.get(toolName('search_items'));
@@ -383,6 +437,7 @@ describe('registerTools: tool listing', { concurrency: 1 }, () => {
       assert.match(descriptionOf('send_create'), /deleteInDays/);
       assert.match(descriptionOf('send_create'), /maxAccessCount/);
       assert.match(descriptionOf('send_create'), /password protects/);
+      assert.match(descriptionOf('send_create'), /emails grant/);
       assert.match(
         propertyDescription('send_create', 'type'),
         /text uses text/,
@@ -399,11 +454,20 @@ describe('registerTools: tool listing', { concurrency: 1 }, () => {
         propertyDescription('send_create', 'maxAccessCount'),
         /Maximum number/,
       );
+      assert.match(
+        propertyDescription('send_create', 'emails'),
+        /Mutually exclusive with password/,
+      );
 
       assert.match(descriptionOf('send_template'), /text or file template/);
       assert.match(
         propertyDescription('send_template', 'object'),
         /send\.file/,
+      );
+      assert.match(descriptionOf('send_get'), /receive/);
+      assert.equal(
+        toolInputSchemaProperty(requireTool('send_get'), 'downloadFile'),
+        undefined,
       );
       assert.match(descriptionOf('send_create_encoded'), /advanced/);
       assert.match(descriptionOf('send_create_encoded'), /encodedJson/);
@@ -1642,9 +1706,30 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
       type: 'text',
       text: 'hello world',
       name: 'test send',
+      emails: ['recipient@example.com'],
     });
     assert.equal(r.isError, undefined);
     assert.equal(textOf(r), 'send: {}');
+  });
+
+  test('send_create trims recipient emails at the MCP boundary', async () => {
+    const r = await callToolE2e('send_create', {
+      type: 'text',
+      text: 'hello world',
+      emails: [' recipient@example.com '],
+    });
+    assert.equal(r.isError, undefined);
+    assert.equal(textOf(r), 'send: {}');
+  });
+
+  test('send_create rejects invalid recipient emails at the MCP boundary', async () => {
+    const r = await callToolE2e('send_create', {
+      type: 'text',
+      text: 'hello world',
+      emails: ['not-an-email'],
+    });
+    assert.equal(r.isError, true);
+    assert.match(textOf(r), /email/i);
   });
 
   test('send_edit with encodedJson', async () => {

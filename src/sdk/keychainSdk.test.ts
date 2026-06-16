@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { describe, test } from 'node:test';
 import { BwCliError, type BwRunResult } from '../bw/bwCli.js';
 import type { BwSessionManager } from '../bw/bwSession.js';
@@ -820,6 +819,56 @@ describe('KeychainSdk CRUD', () => {
     assert.ok(sendCall.args.includes('--deleteInDays'));
     assert.ok(sendCall.args.includes('--maxAccessCount'));
     assert.ok(sendCall.args.includes('--hidden'));
+  });
+
+  test('sendCreate with emails passes comma-separated email list', async () => {
+    const { mock, calls } = createMockBw({
+      runResponses: new Map([
+        ['send', { stdout: '"https://send.example/abc"', stderr: '' }],
+      ]),
+    });
+
+    const sdk = new KeychainSdk(mock);
+    await sdk.sendCreate({
+      type: 'text',
+      text: 'hello world',
+      emails: ['alice@example.com', 'bob@example.com'],
+    });
+
+    const sendCall = calls.find((c) => c.args.includes('send'));
+    assert.ok(sendCall);
+    const emailsFlagIndex = sendCall.args.indexOf('--emails');
+    assert.notEqual(emailsFlagIndex, -1);
+    assert.equal(
+      sendCall.args[emailsFlagIndex + 1],
+      'alice@example.com,bob@example.com',
+    );
+  });
+
+  test('sendCreate throws when emails and password are both set', async () => {
+    const { mock } = createMockBw();
+    const sdk = new KeychainSdk(mock);
+
+    await assert.rejects(
+      () =>
+        sdk.sendCreate({
+          type: 'text',
+          text: 'hello world',
+          password: 'send-password',
+          emails: ['recipient@example.com'],
+        }),
+      /mutually exclusive/,
+    );
+    await assert.rejects(
+      () =>
+        sdk.sendCreate({
+          type: 'text',
+          text: 'hello world',
+          password: ' ',
+          emails: ['recipient@example.com'],
+        }),
+      /mutually exclusive/,
+    );
   });
 
   test('sendCreate text type throws without text', async () => {
@@ -2053,31 +2102,16 @@ describe('KeychainSdk file I/O', () => {
     );
   });
 
-  test('sendGet with downloadFile writes and reads file', async () => {
-    const { mock } = createMockBw({
-      runResponses: new Map([['send get', { stdout: '', stderr: '' }]]),
-      sideEffect: async (args) => {
-        const outputIdx = args.indexOf('--output');
-        if (outputIdx >= 0) {
-          const dir = args[outputIdx + 1];
-          if (dir) {
-            await writeFile(join(dir, 'sent-file.bin'), 'binary-data');
-          }
-        }
-      },
-    });
+  test('sendGet rejects downloadFile because bw send get cannot download files', async () => {
+    const { mock, calls } = createMockBw();
 
     const sdk = new KeychainSdk(mock);
-    const result = (await sdk.sendGet({
-      id: 's1',
-      downloadFile: true,
-    })) as { file: { filename: string; bytes: number; contentBase64: string } };
-
-    assert.equal(result.file.filename, 'sent-file.bin');
-    assert.equal(
-      Buffer.from(result.file.contentBase64, 'base64').toString(),
-      'binary-data',
+    await assert.rejects(
+      () => sdk.sendGet({ id: 's1', downloadFile: true }),
+      /keychain_receive/,
     );
+
+    assert.equal(calls.length, 0);
   });
 
   test('sendCreate with file type writes temp file', async () => {
@@ -2093,6 +2127,7 @@ describe('KeychainSdk file I/O', () => {
       filename: 'upload.txt',
       contentBase64: Buffer.from('upload content').toString('base64'),
       name: 'file send',
+      emails: ['file-recipient@example.com'],
     });
 
     // Verify --file flag was used
@@ -2100,6 +2135,12 @@ describe('KeychainSdk file I/O', () => {
       (c) => c.args.includes('send') && c.args.includes('--file'),
     );
     assert.ok(sendCall, 'expected send --file call');
+    const emailsFlagIndex = sendCall.args.indexOf('--emails');
+    assert.notEqual(emailsFlagIndex, -1);
+    assert.equal(
+      sendCall.args[emailsFlagIndex + 1],
+      'file-recipient@example.com',
+    );
   });
 
   test('sendCreateEncoded with file writes temp file', async () => {
@@ -2499,30 +2540,6 @@ describe('KeychainSdk additional coverage', () => {
     // unknown type 99 falls through to 'note' default in kindFromItem
     const all = await sdk.searchItems({});
     assert.equal(all.length, 3);
-  });
-
-  test('readSingleFileAsBase64 throws when dir has multiple files', async () => {
-    // sendGet downloadFile calls readSingleFileAsBase64 internally.
-    // If bw writes multiple files, it should throw.
-    const { mock } = createMockBw({
-      runResponses: new Map([['send get', { stdout: '', stderr: '' }]]),
-      sideEffect: async (args) => {
-        const outputIdx = args.indexOf('--output');
-        if (outputIdx >= 0) {
-          const dir = args[outputIdx + 1];
-          if (dir) {
-            await writeFile(join(dir, 'file1.txt'), 'a');
-            await writeFile(join(dir, 'file2.txt'), 'b');
-          }
-        }
-      },
-    });
-
-    const sdk = new KeychainSdk(mock);
-    await assert.rejects(
-      () => sdk.sendGet({ id: 's1', downloadFile: true }),
-      /Expected exactly 1 downloaded file/,
-    );
   });
 
   test('createCard with collectionIds calls item-collections edit', async () => {

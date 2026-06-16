@@ -449,6 +449,14 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     .string()
     .optional()
     .describe('Visible filename required with contentBase64 for file sends.');
+  const sendEmailsSchema = z
+    .array(z.string().trim().email())
+    .min(1)
+    .max(50)
+    .optional()
+    .describe(
+      'Recipient email addresses for Bitwarden Send email-gated access. Mutually exclusive with password; callers still need to share the Send URL.',
+    );
   const itemFieldSchema = z
     .object({
       name: z.string().describe('Custom field name stored on the item.'),
@@ -1710,7 +1718,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Send Get',
       description:
-        'Get Sends owned by you. Use text=true to return text content; downloadFile=true to download a file send (bw send get).',
+        'Get Sends owned by you. Use text=true to return text content; file Sends return metadata including accessUrl. To download file Send bytes, call receive with that accessUrl and downloadFile=true.',
       annotations: { readOnlyHint: true, openWorldHint: true },
       inputSchema: {
         id: stableObjectIdSchema,
@@ -1718,10 +1726,6 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
           .boolean()
           .optional()
           .describe('Return the Send text content instead of JSON metadata.'),
-        downloadFile: z
-          .boolean()
-          .optional()
-          .describe('Download a file Send and return its file bytes.'),
       },
       _meta: toolMeta,
     },
@@ -1741,7 +1745,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Send Create',
       description:
-        'Quick-create a Bitwarden Send through bw send. Use type=text with text, or type=file with filename plus contentBase64; deleteInDays controls expiration deletion, maxAccessCount limits accesses, and password protects the Send. For advanced JSON templates or edits, use send_create_encoded and send_edit instead.',
+        'Quick-create a Bitwarden Send through bw send. Use type=text with text, or type=file with filename plus contentBase64; deleteInDays controls expiration deletion, maxAccessCount limits accesses, password protects the Send, and emails grant email-gated access. For advanced JSON templates or edits, use send_create_encoded and send_edit instead.',
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -1772,6 +1776,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
           .string()
           .optional()
           .describe('Optional Send access password required by recipients.'),
+        emails: sendEmailsSchema,
         maxAccessCount: z
           .number()
           .int()

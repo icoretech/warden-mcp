@@ -580,7 +580,8 @@ npm run dev
 - Start with `keychain_search_items` when you know a name, URI, username, folder, collection, or item type but not the exact item id. Then call `keychain_get_item` with the returned id for the full item shape.
 - Personal folder tools manage one user's vault folders, for example `Example Folder`. Organization collection tools manage shared organization-scoped collections, for example `Example Collection`. `organizationId` is required for `keychain_list_org_collections`, `keychain_create_org_collection`, `keychain_edit_org_collection`, and `keychain_delete_org_collection`, and optional only for `keychain_get_org_collection` when you want to narrow a direct id lookup.
 - `keychain_move_item_to_organization` moves an item out of the personal vault and into an organization, optionally assigning collection ids at the same time.
-- `keychain_send_create` is the quick path for text or file Sends through the normal `bw send` flags. `keychain_send_template`, `keychain_send_create_encoded`, and `keychain_send_edit` are for the full Bitwarden Send JSON template or an encoded edit payload.
+- `keychain_send_create` is the quick path for text or file Sends through the normal `bw send` flags, including `emails` for email-gated access. `emails` is mutually exclusive with `password` and does not share the generated Send URL for you. `keychain_send_template`, `keychain_send_create_encoded`, and `keychain_send_edit` are for the full Bitwarden Send JSON template or an encoded edit payload.
+- `keychain_send_get` returns owned Send metadata, including `accessUrl`, or text content with `text=true`. To download a file Send, pass that `accessUrl` to `keychain_receive` with `downloadFile=true`; the bundled `bw send get` command does not implement file download output.
 - Pass `reveal: true` only to tools that can return secrets, such as password, TOTP, notes, generated secrets, password history, or full item reads. By default these stay redacted. Text-only MCP clients follow the same reveal contract described in [Text-Only MCP Client Behavior](#text-only-mcp-client-behavior), and server-side `NOREVEAL` settings still win.
 
 Vault/session:
@@ -616,10 +617,10 @@ Attachments:
 Sends:
 
 - `keychain_send_list`, `keychain_send_template`, `keychain_send_get`
-- `keychain_send_create` (quick create via `bw send`)
+- `keychain_send_create` (quick create via `bw send`, including optional `emails`)
 - `keychain_send_create_encoded`, `keychain_send_edit` (advanced create/edit via `bw send create|edit`)
 - `keychain_send_remove_password`, `keychain_send_delete`
-- `keychain_receive`
+- `keychain_receive` (receive shared Sends and download file Send bytes)
 
 Direct “bw get …” helpers:
 
