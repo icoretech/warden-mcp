@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.25](https://github.com/icoretech/warden-mcp/compare/v0.2.24...v0.2.25) (2026-06-16)
+
+
+### Bug Fixes
+
+* **tools:** support Send email recipients ([1ff126c](https://github.com/icoretech/warden-mcp/commit/1ff126cf47903df74d325d9cfe21eebb865895d3))
+
 ## [0.2.24](https://github.com/icoretech/warden-mcp/compare/v0.2.23...v0.2.24) (2026-06-15)
 
 
