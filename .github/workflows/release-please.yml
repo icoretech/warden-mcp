@@ -11,18 +11,88 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      issues: write
       pull-requests: write
     outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
-      version: ${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}
-      major_minor: ${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}
+      release_created: ${{ steps.release.outputs.release_created == 'true' || steps.release_after_merge.outputs.release_created == 'true' }}
+      tag_name: ${{ steps.release_after_merge.outputs.tag_name || steps.release.outputs.tag_name }}
+      version: ${{ steps.release_after_merge.outputs.version || steps.release.outputs.version }}
+      major_minor: ${{ steps.release_after_merge.outputs.major || steps.release.outputs.major }}.${{ steps.release_after_merge.outputs.minor || steps.release.outputs.minor }}
     steps:
       - uses: googleapis/release-please-action@v5
         id: release
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      - name: Find release pull request
+        id: release_pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_PRS: ${{ steps.release.outputs.prs }}
+        run: |
+          set -euo pipefail
+
+          branch_prefix="release-please--branches--${GITHUB_REF_NAME}"
+          pr_number="$(
+            jq -r \
+              --arg base "${GITHUB_REF_NAME}" \
+              --arg branch_prefix "${branch_prefix}" \
+              '.[] | select(.baseBranchName == $base and (.headBranchName | startswith($branch_prefix))) | .number' \
+              <<< "${RELEASE_PRS:-[]}" |
+            head -n 1
+          )"
+
+          if [[ -z "${pr_number}" ]]; then
+            for attempt in 1 2 3 4 5 6; do
+              pr_number="$(
+                gh pr list \
+                  --repo "${GITHUB_REPOSITORY}" \
+                  --state open \
+                  --base "${GITHUB_REF_NAME}" \
+                  --label "autorelease: pending" \
+                  --json number,headRefName \
+                  --jq ".[] | select(.headRefName | startswith(\"${branch_prefix}\")) | .number" |
+                head -n 1
+              )"
+
+              [[ -n "${pr_number}" ]] && break
+              echo "release PR not found on attempt ${attempt}, retrying"
+              sleep 5
+            done
+          fi
+
+          echo "number=${pr_number}" >> "${GITHUB_OUTPUT}"
+
+      - name: Merge release pull request
+        if: ${{ steps.release_pr.outputs.number != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.release_pr.outputs.number }}
+        run: |
+          set -euo pipefail
+
+          for attempt in 1 2 3 4 5 6; do
+            if gh pr merge "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --squash --delete-branch; then
+              exit 0
+            fi
+
+            echo "release PR merge attempt ${attempt} failed, retrying"
+            sleep 10
+          done
+
+          exit 1
+
+      # GITHUB_TOKEN merges do not trigger a follow-up push workflow, so create
+      # the release in this same run after the generated PR lands.
+      - name: Create release after automated merge
+        id: release_after_merge
+        if: ${{ steps.release_pr.outputs.number != '' }}
+        uses: googleapis/release-please-action@v5
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          skip-github-pull-request: true
 
   publish:
     runs-on: ubuntu-latest
