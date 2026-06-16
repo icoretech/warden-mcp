@@ -203,14 +203,6 @@ codex mcp add warden \
 
 # Claude Code
 claude mcp add-json warden '{"command":"npx","args":["-y","@icoretech/warden-mcp@latest","--stdio"],"env":{"BW_HOST":"https://vaultwarden.example.com","BW_CLIENTID":"user.xxxxx","BW_CLIENTSECRET":"xxxxx","BW_PASSWORD":"your-master-password"}}'
-
-# Qwen Code
-qwen mcp add warden \
-  -e BW_HOST=https://vaultwarden.example.com \
-  -e BW_CLIENTID=user.xxxxx \
-  -e BW_CLIENTSECRET=xxxxx \
-  -e BW_PASSWORD=your-master-password \
-  npx -y @icoretech/warden-mcp@latest --stdio
 ```
 
 ### JSON config hosts
@@ -220,7 +212,6 @@ These hosts all use the same stdio payload shape. Only the config file location 
 - Codex: `~/.codex/config.toml`
 - Cursor: `~/.cursor/mcp.json` or `.cursor/mcp.json`
 - Claude Desktop: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- Qwen Code: `~/.qwen/settings.json` or `.qwen/settings.json`
 
 Shared JSON shape:
 
@@ -259,27 +250,6 @@ BW_PASSWORD = "your-master-password"
 `startup_timeout_sec = 30` is a practical Codex default when using `npx`,
 because a cold first launch can spend several seconds downloading and unpacking
 the package before MCP initialization begins.
-
-### Windsurf
-
-Windsurf uses the same stdio idea but stores it in `~/.codeium/windsurf/mcp_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "warden": {
-      "command": "npx",
-      "args": ["-y", "@icoretech/warden-mcp@latest", "--stdio"],
-      "env": {
-        "BW_HOST": "https://vaultwarden.example.com",
-        "BW_CLIENTID": "user.xxxxx",
-        "BW_CLIENTSECRET": "xxxxx",
-        "BW_PASSWORD": "your-master-password"
-      }
-    }
-  }
-}
-```
 
 ### Shared HTTP connections
 
@@ -377,40 +347,6 @@ claude mcp add-json warden '{"type":"http","url":"http://localhost:3005/sse?v=2"
   "mcpServers": {
     "warden": {
       "url": "http://localhost:3005/sse?v=2",
-      "headers": {
-        "X-BW-Host": "https://vaultwarden.example.com",
-        "X-BW-ClientId": "user.xxxxx",
-        "X-BW-ClientSecret": "xxxxx",
-        "X-BW-Password": "your-master-password"
-      }
-    }
-  }
-}
-```
-
-```json
-// Qwen Code (~/.qwen/settings.json)
-{
-  "mcpServers": {
-    "warden": {
-      "httpUrl": "http://localhost:3005/sse?v=2",
-      "headers": {
-        "X-BW-Host": "https://vaultwarden.example.com",
-        "X-BW-ClientId": "user.xxxxx",
-        "X-BW-ClientSecret": "xxxxx",
-        "X-BW-Password": "your-master-password"
-      }
-    }
-  }
-}
-```
-
-```json
-// Windsurf (~/.codeium/windsurf/mcp_config.json)
-{
-  "mcpServers": {
-    "warden": {
-      "serverUrl": "http://localhost:3005/sse?v=2",
       "headers": {
         "X-BW-Host": "https://vaultwarden.example.com",
         "X-BW-ClientId": "user.xxxxx",
