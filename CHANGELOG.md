@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.26](https://github.com/icoretech/warden-mcp/compare/v0.2.25...v0.2.26) (2026-06-16)
+
+
+### Bug Fixes
+
+* **deps:** refresh vulnerable npm transitives ([3d19234](https://github.com/icoretech/warden-mcp/commit/3d192347098f29b24a8da35fdf17c30ea1d49b49))
+
 ## [0.2.25](https://github.com/icoretech/warden-mcp/compare/v0.2.24...v0.2.25) (2026-06-16)
 
 
