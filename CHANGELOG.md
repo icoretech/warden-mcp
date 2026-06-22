@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.27](https://github.com/icoretech/warden-mcp/compare/v0.2.26...v0.2.27) (2026-06-22)
+
+
+### Bug Fixes
+
+* align runtime docs and tool summaries ([4ff5922](https://github.com/icoretech/warden-mcp/commit/4ff5922201d798d0897c9f26b6d41ebf13a21acc))
+
 ## [0.2.26](https://github.com/icoretech/warden-mcp/compare/v0.2.25...v0.2.26) (2026-06-16)
 
 
