@@ -13,7 +13,7 @@ Published package: [`@icoretech/warden-mcp`](https://www.npmjs.com/package/@icor
 
 ## Highlights
 
-- MCP Streamable HTTP (SSE) endpoint at `POST /sse` + health check at `GET /healthz`
+- MCP Streamable HTTP endpoint at `/sse` (GET/POST; DELETE intentionally unsupported) + health check at `GET /healthz`
 - Runtime guardrail metrics at `GET /metricsz`
 - Item types: **login**, **secure note**, **card**, **identity**, plus an **SSH key** convention (secure note + standard fields)
 - Attachments: create/delete/download
@@ -32,9 +32,9 @@ For search/list tools, the text output includes concise rows with stable ids and
 safe metadata such as names, item type, username, URI values, organization id,
 folder id, and collection ids. Secret fields are not included in those summaries.
 Create/update/move/restore helpers that return a folder, collection, or item use
-the same concise visible summaries so text-only clients can immediately reuse the
-returned ids in follow-up calls. Delete helpers include the requested ids when no
-object is returned.
+concise visible summaries with reusable ids plus safe item metadata, including
+nested login username/URI values and attachment metadata where present. Delete
+helpers include the requested ids when no object is returned.
 
 For scalar helper tools, the text output follows the reveal contract:
 
@@ -52,9 +52,10 @@ For scalar helper tools, the text output follows the reveal contract:
 - if `NOREVEAL=true` or `KEYCHAIN_NOREVEAL=true`, revealed values are still
   suppressed server-side
 
-When a lookup term matches multiple login items, credential helpers return an
-`AMBIGUOUS_LOOKUP` error with visible candidate ids. Retry with `term` set to an
-exact candidate `id`, or call `get_item` with that `id`.
+When a lookup term matches multiple login items, `keychain_get_username` and
+revealed `keychain_get_password` return an `AMBIGUOUS_LOOKUP` error with visible
+candidate ids. Retry with `term` set to an exact candidate `id`, or call
+`get_item` with that `id`.
 
 If `KEYCHAIN_TEXT_COMPAT_MODE=structured_json` is enabled, supported success and
 ambiguity/error results mirror their `structuredContent` into the visible text as
@@ -76,7 +77,10 @@ In practice, this is what makes the server useful for full automation, not just 
 
 ## Runtime Requirement
 
-This package shells out to the official Bitwarden CLI, `bw`.
+Requires Node.js 24+ and npm when running from npm or source. The Docker image
+already includes the supported Node runtime.
+
+At runtime, this package shells out to the official Bitwarden CLI, `bw`.
 
 Runtime resolution order:
 
@@ -89,7 +93,7 @@ That means package installation can succeed even when the optional dependency is
 Explicit fallback install:
 
 ```bash
-npm install -g @bitwarden/cli
+npm install -g @bitwarden/cli@2026.5.0
 ```
 
 Or run with an explicit binary path:
@@ -98,25 +102,26 @@ Or run with an explicit binary path:
 BW_BIN=/absolute/path/to/bw npx -y @icoretech/warden-mcp@latest
 ```
 
-`warden-mcp` intentionally bundles a vetted `@bitwarden/cli` version instead of
-blindly following the newest upstream CLI on every release. New `bw` releases
-can change login and unlock behavior in ways that break automation, so `bw`
-upgrades should be smoke-tested against real Vaultwarden flows before bumping
-the bundled version. Official Bitwarden compatibility is intended, but it is
-not continuously proven in CI without a real Bitwarden tenant.
+`warden-mcp` intentionally bundles a vetted `@bitwarden/cli` version (currently
+`2026.5.0`) instead of blindly following the newest upstream CLI on every
+release. New `bw` releases can change login and unlock behavior in ways that
+break automation, so `bw` upgrades should be smoke-tested against real
+Vaultwarden flows before bumping the bundled version. Official Bitwarden
+compatibility is intended, but it is not continuously proven in CI without a
+real Bitwarden tenant.
 
-This repository's compose smoke now exercises both direct `bw` auth flows and
-the MCP/SDK layers with username/password auth plus user API-key auth against a
-real local Vaultwarden, so `@bitwarden/cli` bumps do not rely on unit coverage
-alone. The bundled postinstall compatibility shim rewrites the affected
-`build/bw.js` login strategies in place so the same Vaultwarden fallback can
-survive compatible CLI bumps without a version-stamped patch artifact.
+This repository's compose smoke exercises both direct `bw` auth flows and the
+MCP/SDK layers with username/password auth plus user API-key auth against a real
+local Vaultwarden, so `@bitwarden/cli` bumps do not rely on unit coverage alone.
+The bundled postinstall compatibility shim rewrites the affected `build/bw.js`
+login strategies in place so the same Vaultwarden fallback can survive compatible
+CLI bumps without a version-stamped patch artifact.
 
 ## Install And Run
 
 ### Choose a transport
 
-- Use `--stdio` when you want a local MCP host to spawn `warden-mcp` directly with one fixed Bitwarden profile
+- Use `--stdio` or `WARDEN_MCP_STDIO=true` when you want a local MCP host to spawn `warden-mcp` directly with one fixed Bitwarden profile
 - Use default HTTP mode when you want one running `warden-mcp` service to serve multiple clients or multiple Bitwarden profiles via per-request `X-BW-*` headers
 
 ### Local stdio mode
@@ -160,16 +165,25 @@ curl -fsS http://localhost:3005/healthz
 
 This mode is what makes `warden-mcp` different from a simple local wrapper:
 
-- the server stays stateless at the HTTP boundary
-- Bitwarden/Vaultwarden credentials are sent per request via `X-BW-*` headers
+- Bitwarden/Vaultwarden credentials and profile selection are resolved per request via `X-BW-*` headers
+- MCP Streamable HTTP sessions are stateful and tracked by `mcp-session-id`
+- per-profile `bw` state is kept server-side under `KEYCHAIN_BW_HOME_ROOT`
 - one running server can front different vault hosts or different identities without restarting
 - it fits shared-agent and gateway setups much better than per-client local processes
 
 ### Docker
 
 ```bash
-docker run --rm -p 3005:3005 ghcr.io/icoretech/warden-mcp:latest
+docker run --rm \
+  -p 127.0.0.1:3005:3005 \
+  -v warden-mcp-data:/data \
+  ghcr.io/icoretech/warden-mcp:latest
 ```
+
+The production image runs as the non-root `node` user (uid/gid `1000`), sets
+`HOME=/data`, and stores Bitwarden profile state under `/data/bw-profiles` by
+default. If you use a bind mount instead of the named volume above, make it
+writable by uid/gid `1000`.
 
 ### Global install
 
@@ -261,22 +275,20 @@ Start the shared server:
 npx -y @icoretech/warden-mcp@latest
 ```
 
-Every MCP request must include:
-
-- `X-BW-Host`
-- `X-BW-Password`
-- either `X-BW-ClientId` + `X-BW-ClientSecret`, or `X-BW-User`
-
-Example health check:
+`GET /healthz` and `GET /metricsz` are liveness/guardrail endpoints and do not
+validate Bitwarden credentials:
 
 ```bash
-curl -fsS \
-  -H 'X-BW-Host: https://vaultwarden.example.com' \
-  -H 'X-BW-ClientId: user.xxxxx' \
-  -H 'X-BW-ClientSecret: xxxxx' \
-  -H 'X-BW-Password: your-master-password' \
-  http://localhost:3005/healthz
+curl -fsS http://localhost:3005/healthz
 ```
+
+Bitwarden-backed MCP tool calls must include these headers unless
+`KEYCHAIN_ALLOW_ENV_FALLBACK=true` is enabled:
+
+- `X-BW-Host` — HTTPS origin only; no credentials, path, query, or fragment
+- `X-BW-Password`
+- either `X-BW-ClientId` + `X-BW-ClientSecret`, or `X-BW-User` / `X-BW-Username`
+- optional `X-BW-Unlock-Interval` in seconds; default `300`
 
 Example MCP endpoint:
 
@@ -369,29 +381,29 @@ bw --version
 If that fails after install, your environment likely skipped the optional `@bitwarden/cli` dependency. Install it explicitly:
 
 ```bash
-npm install -g @bitwarden/cli
+npm install -g @bitwarden/cli@2026.5.0
 ```
 
 ## How It Works
 
 The server executes `bw` commands on your behalf:
 
-- In HTTP mode, Bitwarden/Vaultwarden connection + credentials are provided via **HTTP headers** per request. Env-var fallback is disabled by default; set `KEYCHAIN_ALLOW_ENV_FALLBACK=true` to enable it for single-tenant HTTP deployments.
+- In HTTP mode, Bitwarden/Vaultwarden credentials are provided via **HTTP headers** for tool calls. Env-var fallback is disabled by default; set `KEYCHAIN_ALLOW_ENV_FALLBACK=true` only for single-tenant HTTP deployments.
 - In stdio mode, Bitwarden/Vaultwarden credentials are loaded once from `BW_*` env vars at startup.
 - The server maintains per-profile `bw` state under `KEYCHAIN_BW_HOME_ROOT` and pins `BITWARDENCLI_APPDATA_DIR` inside that profile so the Bitwarden CLI keeps a stable local device/app identity across restarts instead of looking like a fresh client every time.
-- Writes can optionally call `bw sync` (internal; not exposed as an MCP tool).
+- Writes call `bw sync` before mutations by default; set `KEYCHAIN_SYNC_ON_WRITE=false` to skip that pre-write sync. Manual sync is also exposed as `keychain_sync`.
 
 Timeout handling is also process-tree aware: if a `bw` command hangs, `warden-mcp` kills the full spawned process group rather than only the direct parent process. That prevents timed-out auth attempts from leaving orphaned `bw`/shell child processes behind.
 
-### Required Headers
+### Bitwarden credential inputs
 
-- `X-BW-Host` (must be an HTTPS origin, for example `https://vaultwarden.example.com`)
-- `X-BW-Password` (master password; required to unlock)
+- `X-BW-Host` / `BW_HOST` (must be an HTTPS origin, for example `https://vaultwarden.example.com`; no path, query, fragment, or embedded credentials)
+- `X-BW-Password` / `BW_PASSWORD` (master password; required to unlock)
 - Either:
-  - `X-BW-ClientId` + `X-BW-ClientSecret` (API key login), or
-  - `X-BW-User` (email for user/pass login; still uses `X-BW-Password`)
-- Optional:
-  - `X-BW-Unlock-Interval` (seconds)
+  - `X-BW-ClientId` + `X-BW-ClientSecret` / `BW_CLIENTID` + `BW_CLIENTSECRET` (API key login), or
+  - `X-BW-User` / `X-BW-Username` / `BW_USER` / `BW_USERNAME` (email for user/pass login; still uses the master password)
+- Optional unlock interval:
+  - `X-BW-Unlock-Interval` / `BW_UNLOCK_INTERVAL` in seconds; default `300`
 
 ## Security Model
 
@@ -399,25 +411,30 @@ There is **no built-in auth** layer in v1. Run it only on a trusted network boun
 
 Credential resolution:
 
-- **HTTP mode** requires `X-BW-*` headers on every request by default. Without them, tools return an error.
+- **HTTP mode** requires `X-BW-*` headers before Bitwarden-backed tools can run by default. `/healthz` and `/metricsz` do not validate vault credentials.
 - **Stdio mode** reads `BW_*` env vars at startup (single-tenant).
 - To allow HTTP mode to fall back to server env vars when headers are absent (single-tenant HTTP), set `KEYCHAIN_ALLOW_ENV_FALLBACK=true`. **Security warning:** this means any client that can reach the HTTP endpoint gets full vault access without providing credentials. Only use this behind network-level access control.
 
-Mutation control:
+Runtime and safety controls:
 
-- Set `READONLY=true` to hide mutating tools from the advertised MCP catalog and reject direct write calls (create/edit/delete/move/restore/attachments).
-- Set `NOREVEAL=true` to force all `reveal` parameters to `false` server-side. Clients can still request `reveal: true`, but the server will silently downgrade to redacted output. This prevents prompt injection from tricking an LLM agent into exfiltrating secrets.
-- Set `KEYCHAIN_TEXT_COMPAT_MODE=structured_json` to mirror supported structured tool results into `TextContent` as serialized JSON. This is useful for text-only MCP clients that ignore `structuredContent`, but it also duplicates revealed secrets into the plain-text transcript.
+- Set `PORT` to change the HTTP port (default `3005`).
+- Set `WARDEN_MCP_HOST` to bind the HTTP server to a specific interface, for example `127.0.0.1` for local-only access.
+- Set `WARDEN_MCP_STDIO=true` as an env-var alternative to `--stdio`.
+- Set `MCP_APP_NAME` to override the advertised MCP server name.
 - Tool names default to `keychain_*`. Override `TOOL_PREFIX` to change the namespace and `TOOL_SEPARATOR` to change the separator (default `_`, set `.` for legacy clients).
-- Session guardrails:
-  - `KEYCHAIN_SESSION_MAX_COUNT` (default `32`)
-  - `KEYCHAIN_SESSION_TTL_MS` (default `900000`)
-  - `KEYCHAIN_SESSION_SWEEP_INTERVAL_MS` (default `60000`)
-  - `KEYCHAIN_MAX_HEAP_USED_MB` (default `1536`, set `0` to disable memory fuse)
-  - `KEYCHAIN_METRICS_LOG_INTERVAL_MS` (default `0`, disabled)
-  - `NOREVEAL` / `KEYCHAIN_NOREVEAL` (default `false`; force all reveals to false)
-  - `KEYCHAIN_ALLOW_ENV_FALLBACK` (default `false`; HTTP env-var credential fallback)
-  - `KEYCHAIN_TEXT_COMPAT_MODE` (default unset; set to `structured_json` to copy structured results into `TextContent`)
+- Set `KEYCHAIN_BW_HOME_ROOT` to change where per-profile `bw` state is stored.
+- Set `KEYCHAIN_SYNC_ON_WRITE=false` to skip the default pre-write `bw sync` call.
+- Set `READONLY=true` or `KEYCHAIN_READONLY=true` to hide mutating tools from the advertised MCP catalog and reject direct write calls. This covers item/folder/org collection writes, Sends, attachments, batch creates/deletes, URI updates, moves, and restores.
+- Set `NOREVEAL=true` or `KEYCHAIN_NOREVEAL=true` to force all `reveal` parameters to `false` server-side. Clients can still request `reveal: true`, but the server will silently downgrade to redacted output. This prevents prompt injection from tricking an LLM agent into exfiltrating secrets.
+- Set `KEYCHAIN_TEXT_COMPAT_MODE=structured_json` to mirror supported structured tool results into `TextContent` as serialized JSON. This is useful for text-only MCP clients that ignore `structuredContent`, but it also duplicates revealed secrets into the plain-text transcript.
+
+Session guardrails:
+
+- `KEYCHAIN_SESSION_MAX_COUNT` (default `32`)
+- `KEYCHAIN_SESSION_TTL_MS` (default `900000`)
+- `KEYCHAIN_SESSION_SWEEP_INTERVAL_MS` (default `60000`)
+- `KEYCHAIN_MAX_HEAP_USED_MB` (default `1536`, set `0` to disable memory fuse)
+- `KEYCHAIN_METRICS_LOG_INTERVAL_MS` (default `0`, disabled)
 
 Redaction defaults (item reads):
 
@@ -425,13 +442,14 @@ Redaction defaults (item reads):
 - Card: `number`, `code`
 - Identity: `ssn`, `passportNumber`, `licenseNumber`
 - Custom fields: hidden fields (Bitwarden `type: 1`)
+- SSH key convention: custom field `private_key` is always redacted
 - Attachments: `attachments[].url` (signed download URL token)
 - Password history: `passwordHistory[].password`
 
 Reveal rules:
 
 - Tools accept `reveal: true` where applicable (default is `false`).
-- Secret helper tools (`get_password`, `get_totp`, `get_notes`, `generate`, `get_password_history`) return `structuredContent.result = { kind, value, revealed }`.
+- Secret helper tools (`get_password`, `get_totp`, `get_notes`, `generate`, `generate_username`, `get_password_history`) return `structuredContent.result = { kind, value, revealed }`.
   - When `reveal` is omitted/false, `value` is `null` (or historic passwords are `null`) and `revealed: false`.
 
 ## Production Deployment Checklist
@@ -440,13 +458,13 @@ If you run `warden-mcp` beyond local development, review these items:
 
 1. **TLS everywhere.** Always terminate TLS in front of the HTTP endpoint. `X-BW-*` headers carry master passwords in cleartext — without TLS they are visible to anyone on the network.
 
-2. **Network isolation.** Bind the server to `127.0.0.1` or place it behind an authenticated reverse proxy. The service has no built-in authentication; anyone who can reach `/sse` can issue vault operations.
+2. **Network isolation.** Bind or publish the server only on a trusted interface, for example `WARDEN_MCP_HOST=127.0.0.1`, Docker `-p 127.0.0.1:3005:3005`, a firewall, VPN, or an authenticated reverse proxy. The service has no built-in authentication; anyone who can reach `/sse` can issue vault operations.
 
 3. **Do not enable `KEYCHAIN_ALLOW_ENV_FALLBACK` on shared networks.** This flag makes the server's own vault credentials available to any HTTP client that omits headers. Only use it in single-tenant setups where the network is fully trusted.
 
-4. **Enable `READONLY=true` when writes are not needed.** This hides mutating tools from the advertised MCP catalog and rejects direct write calls at the MCP layer, limiting blast radius if an agent or client is compromised.
+4. **Enable `READONLY=true` or `KEYCHAIN_READONLY=true` when writes are not needed.** This hides mutating tools from the advertised MCP catalog and rejects direct write calls at the MCP layer, limiting blast radius if an agent or client is compromised.
 
-5. **Restrict filesystem access to `/data/bw-profiles`.** The `bw` CLI stores decrypted state under its HOME directory. Ensure the profile directory is not world-readable and is mounted with appropriate permissions (the Docker image runs as non-root by default).
+5. **Persist and restrict filesystem access to the configured `KEYCHAIN_BW_HOME_ROOT`.** In Docker the default is `/data/bw-profiles`; on host runs it defaults to `${HOME}/bw-profiles`. Ensure the profile directory is not world-readable and is mounted with appropriate permissions (the Docker image runs as non-root uid/gid `1000`).
 
 6. **Disable debug logging in production.** `KEYCHAIN_DEBUG_BW` and `KEYCHAIN_DEBUG_HTTP` emit request details and CLI invocations to stdout. Debug logs may include session metadata and request structure. Keep them off unless actively troubleshooting.
 
@@ -476,6 +494,12 @@ Starts a local Vaultwarden + HTTPS proxy (for `bw`), bootstraps a test user, and
 ```bash
 cp .env.example .env
 make up
+```
+
+`make up` keeps the MCP service in the foreground. In another terminal, verify
+the server is up:
+
+```bash
 curl -fsS http://localhost:3005/healthz
 ```
 
@@ -495,7 +519,18 @@ The compose bootstrap step depends on the Playwright Docker image matching the
 `playwright` npm package version. If either moves, update the other in the same
 change.
 
-Run session flood regression locally (guardrail sanity):
+Optional organization-focused integration stack:
+
+```bash
+make test-org
+```
+
+Use `make up-org`, `make bootstrap-org`, `make down-org`, and `make ps-org` when
+you need to inspect that stack manually.
+
+Run session flood regression locally after a server is already running on
+`http://127.0.0.1:3005` (override with `KEYCHAIN_FLOOD_BASE_URL` and
+`KEYCHAIN_METRICS_URL` when needed):
 
 ```bash
 npm run test:session-regression
@@ -504,16 +539,35 @@ npm run test:session-regression
 ### Local dev (host)
 
 ```bash
-npm install
-cp .env.example .env
+npm ci
+set -a && . ./.env && set +a  # optional; Docker Compose reads .env automatically, host dev does not
 npm run dev
 ```
+
+For host HTTP mode, vault credentials can still be supplied per request with
+`X-BW-*` headers instead of loading them into the server environment.
+
+Useful npm scripts:
+
+| Script | Purpose |
+| --- | --- |
+| `npm run build` | Compile TypeScript to `dist/` |
+| `npm run dev` | Watch-mode local HTTP server |
+| `npm run start` | Run the compiled server from `dist/` |
+| `npm run test` | Build, then run all compiled unit tests |
+| `npm run test:integration` | Build, then run compose-backed integration tests one file at a time |
+| `npm run test:coverage` | Build, then run Node test coverage |
+| `npm run lint` | Run Biome autofix plus `tsc --noEmit` |
+
 
 ## Tool Reference (v1)
 
 ### Choosing the right tool
 
 - Start with `keychain_search_items` when you know a name, URI, username, folder, collection, or item type but not the exact item id. Then call `keychain_get_item` with the returned id for the full item shape.
+- Use `keychain_create_logins` when you need to create several independent login items in one call; it returns per-item results and can continue after individual failures.
+- Use `keychain_set_login_uris` to replace or merge a login item's URI list without editing the whole item payload.
+- Use `keychain_delete_items` for bulk soft-delete/hard-delete by id with per-id results.
 - Personal folder tools manage one user's vault folders, for example `Example Folder`. Organization collection tools manage shared organization-scoped collections, for example `Example Collection`. `organizationId` is required for `keychain_list_org_collections`, `keychain_create_org_collection`, `keychain_edit_org_collection`, and `keychain_delete_org_collection`, and optional only for `keychain_get_org_collection` when you want to narrow a direct id lookup.
 - `keychain_move_item_to_organization` moves an item out of the personal vault and into an organization, optionally assigning collection ids at the same time.
 - `keychain_send_create` is the quick path for text or file Sends through the normal `bw send` flags, including `emails` for email-gated access. `emails` is mutually exclusive with `password` and does not share the generated Send URL for you. `keychain_send_template`, `keychain_send_create_encoded`, and `keychain_send_edit` are for the full Bitwarden Send JSON template or an encoded edit payload.
@@ -524,15 +578,16 @@ Vault/session:
 
 - `keychain_status`
 - `keychain_sync` (pull latest vault data from server via `bw sync`)
-- `keychain_sdk_version` (returns the Bitwarden SDK version used by the CLI)
+- `keychain_sdk_version` (returns the Bitwarden CLI version reported by `bw --version`)
 - `keychain_encode` (base64-encode a string via `bw encode`)
-- `keychain_generate` (returns a generated secret only when `reveal: true`)
+- `keychain_generate`, `keychain_generate_username` (return generated values only when `reveal: true`)
 
 Items:
 
 - `keychain_search_items`, `keychain_get_item`, `keychain_update_item`
-- `keychain_create_login`, `keychain_create_note`, `keychain_create_card`, `keychain_create_identity`, `keychain_create_ssh_key`
-- `keychain_delete_item`, `keychain_restore_item`
+- `keychain_create_login`, `keychain_create_logins`, `keychain_set_login_uris`
+- `keychain_create_note`, `keychain_create_card`, `keychain_create_identity`, `keychain_create_ssh_key`
+- `keychain_delete_item`, `keychain_delete_items`, `keychain_restore_item`
 
 Folders:
 

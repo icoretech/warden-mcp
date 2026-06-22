@@ -22,10 +22,17 @@ async function main(): Promise<void> {
   }
 
   const PORT = Number.parseInt(process.env.PORT ?? '3005', 10);
+  const rawHost = process.env.WARDEN_MCP_HOST?.trim();
+  const host = rawHost && rawHost.length > 0 ? rawHost : undefined;
   const app = createKeychainApp();
-  const server = app.listen(PORT, () => {
-    console.log(`[warden-mcp] listening on http://localhost:${PORT}/sse`);
-  });
+  const server = host
+    ? app.listen(PORT, host, () => {
+        console.log(`[warden-mcp] listening on http://${host}:${PORT}/sse`);
+      })
+    : app.listen(PORT, () => {
+        console.log(`[warden-mcp] listening on http://localhost:${PORT}/sse`);
+      });
+
   await new Promise<void>((resolve, reject) => {
     server.once('close', resolve);
     server.once('error', reject);

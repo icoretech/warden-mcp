@@ -1576,7 +1576,7 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
   test('send_delete', async () => {
     const r = await callToolE2e('send_delete', { id: 's1' });
     assert.equal(r.isError, undefined);
-    assert.equal(textOf(r), 'result: {}');
+    assert.equal(textOf(r), 'Deleted Send id=s1.');
   });
 
   test('send_remove_password', async () => {
@@ -1594,7 +1594,7 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
       password: 'pw',
     });
     assert.equal(r.isError, undefined);
-    assert.equal(textOf(r), 'Created item:\n- id=1 name="Test"');
+    assert.equal(textOf(r), 'Created item:\n- id=1 name="Test" username="u"');
   });
 
   test('create_note', async () => {
@@ -1750,7 +1750,7 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
       ],
     });
     assert.equal(r.isError, undefined);
-    assert.equal(textOf(r), 'Created item:\n- id=1 name="Test"');
+    assert.equal(textOf(r), 'Created item:\n- id=1 name="Test" username="u"');
   });
 
   test('create_logins batch', async () => {
@@ -1763,9 +1763,11 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
     assert.equal(r.isError, undefined);
     assert.equal(
       textOf(r),
-      ['Created 2 login(s):', '- id=1 name="Test"', '- id=1 name="Test"'].join(
-        '\n',
-      ),
+      [
+        'Created 2 login(s):',
+        '- id=1 name="Test" username="u"',
+        '- id=1 name="Test" username="u"',
+      ].join('\n'),
     );
     assert.ok(!textOf(r).includes('batch-secret-a'));
     assert.ok(!textOf(r).includes('batch-secret-b'));

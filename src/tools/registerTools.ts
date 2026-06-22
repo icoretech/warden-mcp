@@ -172,11 +172,24 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     if (typeof rec.id === 'string') parts.push(`id=${rec.id}`);
     if (typeof rec.name === 'string') parts.push(`name=${quoteText(rec.name)}`);
     if (typeof rec.type === 'string') parts.push(`type=${rec.type}`);
-    if (typeof rec.username === 'string') {
-      parts.push(`username=${quoteText(rec.username)}`);
-    }
-    if (Array.isArray(rec.uris) && rec.uris.length > 0) {
-      const uris = rec.uris
+    const login =
+      rec.login && typeof rec.login === 'object'
+        ? (rec.login as Record<string, unknown>)
+        : undefined;
+    const username =
+      typeof rec.username === 'string'
+        ? rec.username
+        : typeof login?.username === 'string'
+          ? login.username
+          : undefined;
+    if (username) parts.push(`username=${quoteText(username)}`);
+    const rawUris = Array.isArray(rec.uris)
+      ? rec.uris
+      : Array.isArray(login?.uris)
+        ? login.uris
+        : [];
+    if (rawUris.length > 0) {
+      const uris = rawUris
         .map((uri) => {
           if (!uri || typeof uri !== 'object') return null;
           const value = (uri as Record<string, unknown>).uri;
@@ -648,9 +661,9 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
   registerTool(
     `${deps.toolPrefix}.sdk_version`,
     {
-      title: 'SDK Version',
+      title: 'CLI Version',
       description:
-        'Return the Bitwarden SDK version reported by the bundled bw CLI. Use this read-only check when diagnosing CLI/runtime compatibility without touching vault data.',
+        'Return the Bitwarden CLI version reported by bw --version. Use this read-only check when diagnosing CLI/runtime compatibility without touching vault data.',
       annotations: { readOnlyHint: true },
       inputSchema: {},
       outputSchema: sdkVersionOutputSchema,
@@ -1951,7 +1964,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Send Delete',
       description:
-        'Delete a Bitwarden Send by id through bw send delete. This is destructive for the Send and its shared content; it does not delete any vault item that may have been used to create it. Returns the bw result payload when available.',
+        'Delete a Bitwarden Send by id through bw send delete. This is destructive for the Send and its shared content; it does not delete any vault item that may have been used to create it. The visible text includes the requested Send id, and structured output includes both that id and the bw result payload when available.',
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
@@ -1966,10 +1979,10 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       if (isReadOnly) return readonlyBlocked();
       const sdk = await deps.getSdk(extra.authInfo);
       const result = await sdk.sendDelete(input);
-      const structuredContent = { result };
+      const structuredContent = { result, id: input.id };
       return {
         structuredContent,
-        content: toolScalarContent(structuredContent, 'result', result),
+        content: idTextContent(structuredContent, 'Deleted Send', input.id),
       };
     },
   );

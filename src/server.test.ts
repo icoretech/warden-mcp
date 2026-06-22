@@ -14,7 +14,7 @@ test('http entrypoint stays alive after startup', {
   const projectRoot = fileURLToPath(new URL('..', import.meta.url));
   const child = spawn(process.execPath, ['dist/server.js'], {
     cwd: projectRoot,
-    env: { ...process.env, PORT: '0' },
+    env: { ...process.env, PORT: '0', WARDEN_MCP_HOST: '' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
@@ -64,6 +64,64 @@ test('http entrypoint stays alive after startup', {
   });
 });
 
+test('http entrypoint can bind an explicit host', {
+  timeout: 10_000,
+}, async () => {
+  const projectRoot = fileURLToPath(new URL('..', import.meta.url));
+  const child = spawn(process.execPath, ['dist/server.js'], {
+    cwd: projectRoot,
+    env: { ...process.env, PORT: '0', WARDEN_MCP_HOST: '127.0.0.1' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => {
+    stdout += chunk;
+  });
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk;
+  });
+
+  await Promise.race([
+    new Promise<void>((resolve) => {
+      const checkReady = () => {
+        if (
+          stdout.includes('[warden-mcp] listening on http://127.0.0.1:0/sse')
+        ) {
+          resolve();
+          return;
+        }
+        setTimeout(checkReady, 25);
+      };
+      checkReady();
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () =>
+          reject(
+            new Error(
+              `server did not report host-bound startup: ${stdout} ${stderr}`,
+            ),
+          ),
+        4_000,
+      ),
+    ),
+  ]);
+
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  assert.equal(child.exitCode, null, `server exited unexpectedly: ${stderr}`);
+  assert.equal(stderr, '');
+
+  child.kill('SIGTERM');
+  await new Promise<void>((resolve, reject) => {
+    child.once('exit', () => resolve());
+    child.once('error', reject);
+  });
+});
+
 test('stdio bin exits cleanly without unsettled top-level await warning', {
   timeout: 10_000,
 }, async () => {
@@ -94,6 +152,8 @@ exit 0
       BW_HOST: 'https://example.test',
       BW_PASSWORD: 'test-password',
       BW_USER: 'user@example.test',
+      HOME: dir,
+      KEYCHAIN_BW_HOME_ROOT: join(dir, 'bw-profiles'),
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -172,6 +232,7 @@ exit 0
       BW_USER: 'user@example.test',
       BW_UNLOCK_INTERVAL: '300',
       HOME: dir,
+      KEYCHAIN_BW_HOME_ROOT: join(dir, 'bw-profiles'),
     },
     stderr: 'pipe',
   });
