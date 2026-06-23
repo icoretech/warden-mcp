@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.28](https://github.com/icoretech/warden-mcp/compare/v0.2.27...v0.2.28) (2026-06-23)
+
+
+### Bug Fixes
+
+* keep playwright image updates npm-sourced ([9a156ed](https://github.com/icoretech/warden-mcp/commit/9a156ed45a13c5424c55f691fcad3487d4526280))
+
 ## [0.2.27](https://github.com/icoretech/warden-mcp/compare/v0.2.26...v0.2.27) (2026-06-22)
 
 
