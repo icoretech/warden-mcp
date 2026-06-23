@@ -24,6 +24,18 @@
       "depNameTemplate": "@biomejs/biome",
       "datasourceTemplate": "npm",
       "versioningTemplate": "npm"
+    },
+    {
+      "customType": "regex",
+      "description": "Track Playwright compose bootstrap images from the npm package version",
+      "managerFilePatterns": ["/^docker-compose(\\.org)?\\.yml$/"],
+      "matchStrings": [
+        "image:\\s+mcr\\.microsoft\\.com/playwright:v(?<currentValue>\\d+\\.\\d+\\.\\d+)-jammy"
+      ],
+      "depNameTemplate": "playwright",
+      "datasourceTemplate": "npm",
+      "versioningTemplate": "npm",
+      "autoReplaceStringTemplate": "image: mcr.microsoft.com/playwright:v{{{newValue}}}-jammy"
     }
   ],
   "packageRules": [
@@ -48,10 +60,17 @@
     },
     {
       "description": "Keep Playwright package and compose image updates together",
-      "matchManagers": ["docker-compose", "npm"],
-      "matchPackageNames": ["playwright", "mcr.microsoft.com/playwright"],
+      "matchManagers": ["custom.regex", "npm"],
+      "matchPackageNames": ["playwright"],
       "groupName": "playwright tooling",
       "groupSlug": "playwright-tooling"
+    },
+    {
+      "description": "Prevent Docker-only Playwright image updates",
+      "matchManagers": ["docker-compose"],
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["mcr.microsoft.com/playwright"],
+      "enabled": false
     },
     {
       "description": "Group GitHub Actions updates",
