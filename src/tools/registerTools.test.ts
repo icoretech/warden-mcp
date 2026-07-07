@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  rm,
+  utimes,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, test } from 'node:test';
@@ -101,6 +108,7 @@ async function closeIgnoringErrors(
   try {
     await closeable.close();
   } catch (error) {
+    if (!(error instanceof Error)) throw error;
     // In-memory transports can already be torn down by the paired close, so
     // cleanup ignores close-order races instead of masking them with an empty catch.
     void label;
@@ -224,6 +232,7 @@ async function startTestServer(envOverrides?: Record<string, string>) {
   await client.connect(transport);
 
   return {
+    bwHomeRoot,
     client,
     async cleanup() {
       await client.close();
@@ -1601,6 +1610,47 @@ describe('registerTools: e2e with fake bw', { concurrency: 1 }, () => {
     const r = await callToolE2e('create_note', { name: 'Test Note' });
     assert.equal(r.isError, undefined);
     assert.equal(textOf(r), 'Created item:\n- id=new-1 name="Created"');
+  });
+
+  test('create_note reclaims a stale process auth lock', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'tools-e2e-'));
+    const fakeBw = await createFakeBwScript(tmpDir);
+    const { bwHomeRoot, client, cleanup } = await startTestServer({
+      BW_BIN: fakeBw,
+      BW_HOST: 'https://bw.test',
+      BW_PASSWORD: 'pw',
+      BW_USER: 'test@test.com',
+    });
+    try {
+      await client.callTool({
+        name: 'keychain_status',
+        arguments: {},
+      });
+      const profiles = await readdir(bwHomeRoot);
+      const profile = profiles[0];
+      if (!profile) throw new Error('Expected a Bitwarden profile directory');
+
+      const lockDir = join(
+        bwHomeRoot,
+        profile,
+        '.bitwarden-cli',
+        '.warden-mcp-auth-lock',
+      );
+      await mkdir(lockDir, { recursive: true });
+      const staleTime = new Date(Date.now() - 120_000);
+      await utimes(lockDir, staleTime, staleTime);
+
+      const r = await client.callTool({
+        name: 'keychain_create_note',
+        arguments: { name: 'Test Note' },
+      });
+
+      assert.equal(r.isError, undefined);
+      assert.equal(textOf(r), 'Created item:\n- id=new-1 name="Created"');
+    } finally {
+      await cleanup();
+      await rm(tmpDir, { recursive: true, force: true });
+    }
   });
 
   test('create_card', async () => {

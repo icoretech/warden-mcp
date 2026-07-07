@@ -1,5 +1,12 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  utimes,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, test } from 'node:test';
@@ -408,6 +415,72 @@ printf '{}'; exit 0
         () => manager.withSession(async (s) => s),
         /empty session/,
       );
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('withSession: reclaims abandoned process auth lock with dead owner', {
+    timeout: 1_000,
+  }, async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const appDataDir = join(dir, '.bitwarden-cli');
+      const lockDir = join(appDataDir, '.warden-mcp-auth-lock');
+      await mkdir(lockDir, { recursive: true });
+      await writeFile(
+        join(lockDir, 'owner.json'),
+        JSON.stringify({
+          pid: 99_999_999,
+          createdAt: new Date(Date.now() - 120_000).toISOString(),
+        }),
+      );
+
+      const fakeBw = await createFakeBw(dir, {
+        responses: {
+          'config server': '',
+          unlock: 'recovered-session-token',
+          login: '',
+        },
+      });
+      process.env.BW_BIN = fakeBw;
+
+      const manager = new BwSessionManager(makeEnv(dir));
+      const session = await manager.withSession(async (s) => s);
+
+      assert.equal(session, 'recovered-session-token');
+    } finally {
+      process.env.BW_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('withSession: reclaims legacy stale process auth lock without owner', {
+    timeout: 1_000,
+  }, async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bw-session-test-'));
+    const savedBin = process.env.BW_BIN;
+    try {
+      const lockDir = join(dir, '.bitwarden-cli', '.warden-mcp-auth-lock');
+      await mkdir(lockDir, { recursive: true });
+      const staleTime = new Date(Date.now() - 120_000);
+      await utimes(lockDir, staleTime, staleTime);
+
+      const fakeBw = await createFakeBw(dir, {
+        responses: {
+          'config server': '',
+          unlock: 'legacy-recovered-session-token',
+          login: '',
+        },
+      });
+      process.env.BW_BIN = fakeBw;
+
+      const manager = new BwSessionManager(makeEnv(dir));
+      const session = await manager.withSession(async (s) => s);
+
+      assert.equal(session, 'legacy-recovered-session-token');
     } finally {
       process.env.BW_BIN = savedBin;
       await rm(dir, { recursive: true, force: true });

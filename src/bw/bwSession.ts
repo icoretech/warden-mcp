@@ -1,6 +1,6 @@
 // src/bw/bwSession.ts
 
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { BwRunOptions, BwRunResult } from './bwCli.js';
 import { isBwAuthSessionInvalidError, runBw } from './bwCli.js';
@@ -10,6 +10,7 @@ const POST_LOGIN_UNLOCK_RETRY_ATTEMPTS = 20;
 const POST_LOGIN_UNLOCK_RETRY_DELAY_MS = 2_000;
 const PROCESS_LOCK_WAIT_MS = 100;
 const PROCESS_LOCK_TIMEOUT_MS = 90_000;
+const PROCESS_LOCK_OWNER_FILE = 'owner.json';
 
 interface StoredSessionState {
   version: 1;
@@ -20,8 +21,44 @@ interface StoredSessionState {
   validatedAt: string;
 }
 
+interface ProcessLockOwner {
+  pid: number;
+  createdAt: string;
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isProcessLockOwner(value: unknown): value is ProcessLockOwner {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'pid' in value &&
+    'createdAt' in value &&
+    typeof value.pid === 'number' &&
+    Number.isInteger(value.pid) &&
+    typeof value.createdAt === 'string'
+  );
+}
+
+function isProcessAlive(pid: number): boolean {
+  if (pid <= 0) return false;
+
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if (!(error instanceof Error)) throw error;
+    return errorCode(error) !== 'ESRCH';
+  }
+}
+
+function errorCode(error: unknown): unknown {
+  if (typeof error !== 'object' || error === null || !('code' in error)) {
+    return undefined;
+  }
+  return error.code;
 }
 
 export interface BwEnv {
@@ -138,7 +175,8 @@ export class BwSessionManager {
       void this.lock.runExclusive(async () => {
         try {
           await this.ensureUnlockedInternal();
-        } catch {
+        } catch (error) {
+          if (!(error instanceof Error)) throw error;
           // Keepalive is best-effort; tools will surface failures.
         }
       });
@@ -299,7 +337,8 @@ export class BwSessionManager {
       if (typeof base === 'string' && base.length > 0) {
         return base;
       }
-    } catch {
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
       // Fall back to the CLI if local state is absent or unreadable.
     }
 
@@ -510,10 +549,16 @@ export class BwSessionManager {
     while (true) {
       try {
         await mkdir(this.processLockDir);
+        try {
+          await this.writeProcessLockOwner();
+        } catch (error) {
+          await rm(this.processLockDir, { recursive: true, force: true });
+          throw error;
+        }
         break;
       } catch (error) {
-        const err = error as NodeJS.ErrnoException;
-        if (err?.code !== 'EEXIST') throw error;
+        if (errorCode(error) !== 'EEXIST') throw error;
+        if (await this.reclaimProcessAuthLockIfStale()) continue;
         if (Date.now() - startedAt >= PROCESS_LOCK_TIMEOUT_MS) {
           throw new Error(
             `Timed out waiting for process auth lock after ${PROCESS_LOCK_TIMEOUT_MS}ms`,
@@ -530,6 +575,43 @@ export class BwSessionManager {
         () => {},
       );
     }
+  }
+
+  private async writeProcessLockOwner(): Promise<void> {
+    const owner: ProcessLockOwner = {
+      pid: process.pid,
+      createdAt: new Date().toISOString(),
+    };
+    await writeFile(
+      join(this.processLockDir, PROCESS_LOCK_OWNER_FILE),
+      JSON.stringify(owner),
+      'utf8',
+    );
+  }
+
+  private async reclaimProcessAuthLockIfStale(): Promise<boolean> {
+    const ownerPath = join(this.processLockDir, PROCESS_LOCK_OWNER_FILE);
+    try {
+      const parsed = JSON.parse(await readFile(ownerPath, 'utf8'));
+      if (isProcessLockOwner(parsed) && !isProcessAlive(parsed.pid)) {
+        await rm(this.processLockDir, { recursive: true, force: true });
+        return true;
+      }
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) {
+        if (errorCode(error) !== 'ENOENT') throw error;
+      }
+    }
+
+    const lockStats = await stat(this.processLockDir).catch(() => null);
+    if (
+      lockStats &&
+      Date.now() - lockStats.mtimeMs >= PROCESS_LOCK_TIMEOUT_MS
+    ) {
+      await rm(this.processLockDir, { recursive: true, force: true });
+      return true;
+    }
+    return false;
   }
 
   private async ensureServerConfigured(): Promise<void> {
@@ -553,7 +635,8 @@ export class BwSessionManager {
       });
       this.configuredHost = this.env.host;
       return;
-    } catch {
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
       // If the CLI data is corrupt/out-of-sync, wiping config is the fastest recovery.
     }
     await this.resetCliProfile();
