@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.29](https://github.com/icoretech/warden-mcp/compare/v0.2.28...v0.2.29) (2026-07-07)
+
+
+### Bug Fixes
+
+* reclaim stale auth locks ([71cd4a4](https://github.com/icoretech/warden-mcp/commit/71cd4a498636e0cebdbcab13ba24b75eaab46622))
+
 ## [0.2.28](https://github.com/icoretech/warden-mcp/compare/v0.2.27...v0.2.28) (2026-06-23)
 
 
