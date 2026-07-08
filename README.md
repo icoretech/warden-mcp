@@ -1,6 +1,6 @@
 # warden-mcp
 
-**Vaultwarden MCP server for credential-aware AI agents.**
+**Vaultwarden / Bitwarden MCP server for credential-aware AI agents.**
 
 [![npm version](https://img.shields.io/npm/v/%40icoretech%2Fwarden-mcp?logo=npm)](https://www.npmjs.com/package/@icoretech/warden-mcp)
 [![CI](https://img.shields.io/github/actions/workflow/status/icoretech/warden-mcp/ci.yml?branch=main&label=ci)](https://github.com/icoretech/warden-mcp/actions/workflows/ci.yml)
