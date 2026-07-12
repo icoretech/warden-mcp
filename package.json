@@ -61,7 +61,7 @@
     "@types/node": "^25.9.5",
     "playwright": "1.61.1",
     "tsx": "^4.23.0",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org",
