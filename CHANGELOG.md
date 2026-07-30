@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.30](https://github.com/icoretech/warden-mcp/compare/v0.2.29...v0.2.30) (2026-07-30)
+
+
+### Bug Fixes
+
+* **deps:** update dependency @modelcontextprotocol/sdk to ^1.30.0 ([#133](https://github.com/icoretech/warden-mcp/issues/133)) ([2503c7e](https://github.com/icoretech/warden-mcp/commit/2503c7ef0f1b4f5a8d93de76a5ed20bc315ad374))
+
 ## [0.2.29](https://github.com/icoretech/warden-mcp/compare/v0.2.28...v0.2.29) (2026-07-07)
 
 
