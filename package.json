@@ -60,7 +60,7 @@
     "@types/express": "^5.0.6",
     "@types/node": "^26.1.2",
     "playwright": "1.62.1",
-    "tsx": "^4.23.4",
+    "tsx": "^4.23.5",
     "typescript": "^7.0.2"
   },
   "publishConfig": {
