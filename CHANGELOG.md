@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.31](https://github.com/icoretech/warden-mcp/compare/v0.2.30...v0.2.31) (2026-08-16)
+
+
+### Bug Fixes
+
+* **deps:** install Bitwarden CLI as a required dependency ([51ce0d9](https://github.com/icoretech/warden-mcp/commit/51ce0d941d388d785cad2ed0357e883aa7416cb8))
+
 ## [0.2.30](https://github.com/icoretech/warden-mcp/compare/v0.2.29...v0.2.30) (2026-07-30)
 
 
