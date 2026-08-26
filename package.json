@@ -44,7 +44,7 @@
     "lint": "biome check --write --assist-enabled=true . && tsc --noEmit"
   },
   "dependencies": {
-    "@bitwarden/cli": "2026.7.0",
+    "@bitwarden/cli": "2026.8.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "express": "^5.2.1",
     "zod": "^4.4.3"
