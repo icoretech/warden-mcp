@@ -47,7 +47,7 @@
     "@bitwarden/cli": "2026.7.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "express": "^5.2.1",
-    "zod": "^4.4.3"
+    "zod": "^4.5.1"
   },
   "overrides": {
     "form-data": "4.0.6",
