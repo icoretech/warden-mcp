@@ -45,10 +45,29 @@ function buildCompatBlock(indent) {
 const strategyMethodRegex =
   /(setAccountCryptographicState\(response, userId\) \{\n\s+return [^\n]+\(\s*this, void 0, void 0, function\* \(\) \{\n)(\s*)yield this\.accountCryptographicStateService\.setAccountCryptographicState\(response\.accountKeysResponseModel\.toWrappedAccountCryptographicState\(\), userId\);\n(\s*\}\);\n\s*\})/g;
 
+const guardedStateRegex =
+  /(^[ \t]*)if \(response\.accountKeysResponseModel\) \{\n[ \t]+yield this\.accountCryptographicStateService\.setAccountCryptographicState\(response\.accountKeysResponseModel\.toWrappedAccountCryptographicState\(\), userId\);\n\1\}/gm;
+
 export function patchBundledBwSource(source) {
   let replacements = 0;
 
-  const patchedSource = source.replace(
+  const guardedSource = source.replace(
+    guardedStateRegex,
+    (match, indent, offset, originalSource) => {
+      if (
+        originalSource
+          .slice(0, offset)
+          .endsWith(`${indent}/* ${compatMarker} */\n`)
+      ) {
+        return match;
+      }
+
+      replacements += 1;
+      return buildCompatBlock(indent);
+    },
+  );
+
+  const patchedSource = guardedSource.replace(
     strategyMethodRegex,
     (_match, prefix, indent, suffix) => {
       replacements += 1;

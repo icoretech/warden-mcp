@@ -134,7 +134,7 @@ test('expires idle sessions after ttl', async () => {
   const app = createKeychainApp({
     bwHomeRoot,
     sessionMaxCount: 128,
-    sessionTtlMs: 25,
+    sessionTtlMs: 500,
     sessionSweepIntervalMs: 60_000,
   });
   const httpServer = app.listen(0, '127.0.0.1');
@@ -154,7 +154,7 @@ test('expires idle sessions after ttl', async () => {
     const immediate = await initializeOverSse(baseUrl, initial.sessionId ?? '');
     assert.equal(immediate.status, 400);
 
-    await new Promise((resolve) => setTimeout(resolve, 60));
+    await new Promise((resolve) => setTimeout(resolve, 650));
     const afterTtl = await initializeOverSse(baseUrl, initial.sessionId ?? '');
     assert.equal(afterTtl.status, 200);
   } finally {
@@ -168,7 +168,7 @@ test('metricsz reports session counters and ttl evictions', async () => {
   const app = createKeychainApp({
     bwHomeRoot,
     sessionMaxCount: 1,
-    sessionTtlMs: 20,
+    sessionTtlMs: 500,
     sessionSweepIntervalMs: 10,
   });
   const httpServer = app.listen(0, '127.0.0.1');
@@ -186,7 +186,7 @@ test('metricsz reports session counters and ttl evictions', async () => {
     assert.equal(first.status, 200);
     assert.equal(second.status, 429);
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 650));
     const retry = await initializeOverSse(baseUrl, first.sessionId ?? '');
     assert.equal(retry.status, 200);
 
