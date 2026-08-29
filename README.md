@@ -5,7 +5,7 @@
 [![npm version](https://img.shields.io/npm/v/%40icoretech%2Fwarden-mcp?logo=npm)](https://www.npmjs.com/package/@icoretech/warden-mcp)
 [![CI](https://img.shields.io/github/actions/workflow/status/icoretech/warden-mcp/ci.yml?branch=main&label=ci)](https://github.com/icoretech/warden-mcp/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/icoretech/warden-mcp)](LICENSE)
-[![node](https://img.shields.io/badge/node-%3E%3D24-339933?logo=node.js)](package.json)
+[![node](https://img.shields.io/badge/node-22.x-339933?logo=node.js)](package.json)
 [![docker](https://img.shields.io/badge/ghcr.io-icoretech%2Fwarden--mcp-blue?logo=docker)](https://ghcr.io/icoretech/warden-mcp)
 
 `warden-mcp` lets MCP clients search, create, update, move, and read
@@ -25,8 +25,8 @@ simplest and most portable setup for desktop agents.
 
 Prerequisites:
 
-- Node.js 24+
-- npm
+- Node.js 22.x
+- npm 10.x
 - a Vaultwarden or Bitwarden account
 - either a Bitwarden API key pair or username/password login
 
@@ -242,24 +242,24 @@ default. If you use a bind mount, make it writable by uid/gid `1000`.
 
 ## Runtime Requirements
 
-`warden-mcp` requires Node.js 24+ when running from npm or source. The Docker
-image includes the supported Node runtime.
+`warden-mcp` requires Node.js 22.x and npm 10.x when running from npm or source.
+The Docker image includes the supported Node runtime.
 
 The server resolves `bw` in this order:
 
 1. `BW_BIN`, when set
-2. bundled `@bitwarden/cli` optional dependency, when installed
+2. bundled `@bitwarden/cli` dependency
 3. system `bw` from `PATH`
 
-The bundled `@bitwarden/cli` version is currently `2026.6.0`. This project keeps
+The bundled `@bitwarden/cli` version is currently `2026.8.0`. This project keeps
 that version vetted instead of blindly tracking every upstream release, because
 auth and unlock behavior can change in ways that break automation.
 
-If your package manager skips optional dependencies and `bw` is missing, install
-the CLI explicitly or point `BW_BIN` to a known binary:
+If `bw` is missing, install the CLI explicitly or point `BW_BIN` to a known
+binary:
 
 ```bash
-npm install -g @bitwarden/cli@2026.6.0
+npm install -g @bitwarden/cli@2026.8.0
 BW_BIN=/absolute/path/to/bw npx -y @icoretech/warden-mcp@latest --stdio
 ```
 

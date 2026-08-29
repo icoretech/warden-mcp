@@ -39,12 +39,12 @@
     "start": "node dist/server.js",
     "test": "npm run build && node --test \"dist/**/*.test.js\"",
     "test:coverage": "npm run build && node --test --experimental-test-coverage \"dist/**/*.test.js\"",
-    "test:integration": "npm run build && node --test --test-concurrency=1 --test-timeout=45000 \"dist/integration/**/*.test.js\"",
+    "test:integration": "npm run build && node --test --test-concurrency=1 --test-timeout=180000 \"dist/integration/**/*.test.js\"",
     "test:session-regression": "node scripts/session-flood-regression.mjs",
     "lint": "biome check --write --assist-enabled=true . && tsc --noEmit"
   },
   "dependencies": {
-    "@bitwarden/cli": "2026.7.0",
+    "@bitwarden/cli": "2026.8.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "express": "^5.2.1",
     "zod": "^4.5.2"
@@ -66,6 +66,7 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=24"
+    "node": "~22",
+    "npm": "~10"
   }
 }

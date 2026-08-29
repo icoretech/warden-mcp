@@ -517,6 +517,7 @@ async function main() {
         .first()
         .waitFor({ state: 'visible' })
         .catch(() => {}),
+      page.waitForURL(/#\/login\b/).catch(() => {}),
       page.waitForTimeout(timeoutMs),
     ]);
 
@@ -524,7 +525,10 @@ async function main() {
       .locator('body')
       .innerText()
       .catch(() => '');
-    if (
+    if (/#\/login\b/.test(page.url())) {
+      console.log('[bootstrap] existing-account login redirect, continuing');
+      userAlreadyExists = true;
+    } else if (
       /already (in use|exists)|email.*taken|account.*exists/i.test(
         step1BodyText,
       )
