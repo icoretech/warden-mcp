@@ -526,9 +526,7 @@ async function main() {
       .innerText()
       .catch(() => '');
     if (/#\/login\b/.test(page.url())) {
-      console.log(
-        '[bootstrap] existing-account login redirect, continuing',
-      );
+      console.log('[bootstrap] existing-account login redirect, continuing');
       userAlreadyExists = true;
     } else if (
       /already (in use|exists)|email.*taken|account.*exists/i.test(
