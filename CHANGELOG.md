@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.34](https://github.com/icoretech/warden-mcp/compare/v0.2.33...v0.2.34) (2026-08-29)
+
+
+### Bug Fixes
+
+* port Bitwarden CLI 2026.8.0 compatibility to main ([7ea6e2a](https://github.com/icoretech/warden-mcp/commit/7ea6e2a270f9844767cc4b15d1d00c21e83df850))
+
 ## [0.2.33](https://github.com/icoretech/warden-mcp/compare/v0.2.32...v0.2.33) (2026-08-29)
 
 
