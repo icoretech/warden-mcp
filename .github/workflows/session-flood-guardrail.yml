@@ -18,7 +18,7 @@ jobs:
       - name: setup node
         uses: actions/setup-node@v7
         with:
-          node-version: "22.23.2"
+          node-version: "24.20.0"
           cache: "npm"
 
       - name: install deps
