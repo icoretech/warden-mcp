@@ -1,6 +1,7 @@
 // src/bw/bwCli.ts
 
 import { spawn } from 'node:child_process';
+import { renderSafeBwCommand } from './bwCommandDisplay.js';
 import { resolveBundledBwBin } from './resolveBwBin.js';
 
 export interface BwRunOptions {
@@ -16,31 +17,46 @@ export interface BwRunResult {
   stderr: string;
 }
 
-const SENSITIVE_ARG_FLAGS = new Set([
-  '--apikey',
-  '--clientsecret',
-  '--emails',
-  '--password',
-  '--passwordenv',
-  '--passwordfile',
-  '--session',
-]);
+type BwCliDiagnosticCode = 'VAULTWARDEN_POLICY_REVISION_DATE';
 
 export class BwCliError extends Error {
   readonly exitCode: number;
   readonly stdout: string;
   readonly stderr: string;
+  readonly diagnosticCode: BwCliDiagnosticCode | null;
 
   constructor(
     message: string,
-    opts: { exitCode: number; stdout: string; stderr: string },
+    opts: {
+      exitCode: number;
+      stdout: string;
+      stderr: string;
+      diagnosticCode?: BwCliDiagnosticCode;
+    },
   ) {
     super(message);
     this.name = 'BwCliError';
     this.exitCode = opts.exitCode;
     this.stdout = opts.stdout;
     this.stderr = opts.stderr;
+    Object.defineProperties(this, {
+      stdout: { enumerable: false },
+      stderr: { enumerable: false },
+    });
+    this.diagnosticCode = opts.diagnosticCode ?? null;
   }
+}
+
+function diagnoseBwCliFailure(stderr: string): BwCliDiagnosticCode | null {
+  if (
+    stderr.includes(
+      'Error getting vault timeout: RangeError: Invalid time value',
+    ) &&
+    stderr.includes('no elements in sequence')
+  ) {
+    return 'VAULTWARDEN_POLICY_REVISION_DATE';
+  }
+  return null;
 }
 
 export function isBwAuthSessionInvalidError(error: unknown): boolean {
@@ -98,33 +114,8 @@ export async function runBw(
     (process.env.KEYCHAIN_DEBUG_BW ?? 'false').toLowerCase() === 'true';
   const startedAt = Date.now();
 
-  function safeArg(a: string | undefined): string {
-    if (typeof a !== 'string') return '<redacted>';
-    // Avoid logging encoded JSON blobs (may contain secrets).
-    if (a.length > 80) return '<redacted>';
-    return a;
-  }
-
-  function safeRenderedArgs(argv: string[]): string {
-    const out: string[] = [];
-    for (let i = 0; i < argv.length; i++) {
-      const a = argv[i];
-      if (typeof a === 'string' && SENSITIVE_ARG_FLAGS.has(a)) {
-        out.push(a);
-        if (i + 1 < argv.length) {
-          out.push('<redacted>');
-          i++;
-        }
-        continue;
-      }
-      out.push(safeArg(a));
-    }
-    return out.join(' ');
-  }
-
   if (debug) {
-    const rendered = safeRenderedArgs(finalArgs);
-    console.log(`[bw] start: ${bwBin} ${rendered}`);
+    console.log(`[bw] start: ${renderSafeBwCommand(bwBin, finalArgs)}`);
   }
 
   const detached = process.platform !== 'win32';
@@ -152,14 +143,16 @@ export async function runBw(
       try {
         process.kill(-child.pid, 'SIGKILL');
         return;
-      } catch {
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
         // Fallback to direct child kill below.
       }
     }
 
     try {
       child.kill('SIGKILL');
-    } catch {
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
       // ignore
     }
   };
@@ -185,7 +178,7 @@ export async function runBw(
 
     child.on('error', (error: NodeJS.ErrnoException) => {
       settle(() => {
-        const safeCmd = `${bwBin} ${safeRenderedArgs(finalArgs)}`;
+        const safeCmd = renderSafeBwCommand(bwBin, finalArgs);
         if (error.code === 'ENOENT') {
           reject(
             new Error(
@@ -208,13 +201,21 @@ export async function runBw(
               `[bw] fail: exit=${exitCode} ms=${Date.now() - startedAt}`,
             );
           }
-          const safeCmd = `${bwBin} ${safeRenderedArgs(finalArgs)}`;
+          const safeCmd = renderSafeBwCommand(bwBin, finalArgs);
+          const diagnosticCode = diagnoseBwCliFailure(stderr);
+          const diagnostic = diagnosticCode
+            ? ` [${diagnosticCode}: Vaultwarden policy data is missing revisionDate]`
+            : '';
           reject(
-            new BwCliError(`${safeCmd} failed with exit code ${exitCode}`, {
-              exitCode,
-              stdout,
-              stderr,
-            }),
+            new BwCliError(
+              `${safeCmd} failed with exit code ${exitCode}${diagnostic}`,
+              {
+                exitCode,
+                stdout,
+                stderr,
+                ...(diagnosticCode ? { diagnosticCode } : {}),
+              },
+            ),
           );
           return;
         }
