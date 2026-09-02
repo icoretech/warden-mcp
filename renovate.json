@@ -85,9 +85,20 @@
       "automergeType": "pr"
     },
     {
-      "description": "Ignore Node.js engine constraint — library supports any Node >=24",
-      "matchDepNames": ["node"],
-      "enabled": false
+      "description": "Keep the Node.js engine on the Bitwarden CLI-supported major",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["engines"],
+      "matchPackageNames": ["node"],
+      "allowedVersions": ">=22 <23",
+      "automerge": false
+    },
+    {
+      "description": "Keep the npm engine on the Node.js 22-compatible release line",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["engines"],
+      "matchPackageNames": ["npm"],
+      "allowedVersions": ">=10.9.9 <10.10.0",
+      "automerge": false
     }
   ]
 }
