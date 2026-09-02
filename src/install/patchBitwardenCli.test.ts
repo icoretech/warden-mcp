@@ -1,5 +1,13 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -17,12 +25,26 @@ const unpatchedMethod = (
     }
 `;
 
+const policyConstructor = `class Policy extends Domain {
+    constructor(obj) {
+        super();
+        if (obj == null) {
+            return;
+        }
+        this.revisionDate = new Date(obj.revisionDate);
+    }
+    static fromResponse(response) {
+        return new Policy(response);
+    }
+}
+`;
+
 const sampleBwSource = `${unpatchedMethod('auth_request_login_strategy_awaiter')}
 ${unpatchedMethod('password_login_strategy_awaiter')}
 yield this.accountCryptographicStateService.setAccountCryptographicState(tokenResponse.accountKeysResponseModel.toWrappedAccountCryptographicState(), userId);
 ${unpatchedMethod('user_api_login_strategy_awaiter')}
 ${unpatchedMethod('webauthn_login_strategy_awaiter')}
-`;
+${policyConstructor}`;
 
 const guardedMethod = `    setAccountCryptographicState(response, userId) {
         return login_strategy_awaiter(this, void 0, void 0, function* () {
@@ -34,9 +56,9 @@ const guardedMethod = `    setAccountCryptographicState(response, userId) {
             }
         });
     }
-`;
+${policyConstructor}`;
 
-function removeCompatFallback(source: string): string {
+function removeCompatPatches(source: string): string {
   const marker = '/* icoretech-vaultwarden-compat */';
   const markerIndex = source.indexOf(marker);
   assert.notEqual(markerIndex, -1, 'installed bundle must be patched');
@@ -58,7 +80,12 @@ function removeCompatFallback(source: string): string {
   assert.ok(blockEnd > fallbackStart, 'login strategy must have a close');
 
   const guardedState = source.slice(guardedStart, fallbackStart);
-  return source.slice(0, blockStart) + guardedState + source.slice(blockEnd);
+  const loginUnpatched =
+    source.slice(0, blockStart) + guardedState + source.slice(blockEnd);
+  return loginUnpatched.replace(
+    /\s*\/\* icoretech-vaultwarden-policy-revision-date-compat \*\/\n\s*this\.revisionDate = obj\.revisionDate == null\n\s*\? undefined\n\s*: new Date\(obj\.revisionDate\);/,
+    '\n        this.revisionDate = new Date(obj.revisionDate);',
+  );
 }
 
 async function loadPatchLibModule() {
@@ -72,7 +99,7 @@ test('patchBundledBwSource patches the four login strategies and leaves tokenRes
   const { patchBundledBwSource } = await loadPatchLibModule();
   const result = patchBundledBwSource(sampleBwSource);
 
-  assert.equal(result.replacements, 4);
+  assert.equal(result.replacements, 5);
   assert.match(result.source, /icoretech-vaultwarden-compat/);
   assert.match(
     result.source,
@@ -97,7 +124,7 @@ test('patchBundledBwSource patches the guarded login strategy shape', async () =
   const { patchBundledBwSource } = await loadPatchLibModule();
   const result = patchBundledBwSource(guardedMethod);
 
-  assert.equal(result.replacements, 1);
+  assert.equal(result.replacements, 2);
   assert.match(result.source, /icoretech-vaultwarden-compat/);
   assert.match(
     result.source,
@@ -111,10 +138,10 @@ test('patchBundledBwSource reconstructs the installed Bitwarden CLI bundle', asy
   const cliPackageJsonPath = require.resolve('@bitwarden/cli/package.json');
   const bundlePath = join(dirname(cliPackageJsonPath), 'build', 'bw.js');
   const patchedSource = readFileSync(bundlePath, 'utf8');
-  const unpatchedSource = removeCompatFallback(patchedSource);
+  const unpatchedSource = removeCompatPatches(patchedSource);
   const result = patchBundledBwSource(unpatchedSource);
 
-  assert.equal(result.replacements, 1);
+  assert.equal(result.replacements, 2);
   assert.equal(result.source, patchedSource);
   const secondPass = patchBundledBwSource(result.source);
 
@@ -168,6 +195,7 @@ test('applyBundledBwPatch rewrites build/bw.js in place', async () => {
   mkdirSync(packageDir, { recursive: true });
   writeFileSync(cliPackageJsonPath, '{}');
   writeFileSync(cliBundlePath, sampleBwSource);
+  chmodSync(cliBundlePath, 0o755);
 
   const { applyBundledBwPatch } = await loadPatchLibModule();
   const status = applyBundledBwPatch({
@@ -181,8 +209,15 @@ test('applyBundledBwPatch rewrites build/bw.js in place', async () => {
   });
 
   assert.equal(status, 0);
+  const patchedSource = readFileSync(cliBundlePath, 'utf8');
+  assert.match(patchedSource, /icoretech-vaultwarden-compat/);
   assert.match(
-    readFileSync(cliBundlePath, 'utf8'),
-    /icoretech-vaultwarden-compat/,
+    patchedSource,
+    /icoretech-vaultwarden-policy-revision-date-compat/,
+  );
+  assert.equal(statSync(cliBundlePath).mode & 0o777, 0o755);
+  assert.deepEqual(
+    readdirSync(dirname(cliBundlePath)).filter((name) => name.endsWith('.tmp')),
+    [],
   );
 });
