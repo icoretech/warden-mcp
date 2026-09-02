@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.36](https://github.com/icoretech/warden-mcp/compare/v0.2.35...v0.2.36) (2026-09-02)
+
+
+### Bug Fixes
+
+* preserve shared Bitwarden sessions across processes ([19ff194](https://github.com/icoretech/warden-mcp/commit/19ff194893d7f88b174b6e40c4f7ced2b35ee612))
+* redact Bitwarden CLI failure details ([f48eb9b](https://github.com/icoretech/warden-mcp/commit/f48eb9b7be028c845fcad97d0cca51a4a656a518))
+* support Vaultwarden policies without revision dates ([342c77f](https://github.com/icoretech/warden-mcp/commit/342c77fbdc92efa72c562263f00a14f148adbc8d))
+
 ## [0.2.35](https://github.com/icoretech/warden-mcp/compare/v0.2.34...v0.2.35) (2026-08-30)
 
 
