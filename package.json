@@ -56,7 +56,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.11",
     "@types/express": "^5.0.6",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.4.1",
     "playwright": "1.62.1",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2"
