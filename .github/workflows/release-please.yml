@@ -126,7 +126,7 @@ jobs:
         with:
           # npm trusted publishing requires npm 11.5+, while the app remains
           # on Node 22 because the Bitwarden CLI supports Node 22 only
-          node-version: 24.20.0
+          node-version: 24.21.0
           cache: npm
           registry-url: https://registry.npmjs.org
 
