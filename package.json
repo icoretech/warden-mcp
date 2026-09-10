@@ -54,7 +54,7 @@
     "tmp": "0.2.7"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.12",
+    "@biomejs/biome": "^2.5.13",
     "@types/express": "^5.0.6",
     "@types/node": "^26.5.1",
     "playwright": "1.63.0",
