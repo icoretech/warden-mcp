@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.38](https://github.com/icoretech/warden-mcp/compare/v0.2.37...v0.2.38) (2026-09-11)
+
+
+### Bug Fixes
+
+* **deps:** update dependency zod to ^4.6.2 ([#178](https://github.com/icoretech/warden-mcp/issues/178)) ([11af473](https://github.com/icoretech/warden-mcp/commit/11af473c14b6fb89c3945ad69b3cb8fe010ae575))
+
 ## [0.2.37](https://github.com/icoretech/warden-mcp/compare/v0.2.36...v0.2.37) (2026-09-10)
 
 
