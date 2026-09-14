@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.41](https://github.com/icoretech/warden-mcp/compare/v0.2.40...v0.2.41) (2026-09-14)
+
+
+### Bug Fixes
+
+* **release:** publish Vaultwarden image upgrades ([16a83e7](https://github.com/icoretech/warden-mcp/commit/16a83e7359ef5ad980e31e3509ecc9828a9c6a5b))
+
 ## [0.2.40](https://github.com/icoretech/warden-mcp/compare/v0.2.39...v0.2.40) (2026-09-14)
 
 
