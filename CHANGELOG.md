@@ -7,6 +7,8 @@
 
 * **deps:** update dependency zod to ^4.6.5 ([#183](https://github.com/icoretech/warden-mcp/issues/183)) ([e87fbcc](https://github.com/icoretech/warden-mcp/commit/e87fbcc7e20502117040dc73f69cac9c38fcb68c))
 
+* **deps:** update vaultwarden/server docker tag to v1.37.3 ([#182](https://github.com/icoretech/warden-mcp/issues/182)) ([66fe11d](https://github.com/icoretech/warden-mcp/commit/66fe11d943641128907169a7d8730c9867e44076))
+
 ## [0.2.39](https://github.com/icoretech/warden-mcp/compare/v0.2.38...v0.2.39) (2026-09-13)
 
 

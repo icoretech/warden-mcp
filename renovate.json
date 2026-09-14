@@ -66,6 +66,17 @@
       "groupSlug": "playwright-tooling"
     },
     {
+      "description": "Make Vaultwarden server image updates releasable",
+      "matchManagers": ["docker-compose"],
+      "matchPackageNames": ["vaultwarden/server"],
+      "semanticCommits": "enabled",
+      "semanticCommitType": "fix",
+      "commitMessagePrefix": "fix(deps):",
+      "commitMessageAction": "update",
+      "commitMessageTopic": "vaultwarden/server docker tag",
+      "commitMessageExtra": "to {{prettyNewVersion}}"
+    },
+    {
       "description": "Prevent Docker-only Playwright image updates",
       "matchManagers": ["docker-compose"],
       "matchDatasources": ["docker"],
