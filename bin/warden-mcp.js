@@ -4,7 +4,7 @@
 
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -16,7 +16,7 @@ async function main() {
     );
     process.exit(1);
   }
-  const { prepareBwStartup } = await import(startupPath);
+  const { prepareBwStartup } = await import(pathToFileURL(startupPath).href);
   prepareBwStartup(process.env);
 
   // Delegate to the compiled server entry, forwarding all arguments.
@@ -28,7 +28,7 @@ async function main() {
     process.exit(1);
   }
 
-  await import(serverPath);
+  await import(pathToFileURL(serverPath).href);
 }
 
 void main().catch((error) => {
