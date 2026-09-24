@@ -15,13 +15,13 @@ function readText(path: string) {
 
 function extractPlaywrightImageVersion(path: string) {
   const match = readText(path).match(
-    /image:\s*mcr\.microsoft\.com\/playwright:v([^\s]+)-jammy/,
+    /FROM\s+mcr\.microsoft\.com\/playwright:v([^\s]+)-jammy/,
   );
   assert.ok(match, `missing Playwright image tag in ${path}`);
   return match[1];
 }
 
-test('renovate tracks playwright compose images from the npm package', () => {
+test('renovate tracks the playwright bootstrap image from the npm package', () => {
   const renovate = readJson('renovate.json');
   const enabledManagers = renovate.enabledManagers;
   const customManagers = renovate.customManagers;
@@ -43,7 +43,7 @@ test('renovate tracks playwright compose images from the npm package', () => {
     if (!manager || typeof manager !== 'object') return false;
     return (
       (manager as { description?: unknown }).description ===
-      'Track Playwright compose bootstrap images from the npm package version'
+      'Track the Playwright bootstrap image from the npm package version'
     );
   }) as Record<string, unknown> | undefined;
 
@@ -53,23 +53,22 @@ test('renovate tracks playwright compose images from the npm package', () => {
   assert.equal(playwrightManager.versioningTemplate, 'npm');
   assert.equal(
     playwrightManager.autoReplaceStringTemplate,
-    'image: mcr.microsoft.com/playwright:v{{{newValue}}}-jammy',
+    'FROM mcr.microsoft.com/playwright:v{{{newValue}}}-jammy',
   );
   assert.deepEqual(playwrightManager.managerFilePatterns, [
-    '/^docker-compose(\\.org)?\\.yml$/',
+    '/^Dockerfile\\.bootstrap$/',
   ]);
 
   const matchStrings = playwrightManager.matchStrings;
   assert.ok(Array.isArray(matchStrings), 'Playwright manager needs a regex');
   const imagePattern = new RegExp(matchStrings[0]);
-  for (const path of ['docker-compose.yml', 'docker-compose.org.yml']) {
-    const match = readText(path).match(imagePattern);
-    assert.equal(
-      match?.groups?.currentValue,
-      extractPlaywrightImageVersion(path),
-      `Playwright custom manager must match ${path}`,
-    );
-  }
+  const path = 'Dockerfile.bootstrap';
+  const match = readText(path).match(imagePattern);
+  assert.equal(
+    match?.groups?.currentValue,
+    extractPlaywrightImageVersion(path),
+    `Playwright custom manager must match ${path}`,
+  );
 
   const playwrightRule = packageRules.find((rule) => {
     if (!rule || typeof rule !== 'object') return false;
@@ -114,7 +113,7 @@ test('renovate disables docker-only playwright image updates', () => {
   assert.deepEqual(dockerOnlyRule.matchDatasources, ['docker']);
 });
 
-test('compose bootstrap images stay aligned with the package playwright version', () => {
+test('compose bootstrap builds use the matching playwright image', () => {
   const packageJson = readJson('package.json') as {
     devDependencies?: Record<string, string>;
   };
@@ -125,11 +124,10 @@ test('compose bootstrap images stay aligned with the package playwright version'
     'package.json must declare a playwright devDependency',
   );
   assert.equal(
-    extractPlaywrightImageVersion('docker-compose.yml'),
+    extractPlaywrightImageVersion('Dockerfile.bootstrap'),
     expectedVersion,
   );
-  assert.equal(
-    extractPlaywrightImageVersion('docker-compose.org.yml'),
-    expectedVersion,
-  );
+  for (const path of ['docker-compose.yml', 'docker-compose.org.yml']) {
+    assert.match(readText(path), /dockerfile: Dockerfile\.bootstrap/);
+  }
 });

@@ -17,6 +17,24 @@
   "customManagers": [
     {
       "customType": "regex",
+      "description": "Track the local Node.js runtime",
+      "managerFilePatterns": ["/^mise\\.toml$/"],
+      "matchStrings": ["node = \"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "node",
+      "datasourceTemplate": "node-version",
+      "versioningTemplate": "node"
+    },
+    {
+      "customType": "regex",
+      "description": "Track the npm CLI used only for trusted publishing",
+      "managerFilePatterns": ["/^\\.github/workflows/release-please\\.yml$/"],
+      "matchStrings": ["NPM_PUBLISH_VERSION: \"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "npm",
+      "datasourceTemplate": "npm",
+      "versioningTemplate": "npm"
+    },
+    {
+      "customType": "regex",
       "managerFilePatterns": ["/^biome\\.json$/"],
       "matchStrings": [
         "\"\\$schema\"\\s*:\\s*\"https://biomejs\\.dev/schemas/(?<currentValue>[^/]+)/schema\\.json\""
@@ -27,15 +45,15 @@
     },
     {
       "customType": "regex",
-      "description": "Track Playwright compose bootstrap images from the npm package version",
-      "managerFilePatterns": ["/^docker-compose(\\.org)?\\.yml$/"],
+      "description": "Track the Playwright bootstrap image from the npm package version",
+      "managerFilePatterns": ["/^Dockerfile\\.bootstrap$/"],
       "matchStrings": [
-        "image:\\s+mcr\\.microsoft\\.com/playwright:v(?<currentValue>\\d+\\.\\d+\\.\\d+)-jammy"
+        "FROM\\s+mcr\\.microsoft\\.com/playwright:v(?<currentValue>\\d+\\.\\d+\\.\\d+)-jammy"
       ],
       "depNameTemplate": "playwright",
       "datasourceTemplate": "npm",
       "versioningTemplate": "npm",
-      "autoReplaceStringTemplate": "image: mcr.microsoft.com/playwright:v{{{newValue}}}-jammy"
+      "autoReplaceStringTemplate": "FROM mcr.microsoft.com/playwright:v{{{newValue}}}-jammy"
     }
   ],
   "packageRules": [
@@ -96,12 +114,24 @@
       "automergeType": "pr"
     },
     {
-      "description": "Keep the Node.js engine on the Bitwarden CLI-supported major",
-      "matchManagers": ["npm"],
-      "matchDepTypes": ["engines"],
+      "description": "Keep the Node.js engine and local runtime on major 22",
+      "matchManagers": ["npm", "custom.regex"],
       "matchPackageNames": ["node"],
       "allowedVersions": ">=22 <23",
       "automerge": false
+    },
+    {
+      "description": "Keep workflow Node.js runtimes on major 22",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["actions/node-versions"],
+      "allowedVersions": ">=22 <23",
+      "automerge": false
+    },
+    {
+      "description": "Match Node.js type declarations to the runtime major",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["@types/node"],
+      "allowedVersions": ">=22 <23"
     },
     {
       "description": "Keep the npm engine on the Node.js 22-compatible release line",

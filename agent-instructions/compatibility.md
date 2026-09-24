@@ -20,8 +20,9 @@ automation.
 - A CLI bump must survive the compose-backed Vaultwarden suite before merge
 - Keep the postinstall Vaultwarden compat rewrite healthy when `@bitwarden/cli`
   moves, instead of relying on a version-stamped vendor patch file
-- The Playwright npm package and the compose bootstrap image must move together
+- The Playwright npm package and the image in `Dockerfile.bootstrap` must move together
   or the browser bootstrap step will fail before tests start
+- Bootstrap overlays Node 22 and npm 10 from the same image used by the application so browser image updates cannot change the project runtime.
 - Keep the raw `bw` auth contract green in
   `src/integration/bw.cli.integration.test.ts`
 - Keep the MCP and SDK integration coverage green in `src/integration/`
