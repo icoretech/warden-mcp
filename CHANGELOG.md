@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.44](https://github.com/icoretech/warden-mcp/compare/v0.2.43...v0.2.44) (2026-09-24)
+
+
+### Bug Fixes
+
+* **bin:** convert CLI module paths to file URLs ([b1f188e](https://github.com/icoretech/warden-mcp/commit/b1f188ebd3be707de5e6dbff99feea58b1a1a037))
+* **deps:** update multer and align runtimes with Node 22 ([f9a4309](https://github.com/icoretech/warden-mcp/commit/f9a43091ecdae3b373707212bb7175c6034e0a9c))
+
 ## [0.2.43](https://github.com/icoretech/warden-mcp/compare/v0.2.42...v0.2.43) (2026-09-24)
 
 
