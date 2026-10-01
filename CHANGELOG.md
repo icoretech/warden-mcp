@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.46](https://github.com/icoretech/warden-mcp/compare/v0.2.45...v0.2.46) (2026-10-01)
+
+
+### Bug Fixes
+
+* redact native SSH private keys and vault item notes ([736e9f9](https://github.com/icoretech/warden-mcp/commit/736e9f987104d86e8c964f6b7a4bea3639f27844))
+
 ## [0.2.45](https://github.com/icoretech/warden-mcp/compare/v0.2.44...v0.2.45) (2026-09-29)
 
 
