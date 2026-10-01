@@ -284,10 +284,13 @@ you expose it.
 - **Protect `/metricsz` if needed** - it is unauthenticated for scraper
   compatibility and exposes runtime/session counters
 
-Redacted fields include login passwords, TOTP seeds/codes, card numbers and
-codes, identity SSNs/passport/license numbers, hidden custom fields, SSH private
-keys stored through the secure-note convention, signed attachment URLs, and
-password history entries.
+Redacted fields include item notes (including secure-note bodies), login
+passwords, TOTP seeds/codes, card numbers and codes, identity
+SSNs/passport/license numbers, hidden custom fields, native SSH private keys
+and those stored through the secure-note convention, signed attachment URLs,
+and password history entries. Public SSH keys and fingerprints remain visible.
+Returning notes or private keys requires `reveal: true`; `NOREVEAL` and
+`KEYCHAIN_NOREVEAL` force them to stay redacted.
 
 ## Configuration
 
@@ -406,8 +409,9 @@ against a local Vaultwarden instance before a CLI bump should ship.
 
 - `bw list items --search`, and therefore `keychain_search_items`, does not
   reliably search inside custom field values
-- SSH keys are stored as secure notes with standard fields until `bw` supports
-  native SSH key item creation
+- `keychain_create_ssh_key` creates secure notes with standard SSH key fields;
+  native SSH key items are recognized by `keychain_search_items` and supported
+  by `keychain_get_item`
 - high-risk `bw` features such as export/import are intentionally not exposed
 - Vaultwarden report pages are not mirrored as MCP tools; the current
   report-like helper is `keychain_get_exposed`

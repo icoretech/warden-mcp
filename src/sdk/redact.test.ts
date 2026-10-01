@@ -40,6 +40,44 @@ test('redactItem always redacts private_key field', () => {
   assert.equal(redacted.fields[0].value, REDACTED);
 });
 
+test('redactItem redacts native SSH private keys without changing public metadata or the source item', () => {
+  const item = {
+    id: 'ssh',
+    type: 5,
+    sshKey: {
+      privateKey: 'test-only-private-key',
+      publicKey: 'test-only-public-key',
+      keyFingerprint: 'test-only-fingerprint',
+    },
+  };
+  const redacted = redactItem(item) as typeof item;
+  assert.deepEqual(redacted.sshKey, {
+    ...item.sshKey,
+    privateKey: REDACTED,
+  });
+  assert.equal(item.sshKey.privateKey, 'test-only-private-key');
+});
+
+test('redactItem treats notes as secret for every item type', () => {
+  for (const type of [1, 2, 3, 4, 5]) {
+    const item = { id: 'item', type, notes: 'test-only-secret-notes' };
+    const redacted = redactItem(item) as typeof item;
+    assert.equal(redacted.notes, REDACTED, `item type ${type}`);
+    assert.equal(item.notes, 'test-only-secret-notes');
+  }
+});
+
+test('redactItem preserves absent notes and SSH private keys', () => {
+  for (const item of [
+    { notes: null, sshKey: null },
+    { sshKey: { privateKey: null } },
+    { sshKey: { publicKey: 'test-only-public-key' } },
+    {},
+  ]) {
+    assert.deepEqual(redactItem(item), item);
+  }
+});
+
 test('redactItem redacts card number and code', () => {
   const item = {
     id: 'x',

@@ -71,7 +71,7 @@ MCP tools are callable by any connected MCP host. When the host is an LLM agent,
 | HTTPS-only host validation | `src/bw/bwHeaders.ts` | `X-BW-Host` must be an HTTPS origin with no embedded credentials, path, or query |
 | `receive` URL validation | `src/sdk/keychainSdk.ts` | `receive()` rejects non-HTTPS URLs before passing to `bw` |
 | `--` end-of-options | `src/sdk/keychainSdk.ts` | All user-controlled positional args in `sendCreate`, `sendCreateEncoded`, `sendEdit`, `receive` are preceded by `--` |
-| Safe-by-default redaction | `src/sdk/redact.ts` | Passwords, TOTP, card numbers, SSN, hidden fields, attachment URLs, password history redacted unless `reveal: true` |
+| Safe-by-default redaction | `src/sdk/redact.ts` | Item notes, native and secure-note SSH private keys, passwords, TOTP, card numbers, SSN, hidden fields, attachment URLs, password history redacted unless `reveal: true` |
 | READONLY mode | `src/tools/registerTools.ts` | Hides create/edit/delete/move/restore/attachment tools from the advertised MCP catalog and rejects direct write calls |
 | NOREVEAL mode | `src/tools/registerTools.ts` | Forces all `reveal` to `false`, preventing prompt-injection exfiltration |
 | Env fallback disabled by default | `src/bw/bwHeaders.ts`, `src/transports/http.ts` | HTTP mode requires `X-BW-*` headers; env fallback requires explicit `KEYCHAIN_ALLOW_ENV_FALLBACK=true` |
@@ -80,6 +80,7 @@ MCP tools are callable by any connected MCP host. When the host is an LLM agent,
 | Session resource limits | `src/transports/http.ts` | Max sessions (32), TTL (15 min), heap fuse (1.5 GB), sweep interval |
 | CLI mutex | `src/bw/mutex.ts`, `src/bw/bwSession.ts` | Serializes concurrent CLI invocations per session to prevent state corruption |
 | Per-credential isolation | `src/bw/bwPool.ts` | Separate HOME directories keyed by SHA-256 hash of credentials |
+| Session file permissions | `src/bw/bwSessionStorage.ts` | Session cache files use owner-only `0600` permissions; existing files are restricted before reuse or replacement |
 | Temp file cleanup | `src/sdk/keychainSdk.ts` | All `mkdtemp` calls paired with `rm` in `finally` blocks |
 | Least-privilege container | `Dockerfile` | Non-root user, HOME confined to `/data` |
 | CI permissions scoping | `.github/workflows/` | `contents: read` on CI; per-job scoped permissions on release workflow |

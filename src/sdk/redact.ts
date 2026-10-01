@@ -27,6 +27,13 @@ export function redactItem(item: unknown): unknown {
   if (!item || typeof item !== 'object') return item;
   const clone = deepClone(item as AnyRecord);
 
+  if (typeof clone.notes === 'string') clone.notes = REDACTED;
+
+  if (clone.sshKey && typeof clone.sshKey === 'object') {
+    const sshKey = clone.sshKey as AnyRecord;
+    if (typeof sshKey.privateKey === 'string') sshKey.privateKey = REDACTED;
+  }
+
   // login.password / login.totp
   if (clone.login && typeof clone.login === 'object') {
     const login = clone.login as AnyRecord;

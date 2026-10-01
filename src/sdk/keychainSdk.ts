@@ -34,6 +34,7 @@ const ITEM_TYPE = {
   note: 2,
   card: 3,
   identity: 4,
+  ssh_key: 5,
 } as const;
 
 const URI_MATCH: Record<UriMatch, number> = {
@@ -128,11 +129,13 @@ function kindFromItem(item: AnyRecord): ItemKind {
   if (type === ITEM_TYPE.login) return 'login';
   if (type === ITEM_TYPE.card) return 'card';
   if (type === ITEM_TYPE.identity) return 'identity';
+  if (type === ITEM_TYPE.ssh_key) return 'ssh_key';
   if (type === ITEM_TYPE.note) return isSshKeyItem(item) ? 'ssh_key' : 'note';
   return 'note';
 }
 
 function isSshKeyItem(item: AnyRecord): boolean {
+  if (item.type === ITEM_TYPE.ssh_key) return true;
   if (item.type !== ITEM_TYPE.note) return false;
   const fields = item.fields;
   if (!Array.isArray(fields)) return false;

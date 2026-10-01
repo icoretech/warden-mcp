@@ -1,4 +1,12 @@
-import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  open,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { runBw } from './bwCli.js';
@@ -106,6 +114,7 @@ export class BwSessionStorage {
 
   async readSession(): Promise<string | null> {
     try {
+      await chmod(this.sessionStatePath, 0o600);
       const raw = await readFile(this.sessionStatePath, 'utf8');
       const parsed = JSON.parse(raw) as Partial<StoredSessionState>;
       if (
@@ -134,7 +143,13 @@ export class BwSessionStorage {
       validatedAt: now,
     };
     await mkdir(this.appDataDir, { recursive: true });
-    await writeFile(this.sessionStatePath, JSON.stringify(state), 'utf8');
+    const file = await open(this.sessionStatePath, 'w', 0o600);
+    try {
+      await file.chmod(0o600);
+      await file.writeFile(JSON.stringify(state), 'utf8');
+    } finally {
+      await file.close();
+    }
   }
 
   async clearSession(): Promise<void> {

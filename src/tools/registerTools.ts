@@ -1251,7 +1251,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     `${deps.toolPrefix}.get_item`,
     {
       title: 'Get Item',
-      description: `Get the full vault item by stable item id. Secret fields and signed attachment URLs are redacted by default; pass reveal=true only when the caller is allowed to receive secrets. When attachments are present, use ${publicPrefix}get_attachment with this item id plus the listed attachment id or filename to download file bytes. If an expected recently-added attachment is missing, run ${publicPrefix}sync and call ${publicPrefix}get_item again before retrying.`,
+      description: `Get the full vault item by stable item id. Secret fields (including item notes and SSH private keys) and signed attachment URLs are redacted by default; pass reveal=true only when the caller is allowed to receive secrets, and NOREVEAL can still force redaction. When attachments are present, use ${publicPrefix}get_attachment with this item id plus the listed attachment id or filename to download file bytes. If an expected recently-added attachment is missing, run ${publicPrefix}sync and call ${publicPrefix}get_item again before retrying.`,
       annotations: { readOnlyHint: true },
       inputSchema: {
         id: stableObjectIdSchema,

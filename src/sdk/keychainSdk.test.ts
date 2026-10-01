@@ -208,13 +208,14 @@ describe('KeychainSdk helper logic', () => {
       fields: [{ name: 'public_key' }, { name: 'private_key' }],
     };
     const noteItem = { id: 'note', type: 2, fields: [] };
+    const nativeSshKeyItem = { id: 'native-ssh', type: 5 };
 
     const { mock } = createMockBw({
       runResponses: new Map([
         [
           'list items',
           {
-            stdout: JSON.stringify([sshKeyItem, noteItem]),
+            stdout: JSON.stringify([sshKeyItem, nativeSshKeyItem, noteItem]),
             stderr: '',
           },
         ],
@@ -234,13 +235,14 @@ describe('KeychainSdk helper logic', () => {
       fields: [{ name: 'public_key' }, { name: 'private_key' }],
     };
     const noteItem = { id: 'note', type: 2, fields: [] };
+    const nativeSshKeyItem = { id: 'native-ssh', type: 5 };
 
     const { mock } = createMockBw({
       runResponses: new Map([
         [
           'list items',
           {
-            stdout: JSON.stringify([sshKeyItem, noteItem]),
+            stdout: JSON.stringify([sshKeyItem, nativeSshKeyItem, noteItem]),
             stderr: '',
           },
         ],
@@ -249,8 +251,16 @@ describe('KeychainSdk helper logic', () => {
 
     const sdk = new KeychainSdk(mock);
     const results = await sdk.searchItems({ type: 'ssh_key' });
-    assert.equal(results.length, 1);
-    assert.equal((results[0] as { id: string }).id, 'ssh');
+    assert.deepEqual(
+      results.map((item) => (item as { id: string }).id),
+      ['ssh', 'native-ssh'],
+    );
+    for (const item of results) {
+      assert.equal(
+        (sdk.minimalSummary(item) as { type: string }).type,
+        'ssh_key',
+      );
+    }
   });
 
   test('searchItems: organizationId=null filters correctly', async () => {
