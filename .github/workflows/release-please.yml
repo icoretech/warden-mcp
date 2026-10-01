@@ -137,7 +137,7 @@ jobs:
       - name: Publish to npmjs
         env:
           # renovate: datasource=npm depName=npm
-          NPM_PUBLISH_VERSION: "12.1.0"
+          NPM_PUBLISH_VERSION: "12.2.0"
         # Use a trusted-publishing-capable npm while installs stay on npm 10
         run: npx --yes --package="npm@${NPM_PUBLISH_VERSION}" npm publish --provenance --access public
 
