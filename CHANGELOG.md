@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.47](https://github.com/icoretech/warden-mcp/compare/v0.2.46...v0.2.47) (2026-10-02)
+
+
+### Bug Fixes
+
+* **deps:** update dependency @bitwarden/cli to v2026.9.1 ([#204](https://github.com/icoretech/warden-mcp/issues/204)) ([6aeecf5](https://github.com/icoretech/warden-mcp/commit/6aeecf570eb5bfb04c256e0b54e17b09a93f730d))
+
 ## [0.2.46](https://github.com/icoretech/warden-mcp/compare/v0.2.45...v0.2.46) (2026-10-01)
 
 
