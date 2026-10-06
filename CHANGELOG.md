@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.50](https://github.com/icoretech/warden-mcp/compare/v0.2.49...v0.2.50) (2026-10-06)
+
+
+### Bug Fixes
+
+* **deps:** update vaultwarden/server docker tag to v1.37.4 ([#213](https://github.com/icoretech/warden-mcp/issues/213)) ([3e3c606](https://github.com/icoretech/warden-mcp/commit/3e3c60675fef18270b2bc302bb74b9f3e49b481a))
+
 ## [0.2.49](https://github.com/icoretech/warden-mcp/compare/v0.2.48...v0.2.49) (2026-10-05)
 
 
