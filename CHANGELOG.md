@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.51](https://github.com/icoretech/warden-mcp/compare/v0.2.50...v0.2.51) (2026-10-09)
+
+
+### Bug Fixes
+
+* **deps:** update dependency express to ^5.3.0 ([#216](https://github.com/icoretech/warden-mcp/issues/216)) ([f64f3cb](https://github.com/icoretech/warden-mcp/commit/f64f3cbcfb3563a17450eb6958572f90a49078e5))
+
 ## [0.2.50](https://github.com/icoretech/warden-mcp/compare/v0.2.49...v0.2.50) (2026-10-06)
 
 
