@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.55](https://github.com/icoretech/warden-mcp/compare/v0.2.54...v0.2.55) (2026-10-21)
+
+
+### Dependencies
+
+* update Biome to 2.6.2 and Node.js to 22.23.4 ([b7330b0](https://github.com/icoretech/warden-mcp/commit/b7330b01ba02d324d3acb1a46542505aed4dacf1))
+
 ## [0.2.54](https://github.com/icoretech/warden-mcp/compare/v0.2.53...v0.2.54) (2026-10-17)
 
 ### Dependencies
