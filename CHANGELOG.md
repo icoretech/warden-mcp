@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.56](https://github.com/icoretech/warden-mcp/compare/v0.2.55...v0.2.56) (2026-10-22)
+
+
+### Dependencies
+
+* update dependency npm to v12.2.1 ([#228](https://github.com/icoretech/warden-mcp/issues/228)) ([6dddf8d](https://github.com/icoretech/warden-mcp/commit/6dddf8dc73307b7481d087dba8be3749083c9380))
+
 ## [0.2.55](https://github.com/icoretech/warden-mcp/compare/v0.2.54...v0.2.55) (2026-10-21)
 
 
