@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.57](https://github.com/icoretech/warden-mcp/compare/v0.2.56...v0.2.57) (2026-10-22)
+
+
+### Dependencies
+
+* update dependency multer to v2.5.0 ([#230](https://github.com/icoretech/warden-mcp/issues/230)) ([ff5058f](https://github.com/icoretech/warden-mcp/commit/ff5058fdb7cb9d3ddd67b26ec7083baa3e7d9ab8))
+
 ## [0.2.56](https://github.com/icoretech/warden-mcp/compare/v0.2.55...v0.2.56) (2026-10-22)
 
 
