@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.58](https://github.com/icoretech/warden-mcp/compare/v0.2.57...v0.2.58) (2026-10-23)
+
+
+### Dependencies
+
+* lock file maintenance ([9a59a2a](https://github.com/icoretech/warden-mcp/commit/9a59a2af1fd8df2d1a9fcdef1742c0c91bfef874))
+
 ## [0.2.57](https://github.com/icoretech/warden-mcp/compare/v0.2.56...v0.2.57) (2026-10-22)
 
 
