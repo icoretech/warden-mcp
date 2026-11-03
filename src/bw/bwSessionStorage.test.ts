@@ -6,6 +6,23 @@ import test from 'node:test';
 
 import { BwSessionStorage } from './bwSessionStorage.js';
 
+test('memory-only storage skips disk session reads and writes', async (t) => {
+  const homeDir = await mkdtemp(join(tmpdir(), 'bw-session-memory-'));
+  t.after(() => rm(homeDir, { recursive: true, force: true }));
+  const storage = new BwSessionStorage(
+    homeDir,
+    'https://vault.example.test',
+    'userpass:synthetic@example.test',
+    false,
+  );
+  await storage.writeSession('synthetic-memory-key');
+  assert.equal(await storage.readSession(), null);
+  await assert.rejects(
+    readFile(join(storage.appDataDir, '.warden-mcp-session.json')),
+    { code: 'ENOENT' },
+  );
+});
+
 test('session storage restricts new and existing session files to the owner', {
   skip: process.platform === 'win32',
 }, async (t) => {

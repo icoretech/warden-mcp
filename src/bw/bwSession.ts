@@ -2,10 +2,21 @@ import type { BwRunOptions, BwRunResult } from './bwCli.js';
 import { isBwAuthSessionInvalidError, runBw } from './bwCli.js';
 import type { BwEnv } from './bwEnv.js';
 import { BwSessionAuth } from './bwSessionAuth.js';
+import type {
+  BwCredentialProvider,
+  BwSessionIdentity,
+  BwSessionOptions,
+} from './bwSessionOptions.js';
 import { Mutex } from './mutex.js';
 
 export type { BwEnv } from './bwEnv.js';
 export { readBwEnv } from './bwEnv.js';
+export type {
+  BwCredentialProvider,
+  BwCredentials,
+  BwSessionIdentity,
+  BwSessionOptions,
+} from './bwSessionOptions.js';
 
 export class BwSessionManager {
   private readonly lock = new Mutex();
@@ -14,18 +25,31 @@ export class BwSessionManager {
   private keepaliveTimer: NodeJS.Timeout | null = null;
   private warmupPromise: Promise<void> | null = null;
 
-  constructor(private readonly env: BwEnv) {
-    this.auth = new BwSessionAuth(env, () => {
-      this.templateItem = null;
-    });
+  constructor(env: BwEnv, options?: BwSessionOptions);
+  constructor(
+    env: BwSessionIdentity,
+    options: BwSessionOptions & { credentialProvider: BwCredentialProvider },
+  );
+  constructor(
+    private readonly env: BwEnv | BwSessionIdentity,
+    private readonly options: BwSessionOptions = {},
+  ) {
+    this.auth = new BwSessionAuth(
+      env,
+      () => {
+        this.templateItem = null;
+      },
+      options,
+    );
   }
 
   startKeepUnlocked(): void {
+    if (this.options.persistSession === false) return;
     if (this.keepaliveTimer) return;
     const intervalMs = Math.max(10, this.env.unlockIntervalSeconds) * 1000;
-    this.keepaliveTimer = setInterval(() => {
-      if (!this.auth.hasSession()) return;
+    const timer = setInterval(() => {
       void this.lock.runExclusive(async () => {
+        if (this.keepaliveTimer !== timer || !this.auth.hasSession()) return;
         try {
           await this.auth.ensureUnlocked();
         } catch (error) {
@@ -33,6 +57,7 @@ export class BwSessionManager {
         }
       });
     }, intervalMs);
+    this.keepaliveTimer = timer;
     this.keepaliveTimer.unref?.();
   }
 
@@ -141,11 +166,21 @@ export class BwSessionManager {
   }
 
   private startBackgroundUnlock(): void {
+    if (this.options.persistSession === false) return;
     if (this.auth.hasSession() || this.warmupPromise) return;
     this.warmupPromise = this.withSession(async () => undefined)
       .catch(() => {})
       .finally(() => {
         this.warmupPromise = null;
       });
+  }
+
+  /** Serialized with active operations; the next explicit tool call can unlock. */
+  async revoke(): Promise<void> {
+    await this.lock.runExclusive(async () => {
+      if (this.keepaliveTimer) clearInterval(this.keepaliveTimer);
+      this.keepaliveTimer = null;
+      await this.auth.revoke();
+    });
   }
 }

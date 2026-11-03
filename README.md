@@ -291,6 +291,10 @@ Returning notes or private keys requires `reveal: true`; `NOREVEAL` and
 
 ## Configuration
 
+Applications embedding the SDK can opt into [on-demand credentials,
+memory-only sessions and explicit revocation](SESSION_MANAGEMENT.md).
+The default MCP configuration and session behavior remain unchanged.
+
 | Variable                             | Default               | Purpose                                           |
 | ------------------------------------ | --------------------- | ------------------------------------------------- |
 | `PORT`                               | `3005`                | HTTP listen port                                  |

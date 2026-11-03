@@ -1,5 +1,10 @@
 import { runBw } from './bwCli.js';
 import type { BwEnv } from './bwEnv.js';
+import type {
+  BwCredentials,
+  BwSessionIdentity,
+  BwSessionOptions,
+} from './bwSessionOptions.js';
 import { BwSessionStorage } from './bwSessionStorage.js';
 
 const POST_LOGIN_UNLOCK_RETRY_ATTEMPTS = 20;
@@ -15,15 +20,21 @@ export class BwSessionAuth {
   private configuredHost: string | null = null;
 
   constructor(
-    private readonly env: BwEnv,
+    private readonly env: BwEnv | BwSessionIdentity,
     private readonly onSessionCleared: () => void,
+    private readonly options: BwSessionOptions = {},
   ) {
     const homeDir = env.homeDir ?? process.env.HOME ?? '/data';
     const identity =
       env.login.method === 'apikey'
         ? `apikey:${env.login.clientId}`
         : `userpass:${env.login.user}`;
-    this.storage = new BwSessionStorage(homeDir, env.host, identity);
+    this.storage = new BwSessionStorage(
+      homeDir,
+      env.host,
+      identity,
+      options.persistSession,
+    );
   }
 
   hasSession(): boolean {
@@ -98,12 +109,13 @@ export class BwSessionAuth {
   }
 
   private async tryUnlock(): Promise<string> {
+    const credentials = await this.credentials();
     try {
       const { stdout } = await runBw(
         ['unlock', '--passwordenv', 'BW_PASSWORD', '--raw'],
         {
           env: this.storage.baseEnv({
-            BW_PASSWORD: this.env.password,
+            BW_PASSWORD: credentials.password,
             BW_HOST: this.env.host,
           }),
           timeoutMs: 60_000,
@@ -120,12 +132,13 @@ export class BwSessionAuth {
     readonly completed: boolean;
     readonly session: string;
   }> {
+    const credentials = await this.credentials();
     try {
-      if (this.env.login.method === 'apikey') {
+      if (credentials.login.method === 'apikey') {
         const { stdout } = await runBw(['login', '--apikey', '--raw'], {
           env: this.storage.baseEnv({
-            BW_CLIENTID: this.env.login.clientId,
-            BW_CLIENTSECRET: this.env.login.clientSecret,
+            BW_CLIENTID: credentials.login.clientId,
+            BW_CLIENTSECRET: credentials.login.clientSecret,
             BW_HOST: this.env.host,
           }),
           timeoutMs: 60_000,
@@ -135,10 +148,16 @@ export class BwSessionAuth {
       }
 
       const { stdout } = await runBw(
-        ['login', this.env.login.user, '--passwordenv', 'BW_PASSWORD', '--raw'],
+        [
+          'login',
+          credentials.login.user,
+          '--passwordenv',
+          'BW_PASSWORD',
+          '--raw',
+        ],
         {
           env: this.storage.baseEnv({
-            BW_PASSWORD: this.env.password,
+            BW_PASSWORD: credentials.password,
             BW_HOST: this.env.host,
           }),
           timeoutMs: 60_000,
@@ -221,6 +240,49 @@ export class BwSessionAuth {
       timeoutMs: 30_000,
     });
     this.configuredHost = this.env.host;
+  }
+
+  async revoke(): Promise<void> {
+    await this.storage.withAuthLock(async () => {
+      this.clearInMemorySession();
+      try {
+        await this.storage.clearSession(true);
+      } finally {
+        // Attempt the CLI lock even if clearing the persisted key fails.
+        await runBw(['lock'], {
+          env: this.storage.baseEnv(),
+          timeoutMs: 10_000,
+        });
+      }
+    });
+  }
+
+  private async credentials(): Promise<BwCredentials> {
+    if (!this.options.credentialProvider) return this.env as BwEnv;
+    try {
+      const value = await this.options.credentialProvider();
+      const login = value.login;
+      const identity = this.env.login;
+      const matches =
+        login.method === 'apikey'
+          ? identity.method === 'apikey' &&
+            login.clientId === identity.clientId &&
+            typeof login.clientSecret === 'string' &&
+            login.clientSecret.length > 0
+          : login.method === 'userpass' &&
+            identity.method === 'userpass' &&
+            login.user === identity.user;
+      if (
+        !matches ||
+        typeof value.password !== 'string' ||
+        value.password.length === 0
+      )
+        throw new Error();
+      return value;
+    } catch {
+      // Provider errors may contain secrets. Do not attach the raw cause.
+      throw new Error('Could not load credentials for configured bw identity');
+    }
   }
 
   private clearInMemorySession(): void {
