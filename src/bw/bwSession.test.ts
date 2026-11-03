@@ -295,7 +295,7 @@ describe('BwSessionManager', () => {
 if echo "$*" | grep -q 'config server'; then exit 0; fi
 if echo "$*" | grep -q 'logout'; then exit 0; fi
 if echo "$*" | grep -q 'unlock --check'; then
-  if echo "$*" | grep -q 'persisted-session'; then
+  if [ "$BW_SESSION" = "persisted-session" ]; then
     printf 'Vault is unlocked!'
     exit 0
   fi
@@ -340,7 +340,7 @@ printf '{}'; exit 0
 if echo "$*" | grep -q 'config server'; then exit 0; fi
 if echo "$*" | grep -q 'logout'; then exit 0; fi
 if echo "$*" | grep -q 'unlock --check'; then
-  if echo "$*" | grep -q 'persisted-session'; then exit 1; fi
+  if [ "$BW_SESSION" = "persisted-session" ]; then exit 1; fi
   if echo "$*" | grep -q 'fresh-session'; then
     printf 'Vault is unlocked!'
     exit 0
@@ -583,7 +583,7 @@ if echo "$*" | grep -q 'status'; then
   exit 0
 fi
 if echo "$*" | grep -q 'unlock --check'; then
-  if echo "$*" | grep -q 'persisted-session'; then
+  if [ "$BW_SESSION" = "persisted-session" ]; then
     printf 'Vault is unlocked!'
     exit 0
   fi

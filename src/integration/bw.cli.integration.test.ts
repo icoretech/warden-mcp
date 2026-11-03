@@ -186,6 +186,17 @@ test('integration: direct bw cli auth contract works against vaultwarden', {
   assert.equal(parsedStatus.status, 'unlocked');
   assert.equal(parsedStatus.serverUrl, bwHost);
 
+  // Session managers pass keys in each child's environment, not process argv.
+  const environmentStatus = await runBw(['status'], {
+    env: { ...env, BW_SESSION: session },
+    timeoutMs: 60_000,
+  });
+  assert.equal(JSON.parse(environmentStatus.stdout).status, 'unlocked');
+  await runBw(['unlock', '--check'], {
+    env: { ...env, BW_SESSION: session },
+    timeoutMs: 60_000,
+  });
+
   const searchNeedle = `bw-cli-contract-${Date.now()}`;
   const listItems = await runBw(
     ['--session', session, 'list', 'items', '--search', searchNeedle],

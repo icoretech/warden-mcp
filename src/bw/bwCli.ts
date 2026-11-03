@@ -123,6 +123,7 @@ export async function runBw(
     env,
     stdio: ['pipe', 'pipe', 'pipe'],
     detached,
+    windowsHide: true,
   });
 
   const stdoutChunks: Buffer[] = [];
@@ -131,6 +132,9 @@ export async function runBw(
   child.stdout.on('data', (d: Buffer) => stdoutChunks.push(d));
   child.stderr.on('data', (d: Buffer) => stderrChunks.push(d));
 
+  // A CLI can reject input or exit before consuming it. Observe stream errors
+  // so EPIPE does not crash the parent; report the child's exit status below.
+  child.stdin.on('error', () => {});
   if (opts.stdin !== undefined) {
     child.stdin.write(opts.stdin);
   }

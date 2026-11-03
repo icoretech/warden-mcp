@@ -263,6 +263,11 @@ BW_BIN=/absolute/path/to/bw npx -y @icoretech/warden-mcp@latest --stdio
 
 ## Security Model
 
+SDK session commands pass the session key through each CLI child's
+`BW_SESSION` environment instead of command-line arguments. This avoids
+including the key in process argument listings; it does not isolate it from
+programs with permission to inspect the child process's environment.
+
 There is no built-in authentication layer in v1. Protect the transport before
 you expose it.
 - **Bind locally by default** - use `WARDEN_MCP_HOST=127.0.0.1`, Docker

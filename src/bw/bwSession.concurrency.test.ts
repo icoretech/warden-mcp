@@ -52,7 +52,7 @@ if echo "$*" | grep -q 'status'; then
 fi
 if echo "$*" | grep -q 'unlock --check'; then
   current=$(cat '${currentSessionPath}')
-  if [ -n "$current" ] && echo "$*" | grep -q -- "--session $current"; then
+  if [ -n "$current" ] && [ "$BW_SESSION" = "$current" ]; then
     exit 0
   fi
   exit 1

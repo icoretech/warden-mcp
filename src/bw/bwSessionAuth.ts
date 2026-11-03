@@ -86,10 +86,10 @@ export class BwSessionAuth {
 
   async isSessionValid(session: string): Promise<boolean> {
     try {
-      const { stdout } = await runBw(
-        ['--session', session, 'unlock', '--check'],
-        { env: this.storage.baseEnv(), timeoutMs: 30_000 },
-      );
+      const { stdout } = await runBw(['unlock', '--check'], {
+        env: this.storage.baseEnv({ BW_SESSION: session }),
+        timeoutMs: 30_000,
+      });
       void stdout;
       return true;
     } catch {
