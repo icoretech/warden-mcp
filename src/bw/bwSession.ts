@@ -1,11 +1,24 @@
 import type { BwRunOptions, BwRunResult } from './bwCli.js';
 import { isBwAuthSessionInvalidError, runBw } from './bwCli.js';
-import type { BwEnv } from './bwEnv.js';
+import { sessionConfig, staticCredentialProvider } from './bwCredentials.js';
+import type {
+  BwCredentialProvider,
+  BwEnv,
+  BwSessionConfig,
+  BwSessionOptions,
+} from './bwEnv.js';
 import { BwSessionAuth } from './bwSessionAuth.js';
 import { Mutex } from './mutex.js';
 
-export type { BwEnv } from './bwEnv.js';
+export { BwCredentialError } from './bwCredentials.js';
+export type {
+  BwCredentialProvider,
+  BwEnv,
+  BwSessionConfig,
+  BwSessionOptions,
+} from './bwEnv.js';
 export { readBwEnv } from './bwEnv.js';
+export { BwSessionRevokeError } from './bwSessionRevocation.js';
 
 export class BwSessionManager {
   private readonly lock = new Mutex();
@@ -13,19 +26,42 @@ export class BwSessionManager {
   private templateItem: unknown | null = null;
   private keepaliveTimer: NodeJS.Timeout | null = null;
   private warmupPromise: Promise<void> | null = null;
+  private readonly env: BwSessionConfig;
+  private readonly backgroundAuthEnabled: boolean;
+  private backgroundGeneration = 0;
+  private backgroundAuthSuspended = false;
 
-  constructor(private readonly env: BwEnv) {
-    this.auth = new BwSessionAuth(env, () => {
-      this.templateItem = null;
-    });
+  constructor(env: BwEnv, options?: BwSessionOptions);
+  constructor(
+    env: BwSessionConfig,
+    options: BwSessionOptions & {
+      readonly credentialProvider: BwCredentialProvider;
+    },
+  );
+  constructor(env: BwSessionConfig, options: BwSessionOptions = {}) {
+    this.env = sessionConfig(env);
+    this.backgroundAuthEnabled =
+      options.persistSession !== false &&
+      options.credentialProvider === undefined;
+    this.auth = new BwSessionAuth(
+      this.env,
+      () => {
+        this.templateItem = null;
+      },
+      options.credentialProvider ?? staticCredentialProvider(env),
+      options.persistSession ?? true,
+    );
   }
 
   startKeepUnlocked(): void {
-    if (this.keepaliveTimer) return;
+    if (!this.backgroundAuthEnabled || this.keepaliveTimer) return;
+    const generation = this.backgroundGeneration;
     const intervalMs = Math.max(10, this.env.unlockIntervalSeconds) * 1000;
     this.keepaliveTimer = setInterval(() => {
       if (!this.auth.hasSession()) return;
       void this.lock.runExclusive(async () => {
+        if (generation !== this.backgroundGeneration || !this.auth.hasSession())
+          return;
         try {
           await this.auth.ensureUnlocked();
         } catch (error) {
@@ -61,6 +97,19 @@ export class BwSessionManager {
   }
 
   async status(): Promise<unknown> {
+    const generation = this.backgroundGeneration;
+    return this.lock.runExclusive(() => this.statusLocked(generation));
+  }
+
+  async revoke(): Promise<void> {
+    this.backgroundGeneration += 1;
+    this.backgroundAuthSuspended = true;
+    if (this.keepaliveTimer) clearInterval(this.keepaliveTimer);
+    this.keepaliveTimer = null;
+    await this.lock.runExclusive(() => this.auth.revoke());
+  }
+
+  private async statusLocked(generation: number): Promise<unknown> {
     const { stdout } = await runBw(['status'], {
       env: this.auth.storage.baseEnv(),
       timeoutMs: 60_000,
@@ -88,7 +137,7 @@ export class BwSessionManager {
       rawStatus === 'unlocked' ||
       (await this.auth.hasValidSessionWithoutUnlock());
 
-    if (rawStatus === 'locked') this.startBackgroundUnlock();
+    if (rawStatus === 'locked') this.startBackgroundUnlock(generation);
     const summaryParts = isUnlocked
       ? ['Vault access ready']
       : [
@@ -141,9 +190,20 @@ export class BwSessionManager {
     }
   }
 
-  private startBackgroundUnlock(): void {
-    if (this.auth.hasSession() || this.warmupPromise) return;
-    this.warmupPromise = this.withSession(async () => undefined)
+  private startBackgroundUnlock(generation: number): void {
+    if (
+      !this.backgroundAuthEnabled ||
+      this.backgroundAuthSuspended ||
+      generation !== this.backgroundGeneration ||
+      this.auth.hasSession() ||
+      this.warmupPromise
+    )
+      return;
+    this.warmupPromise = this.lock
+      .runExclusive(async () => {
+        if (generation !== this.backgroundGeneration) return;
+        await this.auth.ensureUnlocked();
+      })
       .catch(() => {})
       .finally(() => {
         this.warmupPromise = null;

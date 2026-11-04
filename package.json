@@ -30,6 +30,7 @@
     "dist/",
     "bin/",
     "!dist/**/*.test.js",
+    "!dist/**/*.fixture.js",
     "!dist/integration/"
   ],
   "scripts": {

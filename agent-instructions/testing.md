@@ -144,3 +144,5 @@ The script:
 - Keep the Playwright bootstrap flow idempotent so clean reruns stay reliable
 - Keep the Playwright Docker image tag in `Dockerfile.bootstrap` aligned with
   `package.json` when bumping the npm package
+- Keep the real `BW_SESSION` environment contract and provider-backed memory-only
+  unlock, revoke and reopen flows green in both password and API-key suites

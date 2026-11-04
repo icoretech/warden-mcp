@@ -1,7 +1,14 @@
-export interface BwEnv {
+export interface BwSessionConfig {
   readonly host: string;
-  readonly password: string;
   readonly unlockIntervalSeconds: number;
+  readonly login:
+    | { readonly method: 'apikey'; readonly clientId: string }
+    | { readonly method: 'userpass'; readonly user: string };
+  readonly homeDir?: string;
+}
+
+export interface BwEnv extends BwSessionConfig {
+  readonly password: string;
   readonly login:
     | {
         readonly method: 'apikey';
@@ -9,7 +16,13 @@ export interface BwEnv {
         readonly clientSecret: string;
       }
     | { readonly method: 'userpass'; readonly user: string };
-  readonly homeDir?: string;
+}
+
+export type BwCredentialProvider = () => BwEnv | Promise<BwEnv>;
+
+export interface BwSessionOptions {
+  readonly credentialProvider?: BwCredentialProvider;
+  readonly persistSession?: boolean;
 }
 
 function requiredEnv(name: string): string {
