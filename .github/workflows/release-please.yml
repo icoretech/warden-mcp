@@ -176,7 +176,14 @@ jobs:
           # renovate: datasource=npm depName=npm
           NPM_PUBLISH_VERSION: "12.2.1"
         run: |
-          archive="$(npx --yes --package="npm@${NPM_PUBLISH_VERSION}" -- node scripts/package-release.mjs --pack-destination "${RUNNER_TEMP}/release")"
+          if [[ -f scripts/package-release.mjs ]]; then
+            archive="$(npx --yes --package="npm@${NPM_PUBLISH_VERSION}" -- node scripts/package-release.mjs --pack-destination "${RUNNER_TEMP}/release")"
+          else
+            # Older tags predate the curated CLI assembly.
+            mkdir -p "${RUNNER_TEMP}/release"
+            filename="$(npx --yes --package="npm@${NPM_PUBLISH_VERSION}" npm pack --ignore-scripts --loglevel=error --pack-destination "${RUNNER_TEMP}/release")"
+            archive="${RUNNER_TEMP}/release/${filename}"
+          fi
           echo "archive=${archive}" >> "${GITHUB_OUTPUT}"
 
       - name: Publish to npmjs
