@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.66](https://github.com/icoretech/warden-mcp/compare/v0.2.65...v0.2.66) (2026-11-04)
+
+
+### Bug Fixes
+
+* **package:** reconcile bundled CLI dependency declarations ([ac2f73c](https://github.com/icoretech/warden-mcp/commit/ac2f73c73688fe8a2eba63f2bffa6f24ef8ee8ee))
+* **release:** retain npm packaging for legacy release tags ([8b6538e](https://github.com/icoretech/warden-mcp/commit/8b6538e0c18e406debf3a6587ee5f76e4997341a))
+* **release:** wait for source CI before merging release PRs ([81fc2b9](https://github.com/icoretech/warden-mcp/commit/81fc2b93ff11829cdcd8d330fa0ceeaaf7fb64bc))
+* **test:** await signup forms before bootstrapping vaults ([5565e87](https://github.com/icoretech/warden-mcp/commit/5565e8787c480ab6d4ab5e2aee233a576edb628c))
+
+
+### Dependencies
+
+* bundle the vetted CLI with node-forge 1.4.3 ([359c261](https://github.com/icoretech/warden-mcp/commit/359c261ace61edccf25bef2600907668d72af6f3))
+
 ## [0.2.65](https://github.com/icoretech/warden-mcp/compare/v0.2.64...v0.2.65) (2026-11-04)
 
 
