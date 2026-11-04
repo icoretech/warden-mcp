@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { chromium } from 'playwright';
+import { registerAccount } from './vaultwarden-registration.mjs';
 
 function mustEnv(name) {
   const v = process.env[name];
@@ -123,72 +124,6 @@ async function main() {
       }
     }
     return false;
-  }
-
-  async function ensureOnRegister() {
-    // Best-effort: try direct hash route first; if the SPA doesn't render the form,
-    // fallback to navigating via the login page and clicking a visible "Create account" link.
-    // Vaultwarden's web vault uses `#/signup` (and older builds may still support `#/register`).
-    await gotoAndWait(`${baseUrl}/#/signup`);
-
-    const emailCandidates = [
-      page.locator('input[formcontrolname="email"]'),
-      page.locator('input[autocomplete="email"]'),
-      page.locator('input[type="email"]'),
-      page.locator('input[name="email"]'),
-      page.locator('input#email'),
-      page.getByLabel(/email/i),
-    ];
-
-    for (const loc of emailCandidates) {
-      if (
-        (await loc.count()) &&
-        (await loc
-          .first()
-          .isVisible()
-          .catch(() => false))
-      ) {
-        return 'register';
-      }
-    }
-
-    // Fallback: login page -> click create/register link/button.
-    await gotoAndWait(`${baseUrl}/#/login`);
-    await clickFirstVisible([
-      page.getByRole('link', {
-        name: /create account|register|sign up|create an account/i,
-      }),
-      page.getByRole('button', {
-        name: /create account|register|sign up|create an account/i,
-      }),
-    ]);
-
-    await page.waitForLoadState('networkidle').catch(() => {});
-
-    for (const loc of emailCandidates) {
-      if (
-        (await loc.count()) &&
-        (await loc
-          .first()
-          .isVisible()
-          .catch(() => false))
-      ) {
-        return 'register';
-      }
-    }
-
-    const loginPasswordVisible = await page
-      .locator(
-        "input[formcontrolname='masterPassword'], input[formcontrolname='password'], input[autocomplete='current-password']",
-      )
-      .first()
-      .isVisible()
-      .catch(() => false);
-    if (loginPasswordVisible || /#\/login\b/.test(page.url())) {
-      return 'login';
-    }
-
-    throw new Error('Could not reach Vaultwarden registration flow');
   }
 
   async function ensureLoggedIn() {
@@ -477,126 +412,17 @@ async function main() {
   try {
     await clearApiKeyEnvFile();
 
-    let userAlreadyExists = false;
-    const registerMode = await ensureOnRegister();
-    if (registerMode === 'login') {
-      console.log(
-        '[bootstrap] landed on existing-account login flow, skipping registration',
-      );
-      userAlreadyExists = true;
-    }
-
-    const ctx = await page
-      .evaluate(() => ({
-        url: location.href,
-        origin: location.origin,
-        isSecureContext: globalThis.isSecureContext,
-        hasSubtle: !!globalThis.crypto?.subtle,
-      }))
-      .catch(() => null);
-    if (ctx) console.log(`[bootstrap] context: ${JSON.stringify(ctx)}`);
-
-    // Step 1: email + name
-    await page.getByLabel(/email address/i).fill(email);
-    // Name is optional in some policies, but Vaultwarden's default web vault shows it.
-    await page
-      .getByLabel(/^name$/i)
-      .fill(name)
-      .catch(() => {});
-
-    // Step 1 submit (usually "Continue")
-    await page.getByRole('button', { name: /continue/i }).click();
-
-    // Step 1 outcome:
-    // - New user: navigate to password step (master password visible).
-    // - Existing user: show an error and stay on step 1.
-    // Vaultwarden can send us through either:
-    // - auth-registration-start (formcontrolname=masterPassword, retypeMasterPassword)
-    // - auth-registration-finish (formcontrolname=newPassword, newPasswordConfirm)
-    const masterPw = page.locator(
-      "input[formcontrolname='masterPassword'], input[formcontrolname='newPassword']",
+    const registration = await registerAccount(page, {
+      baseUrl,
+      email,
+      password,
+      name,
+    });
+    console.log(
+      registration === 'existing'
+        ? '[bootstrap] user already exists, continuing'
+        : '[bootstrap] created account',
     );
-    const step1Error = page.getByText(
-      /already (in use|exists)|email.*taken|account.*exists/i,
-    );
-
-    await Promise.race([
-      masterPw.waitFor({ state: 'visible' }).catch(() => {}),
-      step1Error
-        .first()
-        .waitFor({ state: 'visible' })
-        .catch(() => {}),
-      page.waitForURL(/#\/login\b/).catch(() => {}),
-      page.waitForTimeout(timeoutMs),
-    ]);
-
-    const step1BodyText = await page
-      .locator('body')
-      .textContent()
-      .then((text) => text ?? '')
-      .catch(() => '');
-    if (/#\/login\b/.test(page.url())) {
-      console.log('[bootstrap] existing-account login redirect, continuing');
-      userAlreadyExists = true;
-    } else if (
-      /already (in use|exists)|email.*taken|account.*exists/i.test(
-        step1BodyText,
-      )
-    ) {
-      console.log('[bootstrap] user already exists (step1), continuing');
-      userAlreadyExists = true;
-    }
-
-    if (!userAlreadyExists) {
-      if (
-        !(await masterPw
-          .first()
-          .isVisible()
-          .catch(() => false))
-      ) {
-        throw new Error(
-          `Signup did not advance to password step within ${timeoutMs}ms. If the container is slow, set VW_BOOTSTRAP_TIMEOUT_MS.`,
-        );
-      }
-
-      // Step 2: master password + confirm
-      await masterPw.first().fill(password);
-      await page
-        .locator(
-          "input[formcontrolname='retypeMasterPassword'], input[formcontrolname='newPasswordConfirm']",
-        )
-        .first()
-        .fill(password);
-
-      // Avoid any external lookups in CI/test environments (best-effort).
-      await page
-        .getByRole('checkbox', { name: /check known data breaches/i })
-        .uncheck()
-        .catch(() => {});
-
-      await page.getByRole('button', { name: /create account/i }).click();
-
-      // Wait for either success navigation or an error message.
-      // We don't want brittle selector matching; accept either.
-      await Promise.race([
-        page
-          .waitForURL(/#\/(login|vault|home|setup-extension)/)
-          .catch(() => {}),
-        page.waitForTimeout(timeoutMs),
-      ]);
-
-      // If there's a visible error that implies already registered, that's fine.
-      const bodyText = await page
-        .locator('body')
-        .textContent()
-        .then((text) => text ?? '')
-        .catch(() => '');
-      if (/already (in use|exists)|email.*taken/i.test(bodyText)) {
-        console.log('[bootstrap] user already exists, continuing');
-      } else {
-        console.log('[bootstrap] attempted registration');
-      }
-    }
 
     await ensureOrganization(orgName);
     await exportApiKeyEnv();

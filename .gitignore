@@ -13,6 +13,8 @@ rotations/
 scripts/*
 !scripts/session-flood-regression.mjs
 !scripts/vaultwarden-bootstrap.mjs
+!scripts/vaultwarden-registration.mjs
+!scripts/vaultwarden-registration.test.mjs
 .desloppify/
 .claude/
 scorecard.png

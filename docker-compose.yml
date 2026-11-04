@@ -77,7 +77,7 @@ services:
     depends_on:
       vaultwarden-https:
         condition: service_started
-    command: sh -lc "npm ci && node scripts/vaultwarden-bootstrap.mjs"
+    command: sh -lc "npm ci && node --test scripts/vaultwarden-registration.test.mjs && node scripts/vaultwarden-bootstrap.mjs"
 
   tests:
     build:

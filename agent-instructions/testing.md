@@ -110,11 +110,13 @@ OpenCode itself, but points the MCP child at a configurable
 state.
 
 Required env vars:
+
 - `BW_HOST`
 - `BW_PASSWORD`
 - either `BW_CLIENTID` + `BW_CLIENTSECRET`, or `BW_USER` / `BW_USERNAME`
 
 Recommended extra env vars:
+
 - `ISOLATED_KEYCHAIN_BW_HOME_ROOT` — defaults to `~/bw-profiles`
 - `ISOLATED_OPENCODE_MCP_TIMEOUT_MS` — defaults to `10000`
 - `ISOLATED_WARDEN_LOOKUP_TERM` — defaults to `app.example.test`
@@ -130,6 +132,7 @@ node scripts/opencode-isolated-warden-smoke.mjs
 ```
 
 The script:
+
 1. starts an isolated `opencode serve`
 2. configures only one local MCP server (`warden`)
 3. calls `keychain_status`
@@ -142,6 +145,8 @@ The script:
 - Prefer the compose-backed path when the behavior depends on real `bw` or
   Vaultwarden interaction
 - Keep the Playwright bootstrap flow idempotent so clean reruns stay reliable
+- The bootstrap service runs real-browser registration regressions before setup;
+  preserve fresh-account and existing-account coverage with delayed form loading
 - Keep the Playwright Docker image tag in `Dockerfile.bootstrap` aligned with
   `package.json` when bumping the npm package
 - Keep the real `BW_SESSION` environment contract and provider-backed memory-only
