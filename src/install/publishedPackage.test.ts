@@ -20,13 +20,13 @@ test('published package installs the vetted CLI dependency tree in a clean consu
   const directory = await mkdtemp(join(tmpdir(), 'warden-package-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const { stdout } = await run(
-    'npm',
-    ['pack', '--ignore-scripts', '--silent', '--pack-destination', directory],
+    process.execPath,
+    ['scripts/package-release.mjs', '--pack-destination', directory],
     { cwd: projectRoot },
   );
-  const filename = z
+  const archive = z
     .string()
-    .regex(/^[\w.-]+\.tgz$/)
+    .regex(/\.tgz$/)
     .parse(stdout.trim());
   await writeFile(
     join(directory, 'package.json'),
@@ -41,7 +41,7 @@ test('published package installs the vetted CLI dependency tree in a clean consu
       '--omit=dev',
       '--no-audit',
       '--no-fund',
-      join(directory, filename),
+      archive,
     ],
     { cwd: directory, timeout: 90_000 },
   );
@@ -51,14 +51,19 @@ test('published package installs the vetted CLI dependency tree in a clean consu
     `${packageJson.name}/package.json`,
   );
   const installed = z
-    .object({ version: z.string() })
+    .object({ version: z.string(), private: z.literal(false) })
     .parse(JSON.parse(await readFile(installedManifest, 'utf8')));
   assert.equal(installed.version, packageJson.version);
   const installedRequire = createRequire(installedManifest);
+  await run('npm', ['ls', '--all', '--omit=dev', '--json'], {
+    cwd: directory,
+    maxBuffer: 8 * 1024 * 1024,
+  });
   const cliManifest = installedRequire.resolve('@bitwarden/cli/package.json');
   const cli = z
     .object({ version: z.string(), bin: z.object({ bw: z.string() }) })
     .parse(JSON.parse(await readFile(cliManifest, 'utf8')));
+  assert.equal(cli.version, packageJson.dependencies['@bitwarden/cli']);
   const cliRequire = createRequire(cliManifest);
   const forgeManifest = cliRequire.resolve('node-forge/package.json');
   const forge = z

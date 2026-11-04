@@ -27,9 +27,12 @@ automation.
 - Keep the raw `bw` auth contract green in
   `src/integration/bw.cli.integration.test.ts`
 - Keep the MCP and SDK integration coverage green in `src/integration/`
-- Keep the vetted CLI bundled in npm artifacts so dependency overrides also
-  reach consumers; root overrides alone are ignored by consumer installations.
-  Run `src/install/publishedPackage.test.ts` when changing dependency resolution
+- Build npm artifacts with `npm run package:release`; the private source package
+  cannot be published directly. The assembly validates and records corrected
+  bundled dependency declarations before packing the public runtime artifact
+- Keep the vetted CLI bundled so dependency fixes reach npm consumers. Root
+  overrides alone are ignored by consumers. Run the packed-consumer contract
+  in `src/install/publishedPackage.test.ts` when changing dependency resolution
 - Automatic releases wait for successful push CI on the exact source commit and
   refuse to merge a release if `main` has advanced beyond that commit
 

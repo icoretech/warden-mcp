@@ -1,5 +1,5 @@
 {
-  "private": false,
+  "private": true,
   "name": "@icoretech/warden-mcp",
   "version": "0.2.65",
   "type": "module",
@@ -37,6 +37,7 @@
     "dev": "tsx watch --clear-screen=false src/server.ts",
     "postinstall": "node bin/patch-bitwarden-cli.js",
     "build": "tsc -p .",
+    "package:release": "node scripts/package-release.mjs",
     "start": "node dist/server.js",
     "test": "npm run build && node --test \"dist/**/*.test.js\"",
     "test:coverage": "npm run build && node --test --experimental-test-coverage \"dist/**/*.test.js\"",
@@ -50,7 +51,6 @@
     "express": "^5.3.0",
     "zod": "^4.6.7"
   },
-  "bundleDependencies": ["@bitwarden/cli"],
   "overrides": {
     "form-data": "4.0.6",
     "multer": "2.5.0",

@@ -170,12 +170,21 @@ jobs:
 
       - run: npm --version
 
-      - name: Publish to npmjs
+      - name: Assemble validated npm artifact
+        id: artifact
         env:
           # renovate: datasource=npm depName=npm
           NPM_PUBLISH_VERSION: "12.2.1"
+        run: |
+          archive="$(npx --yes --package="npm@${NPM_PUBLISH_VERSION}" -- node scripts/package-release.mjs --pack-destination "${RUNNER_TEMP}/release")"
+          echo "archive=${archive}" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish to npmjs
+        env:
+          NPM_PUBLISH_VERSION: "12.2.1"
+          RELEASE_ARCHIVE: ${{ steps.artifact.outputs.archive }}
         # Use a trusted-publishing-capable npm while installs stay on npm 10
-        run: npx --yes --package="npm@${NPM_PUBLISH_VERSION}" npm publish --provenance --access public
+        run: npx --yes --package="npm@${NPM_PUBLISH_VERSION}" npm publish "${RELEASE_ARCHIVE}" --provenance --access public
 
   docker:
     runs-on: ubuntu-latest
