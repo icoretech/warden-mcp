@@ -30,6 +30,8 @@ automation.
 - Keep the vetted CLI bundled in npm artifacts so dependency overrides also
   reach consumers; root overrides alone are ignored by consumer installations.
   Run `src/install/publishedPackage.test.ts` when changing dependency resolution
+- Automatic releases wait for successful push CI on the exact source commit and
+  refuse to merge a release if `main` has advanced beyond that commit
 
 ## Release Notes
 

@@ -17,6 +17,7 @@ jobs:
     if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: write
       issues: write
       pull-requests: write
@@ -26,6 +27,36 @@ jobs:
       version: ${{ steps.release_after_merge.outputs.version || steps.release.outputs.version }}
       major_minor: ${{ steps.release_after_merge.outputs.major || steps.release.outputs.major }}.${{ steps.release_after_merge.outputs.minor || steps.release.outputs.minor }}
     steps:
+      - name: Require successful CI for this commit
+        timeout-minutes: 20
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          for attempt in $(seq 1 110); do
+            main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+            if [[ "${main_sha}" != "${GITHUB_SHA}" ]]; then
+              echo "main advanced beyond this release source; a newer run owns the release"
+              exit 1
+            fi
+
+            run="$(gh run list --repo "${GITHUB_REPOSITORY}" --workflow ci.yml --event push --commit "${GITHUB_SHA}" --limit 1 --json status,conclusion,url --jq '.[0] // {}')"
+            if [[ "$(jq -r .status <<< "${run}")" == "completed" ]]; then
+              [[ "$(jq -r .conclusion <<< "${run}")" == "success" ]] || {
+                echo "release requires successful CI: $(jq -r .url <<< "${run}")"
+                exit 1
+              }
+              exit 0
+            fi
+
+            echo "waiting for CI (${attempt}/110)"
+            sleep 10
+          done
+
+          echo "timed out waiting for CI for ${GITHUB_SHA}"
+          exit 1
+
       - uses: googleapis/release-please-action@v5
         id: release
         with:
@@ -80,6 +111,11 @@ jobs:
           set -euo pipefail
 
           for attempt in 1 2 3 4 5 6; do
+            main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+            [[ "${main_sha}" == "${GITHUB_SHA}" ]] || {
+              echo "main advanced after CI; a newer run owns the release"
+              exit 1
+            }
             if gh pr merge "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --squash --delete-branch; then
               exit 0
             fi
