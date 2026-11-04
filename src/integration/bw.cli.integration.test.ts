@@ -175,8 +175,13 @@ test('integration: direct bw cli auth contract works against vaultwarden', {
     `expected non-empty ${authMode} session from unlock/login/unlock contract`,
   );
 
-  const status = await runBw(['--session', session, 'status'], {
-    env,
+  const sessionEnv = { ...env, BW_SESSION: session };
+  await runBw(['unlock', '--check'], {
+    env: sessionEnv,
+    timeoutMs: 30_000,
+  });
+  const status = await runBw(['status'], {
+    env: sessionEnv,
     timeoutMs: 60_000,
   });
   const parsedStatus = JSON.parse(status.stdout) as {
@@ -187,13 +192,10 @@ test('integration: direct bw cli auth contract works against vaultwarden', {
   assert.equal(parsedStatus.serverUrl, bwHost);
 
   const searchNeedle = `bw-cli-contract-${Date.now()}`;
-  const listItems = await runBw(
-    ['--session', session, 'list', 'items', '--search', searchNeedle],
-    {
-      env,
-      timeoutMs: 60_000,
-    },
-  );
+  const listItems = await runBw(['list', 'items', '--search', searchNeedle], {
+    env: sessionEnv,
+    timeoutMs: 60_000,
+  });
   const parsedItems = JSON.parse(listItems.stdout);
   assert.ok(Array.isArray(parsedItems));
 });

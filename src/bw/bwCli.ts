@@ -47,6 +47,13 @@ export class BwCliError extends Error {
   }
 }
 
+export class BwCliStdinError extends Error {
+  constructor() {
+    super('Failed to write input to bw CLI');
+    this.name = 'BwCliStdinError';
+  }
+}
+
 function diagnoseBwCliFailure(stderr: string): BwCliDiagnosticCode | null {
   if (
     stderr.includes(
@@ -123,6 +130,7 @@ export async function runBw(
     env,
     stdio: ['pipe', 'pipe', 'pipe'],
     detached,
+    windowsHide: true,
   });
 
   const stdoutChunks: Buffer[] = [];
@@ -130,11 +138,6 @@ export async function runBw(
 
   child.stdout.on('data', (d: Buffer) => stdoutChunks.push(d));
   child.stderr.on('data', (d: Buffer) => stderrChunks.push(d));
-
-  if (opts.stdin !== undefined) {
-    child.stdin.write(opts.stdin);
-  }
-  child.stdin.end();
 
   const timeoutMs = opts.timeoutMs ?? 60_000;
 
@@ -159,6 +162,10 @@ export async function runBw(
 
   return new Promise<BwRunResult>((resolve, reject) => {
     let settled = false;
+    let stdinFailed = false;
+    child.stdin.on('error', () => {
+      stdinFailed = true;
+    });
     const settle = (fn: () => void) => {
       if (settled) return;
       settled = true;
@@ -219,11 +226,16 @@ export async function runBw(
           );
           return;
         }
+        if (stdinFailed) {
+          reject(new BwCliStdinError());
+          return;
+        }
         if (debug) {
           console.log(`[bw] ok: ms=${Date.now() - startedAt}`);
         }
         resolve({ stdout, stdoutBuffer: Buffer.concat(stdoutChunks), stderr });
       });
     });
+    child.stdin.end(opts.stdin);
   });
 }
