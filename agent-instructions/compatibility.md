@@ -27,6 +27,9 @@ automation.
 - Keep the raw `bw` auth contract green in
   `src/integration/bw.cli.integration.test.ts`
 - Keep the MCP and SDK integration coverage green in `src/integration/`
+- Keep the vetted CLI bundled in npm artifacts so dependency overrides also
+  reach consumers; root overrides alone are ignored by consumer installations.
+  Run `src/install/publishedPackage.test.ts` when changing dependency resolution
 
 ## Release Notes
 

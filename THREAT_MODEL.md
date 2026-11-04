@@ -5,12 +5,14 @@
 ## 1. Overview
 
 warden-mcp is a Node/TypeScript MCP (Model Context Protocol) server that gives automation and LLM agents programmatic access to Bitwarden/Vaultwarden vaults. It delegates all cryptography and authentication to the official Bitwarden CLI (`bw`), invoked via `spawn`. Two transports are supported:
+
 - **HTTP SSE** (`/sse`) — a shared, long-lived service. Bitwarden credentials arrive per-request via `X-BW-*` headers. Env-var credential fallback is disabled by default and must be explicitly opted in with `KEYCHAIN_ALLOW_ENV_FALLBACK=true`.
 - **stdio** (`--stdio`) — a local, single-tenant process. Credentials are read once from `BW_*` environment variables at startup.
 
 Auxiliary endpoints: `GET /healthz` (liveness probe), `GET /metricsz` (operational metrics — intentionally unauthenticated).
 
 The server registers ~50 MCP tools covering item CRUD, attachments, folders, organizations/collections, Bitwarden Send, and credential/TOTP retrieval. Security defaults are conservative:
+
 - Item reads are **redacted** unless the caller passes `reveal: true`.
 - `NOREVEAL=true` forces all `reveal` parameters to `false` server-side, regardless of what the client requests — a hard kill switch for prompt-injection exfiltration.
 - `READONLY=true` blocks all mutating tools at the MCP layer.

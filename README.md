@@ -24,6 +24,7 @@ Use stdio mode when a local MCP host launches the server directly. It is the
 simplest and most portable setup for desktop agents.
 
 Prerequisites:
+
 - Node.js 22.x
 - npm 10.x
 - a Vaultwarden or Bitwarden account
@@ -245,11 +246,12 @@ default. If you use a bind mount, make it writable by uid/gid `1000`.
 The Docker image includes the supported Node runtime.
 
 The server resolves `bw` in this order:
+
 1. `BW_BIN`, when set
 2. bundled `@bitwarden/cli` dependency
 3. system `bw` from `PATH`
 
-The bundled `@bitwarden/cli` version is currently `2026.10.0`. This project keeps
+The bundled `@bitwarden/cli` version is currently `2026.10.1`. This project keeps
 that version vetted instead of blindly tracking every upstream release, because
 auth and unlock behavior can change in ways that break automation.
 
@@ -257,14 +259,20 @@ If `bw` is missing, install the CLI explicitly or point `BW_BIN` to a known
 binary:
 
 ```bash
-npm install -g @bitwarden/cli@2026.10.0
+npm install -g @bitwarden/cli@2026.10.1
 BW_BIN=/absolute/path/to/bw npx -y @icoretech/warden-mcp@latest --stdio
 ```
+
+The npm package bundles the vetted Bitwarden CLI dependency tree, including its
+security fixes, so npm installations use the same CLI dependencies as the Docker
+image. External `BW_BIN` or system CLI installs use their own dependency trees
+and must be maintained separately.
 
 ## Security Model
 
 There is no built-in authentication layer in v1. Protect the transport before
 you expose it.
+
 - **Bind locally by default** - use `WARDEN_MCP_HOST=127.0.0.1`, Docker
   `-p 127.0.0.1:3005:3005`, a firewall, VPN, or an authenticated reverse proxy
 - **Use TLS for HTTP mode** - `X-BW-*` headers carry vault credentials
@@ -322,6 +330,7 @@ Tool names default to `keychain_*`. Change the prefix with `TOOL_PREFIX` and the
 separator with `TOOL_SEPARATOR`.
 
 Start with these:
+
 - `keychain_status` - inspect raw `bw` status
 - `keychain_sync` - pull latest vault data with `bw sync`
 - `keychain_search_items` - find items by name, URI, username, folder,
@@ -345,6 +354,7 @@ Full tool groups:
 | Direct `bw get` helpers       | `keychain_get_username`, `keychain_get_password`, `keychain_get_totp`, `keychain_get_notes`, `keychain_get_uri`, `keychain_get_exposed`, `keychain_get_folder`, `keychain_get_collection`, `keychain_get_organization`, `keychain_get_org_collection`, `keychain_get_password_history`                                              |
 
 Notes:
+
 - `keychain_create_logins` creates several independent login items in one call
   and reports per-item failures without aborting the whole batch
 - `keychain_set_login_uris` replaces or merges a login item's URI list without
