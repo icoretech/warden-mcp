@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.65](https://github.com/icoretech/warden-mcp/compare/v0.2.64...v0.2.65) (2026-11-04)
+
+
+### Features
+
+* **bw:** add lazy credentials and explicit session revocation ([6ffd988](https://github.com/icoretech/warden-mcp/commit/6ffd98861d067d152820f7c760a5bdba997f0b48))
+
+
+### Bug Fixes
+
+* **bw:** isolate child sessions and handle stdin failures ([cbd51d6](https://github.com/icoretech/warden-mcp/commit/cbd51d6fdb653d423bb3b1f722fd48d76c05124c))
+
 ## [0.2.64](https://github.com/icoretech/warden-mcp/compare/v0.2.63...v0.2.64) (2026-11-02)
 
 
