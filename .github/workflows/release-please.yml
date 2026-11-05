@@ -174,7 +174,7 @@ jobs:
         id: artifact
         env:
           # renovate: datasource=npm depName=npm
-          NPM_PUBLISH_VERSION: "12.2.1"
+          NPM_PUBLISH_VERSION: "12.2.2"
         run: |
           if [[ -f scripts/package-release.mjs ]]; then
             archive="$(npx --yes --package="npm@${NPM_PUBLISH_VERSION}" -- node scripts/package-release.mjs --pack-destination "${RUNNER_TEMP}/release")"
@@ -188,7 +188,7 @@ jobs:
 
       - name: Publish to npmjs
         env:
-          NPM_PUBLISH_VERSION: "12.2.1"
+          NPM_PUBLISH_VERSION: "12.2.2"
           RELEASE_ARCHIVE: ${{ steps.artifact.outputs.archive }}
         # Use a trusted-publishing-capable npm while installs stay on npm 10
         run: npx --yes --package="npm@${NPM_PUBLISH_VERSION}" npm publish "${RELEASE_ARCHIVE}" --provenance --access public
