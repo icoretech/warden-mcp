@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.67](https://github.com/icoretech/warden-mcp/compare/v0.2.66...v0.2.67) (2026-11-05)
+
+
+### Dependencies
+
+* update caddy docker tag to v2.11.8 ([#249](https://github.com/icoretech/warden-mcp/issues/249)) ([2311e18](https://github.com/icoretech/warden-mcp/commit/2311e18a78b0b0ff21fba3d8ba4536a6b6936ebc))
+* update dependency npm to v12.2.2 ([#250](https://github.com/icoretech/warden-mcp/issues/250)) ([2ea11e4](https://github.com/icoretech/warden-mcp/commit/2ea11e469c4a8bb3066fd68c284562539e05d21c))
+
 ## [0.2.66](https://github.com/icoretech/warden-mcp/compare/v0.2.65...v0.2.66) (2026-11-04)
 
 
