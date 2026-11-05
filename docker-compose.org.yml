@@ -22,7 +22,7 @@ services:
       retries: 30
 
   vaultwarden-org-https:
-    image: caddy:2.11.8-alpine
+    image: caddy:2.11.9-alpine
     volumes:
       - ./Caddyfile.org.test:/etc/caddy/Caddyfile:ro
     depends_on:
