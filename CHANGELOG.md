@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.68](https://github.com/icoretech/warden-mcp/compare/v0.2.67...v0.2.68) (2026-11-06)
+
+
+### Dependencies
+
+* update caddy docker tag to v2.11.9 ([#253](https://github.com/icoretech/warden-mcp/issues/253)) ([a239246](https://github.com/icoretech/warden-mcp/commit/a239246c04c630dad5c86458c5ccb7e476f23090))
+
 ## [0.2.67](https://github.com/icoretech/warden-mcp/compare/v0.2.66...v0.2.67) (2026-11-05)
 
 
