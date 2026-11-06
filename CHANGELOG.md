@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.69](https://github.com/icoretech/warden-mcp/compare/v0.2.68...v0.2.69) (2026-11-06)
+
+
+### Dependencies
+
+* update dependency @biomejs/biome to v2.6.6 ([#246](https://github.com/icoretech/warden-mcp/issues/246)) ([94a2ab7](https://github.com/icoretech/warden-mcp/commit/94a2ab7f389f45ec3a423fea4e143406ea7027f8))
+
 ## [0.2.68](https://github.com/icoretech/warden-mcp/compare/v0.2.67...v0.2.68) (2026-11-06)
 
 
