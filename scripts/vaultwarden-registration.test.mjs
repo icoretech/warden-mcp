@@ -97,10 +97,8 @@ for (const fields of ['start', 'finish']) {
     const app = await fixture(t, 'new', fields);
     const registration = registerAccount(app.page, app.account);
     await app.loginRequested.promise;
-    assert.equal(new URL(app.page.url()).hash, '#/login');
     app.loginReady.release();
     await app.signupRequested.promise;
-    assert.equal(new URL(app.page.url()).hash, '#/signup');
     app.signupReady.release();
 
     assert.equal(await registration, 'created');

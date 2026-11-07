@@ -24,6 +24,9 @@ Use this file when adding or updating tests.
   three-policy item-redaction matrix has a five-minute timeout to include real
   CLI startup, authenticated round trips and fixture cleanup. Other tests keep
   their individual timeouts.
+- Run bootstrap, password tests, and API-key tests sequentially: their shared
+  `node-modules` volume is replaced by each service's `npm ci`. A concurrent
+  bootstrap/install can remove the CLI or modules from an active test process.
 - `make test`: compose-backed integration path
 
 ## Quick Local Smoke
@@ -147,6 +150,9 @@ The script:
 - Keep the Playwright bootstrap flow idempotent so clean reruns stay reliable
 - The bootstrap service runs real-browser registration regressions before setup;
   preserve fresh-account and existing-account coverage with delayed form loading
+- Registration fixture request gates signal server receipt, not committed browser
+  navigation; verify the registration result and creation count instead of
+  snapshotting `page.url()` when a gate opens.
 - Keep the Playwright Docker image tag in `Dockerfile.bootstrap` aligned with
   `package.json` when bumping the npm package
 - Keep the real `BW_SESSION` environment contract and provider-backed memory-only
