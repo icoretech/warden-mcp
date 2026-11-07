@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.70](https://github.com/icoretech/warden-mcp/compare/v0.2.69...v0.2.70) (2026-11-07)
+
+
+### Dependencies
+
+* update Playwright to 1.65.0 and fix bootstrap test race ([c34a1a9](https://github.com/icoretech/warden-mcp/commit/c34a1a9ac7eb1803c878cc6e9c14abd76802caaa))
+
 ## [0.2.69](https://github.com/icoretech/warden-mcp/compare/v0.2.68...v0.2.69) (2026-11-06)
 
 
