@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.73](https://github.com/icoretech/warden-mcp/compare/v0.2.72...v0.2.73) (2026-11-14)
+
+
+### Dependencies
+
+* refresh Node 22, npm, and dependency locks ([a67f381](https://github.com/icoretech/warden-mcp/commit/a67f3811ddd1c45ef4aacdde417c618b86f7f439))
+
 ## [0.2.72](https://github.com/icoretech/warden-mcp/compare/v0.2.71...v0.2.72) (2026-11-14)
 
 
