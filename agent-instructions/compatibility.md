@@ -16,6 +16,8 @@ automation.
 ## Upgrade Rules
 
 - Keep Biome exactly pinned and update its schema with the package; release-please owns generated `CHANGELOG.md` formatting.
+- Use Node 22.23.5 and npm 10.9.10 for lockfile maintenance; preserve the
+  direct dependency ranges and compatibility overrides in `package.json`.
 - Treat `package.json` and the bundled CLI version as a compatibility decision,
   not a routine dependency bump
 - A CLI bump must survive the compose-backed Vaultwarden suite before merge
