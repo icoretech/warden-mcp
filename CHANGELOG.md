@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.72](https://github.com/icoretech/warden-mcp/compare/v0.2.71...v0.2.72) (2026-11-14)
+
+
+### Dependencies
+
+* update dependency playwright to v1.65.1 ([#254](https://github.com/icoretech/warden-mcp/issues/254)) ([c26b35e](https://github.com/icoretech/warden-mcp/commit/c26b35ebf47b80631171708a1cf88a96d7302498))
+
 ## [0.2.71](https://github.com/icoretech/warden-mcp/compare/v0.2.70...v0.2.71) (2026-11-12)
 
 
