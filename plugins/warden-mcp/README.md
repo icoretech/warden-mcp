@@ -19,20 +19,17 @@ You need Claude Code with plugin configuration support, a
 and a vault account with a personal API client ID, client secret, and master
 password. Use a dedicated account with only the vault data the assistant needs.
 
-To load this plugin from a source checkout, record its absolute path from the
-repository root, then launch Claude from a separate project directory:
+To load this plugin from a source checkout, launch Claude from a separate
+project directory and pass the plugin's absolute path:
 
 ```bash
-plugin_dir="$PWD/plugins/warden-mcp"
-(
-  cd /path/to/your-project || exit
-  claude --plugin-dir "$plugin_dir"
-)
+cd /path/to/your-project
+claude --plugin-dir /path/to/warden-mcp/plugins/warden-mcp
 ```
 
-Replace `/path/to/your-project` with a project outside the warden-mcp checkout so
-`npx` resolves the pinned published package instead of the checkout's private
-local package.
+Replace the example paths with your actual directories. Use a project outside
+the warden-mcp checkout so `npx` resolves the pinned published package instead
+of the checkout's private local package.
 
 Complete the plugin's configuration prompts:
 
@@ -93,21 +90,18 @@ vault. With Docker Compose available, run these commands from the repository
 root:
 
 ```bash
-plugin_dir="$PWD/plugins/warden-mcp"
 docker compose up -d vaultwarden vaultwarden-https
 docker compose run --rm --build bootstrap
 docker compose exec -T vaultwarden-https cat /data/caddy/pki/authorities/local/root.crt > tmp/vaultwarden-review-ca.crt
-export NODE_EXTRA_CA_CERTS="$PWD/tmp/vaultwarden-review-ca.crt"
-review_workdir="$(mktemp -d "${TMPDIR:-/tmp}/warden-mcp-review.XXXXXX")"
-(
-  cd "$review_workdir" || exit
-  claude --plugin-dir "$plugin_dir"
-)
 ```
 
-The subshell launches Claude from a separate disposable workspace while keeping
-the plugin and CA certificate paths absolute. The parent shell stays in the
-repository for subsequent Docker Compose commands.
+In a separate terminal, use an empty review workspace outside the repository.
+Replace all example paths with your actual absolute paths:
+
+```bash
+cd /path/to/review-workspace
+NODE_EXTRA_CA_CERTS=/path/to/warden-mcp/tmp/vaultwarden-review-ca.crt claude --plugin-dir /path/to/warden-mcp/plugins/warden-mcp
+```
 
 The bootstrap builds the current fixture image, creates the local test account,
 and writes its personal API credentials to the gitignored
@@ -117,12 +111,12 @@ the local fixture's master password from `.env.test`. Enter these values in the
 configuration prompts without pasting them into a conversation.
 
 `NODE_EXTRA_CA_CERTS` points to an absolute path containing the fixture's Caddy
-CA certificate, so TLS verification stays enabled. Export it before launching
+CA certificate, so TLS verification stays enabled. Set it when launching
 Claude Code. Keep generated fixture credentials local and use them only for this
 test vault; do not reuse them for a real account or commit them. The
 [testing guide](https://github.com/icoretech/warden-mcp/blob/main/agent-instructions/testing.md)
 documents further fixture checks. Stop the local services with `docker compose
-down` when review is complete.
+down` from the repository root when review is complete.
 
 Report bugs or configuration questions in the
 [issue tracker](https://github.com/icoretech/warden-mcp/issues). Report security
