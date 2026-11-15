@@ -1,6 +1,6 @@
 {
   "name": "warden-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Search and manage a Vaultwarden or Bitwarden vault through a local MCP server, with read-only and secret-reveal controls.",
   "author": {
     "name": "iCoreTech",
@@ -9,7 +9,12 @@
   "homepage": "https://icorete.ch",
   "repository": "https://github.com/icoretech/warden-mcp",
   "license": "MIT",
-  "keywords": ["vaultwarden", "bitwarden", "credentials", "mcp"],
+  "keywords": [
+    "vaultwarden",
+    "bitwarden",
+    "credentials",
+    "mcp"
+  ],
   "icon": "./icon.svg",
   "documentationUrl": "https://github.com/icoretech/warden-mcp/blob/main/plugins/warden-mcp/README.md",
   "supportUrl": "https://github.com/icoretech/warden-mcp/issues",
