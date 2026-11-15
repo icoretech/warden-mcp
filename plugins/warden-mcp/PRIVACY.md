@@ -2,7 +2,7 @@
 
 Effective November 15, 2026. This notice covers the local Claude Code plugin
 maintained in [warden-mcp](https://github.com/icoretech/warden-mcp), using the
-package selected in the [launcher](.mcp.json) and its bundled Bitwarden CLI. It does
+package selected in the [launcher](start.sh) and its bundled Bitwarden CLI. It does
 not replace the policies of your vault operator, Anthropic, npm, or another
 service you choose to use.
 
@@ -60,8 +60,9 @@ and data practices; this is not a promise that those services collect no data.
 
 ## Local storage and retention
 
-The plugin stores profiles under `${CLAUDE_PLUGIN_DATA}/bw-profiles`, in separate
-credential-derived directories. These contain the CLI's encrypted vault cache
+The plugin stores profiles in the `bw-profiles` subdirectory of Claude's
+persistent plugin data directory, in separate credential-derived directories.
+These contain the CLI's encrypted vault cache
 and authentication state. warden-mcp also persists an unencrypted reusable
 session key in `.bitwarden-cli/.warden-mcp-session.json` with owner-only `0600`
 file permissions. Protect the whole profile directory and any backups of it.

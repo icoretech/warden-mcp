@@ -2,22 +2,15 @@
   "mcpServers": {
     "warden": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@icoretech/warden-mcp@0.2.73", "--stdio"],
+      "command": "sh",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/start.sh"],
       "env": {
-        "BW_HOST": "${user_config.vault_url}",
-        "BW_CLIENTID": "${user_config.client_id}",
-        "BW_CLIENTSECRET": "${user_config.client_secret}",
-        "BW_PASSWORD": "${user_config.master_password}",
-        "KEYCHAIN_BW_HOME_ROOT": "${CLAUDE_PLUGIN_DATA}/bw-profiles",
-        "MCP_APP_NAME": "warden-mcp",
-        "TOOL_PREFIX": "keychain",
-        "READONLY": "${user_config.read_only}",
-        "KEYCHAIN_READONLY": "${user_config.read_only}",
-        "NOREVEAL": "${user_config.no_reveal}",
-        "KEYCHAIN_NOREVEAL": "${user_config.no_reveal}",
-        "KEYCHAIN_DEBUG_BW": "false",
-        "KEYCHAIN_DEBUG_HTTP": "false"
+        "CLAUDE_PLUGIN_OPTION_VAULT_URL": "${user_config.vault_url}",
+        "CLAUDE_PLUGIN_OPTION_CLIENT_ID": "${user_config.client_id}",
+        "CLAUDE_PLUGIN_OPTION_CLIENT_SECRET": "${user_config.client_secret}",
+        "CLAUDE_PLUGIN_OPTION_MASTER_PASSWORD": "${user_config.master_password}",
+        "CLAUDE_PLUGIN_OPTION_READ_ONLY": "${user_config.read_only}",
+        "CLAUDE_PLUGIN_OPTION_NO_REVEAL": "${user_config.no_reveal}"
       }
     }
   }

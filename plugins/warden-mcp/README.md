@@ -3,7 +3,7 @@
 Connect Claude Code to a vault you control through the official Bitwarden CLI.
 Search items, inspect folders and collections, and retrieve credentials or manage
 vault content when you enable the corresponding permissions. This plugin runs
-the `@icoretech/warden-mcp` release selected in the [launcher](.mcp.json) locally
+the `@icoretech/warden-mcp` release selected in the [launcher](start.sh) locally
 over stdio.
 
 This is an independent integration maintained by
@@ -14,7 +14,7 @@ tested against a hosted Bitwarden account.
 
 ## Setup
 
-You need Claude Code with plugin configuration support, a
+You need Claude Code with plugin configuration support, a POSIX shell (`sh`), a
 [supported Node.js and npm installation](https://github.com/icoretech/warden-mcp#runtime-requirements),
 and a vault account with a personal API client ID, client secret, and master
 password. Use a dedicated account with only the vault data the assistant needs.
@@ -70,7 +70,8 @@ send item, attachment, or Send content to the vault service. Send receipt can
 contact the HTTPS address supplied to that tool. The exposed-password tool uses
 the CLI's Pwned Passwords range lookup; username generation runs locally.
 
-Profiles live under `${CLAUDE_PLUGIN_DATA}/bw-profiles`. They include the CLI's
+Profiles live in the `bw-profiles` subdirectory of Claude's persistent plugin
+data directory. They include the CLI's
 encrypted vault cache and authentication state, plus a raw reusable session key
 stored with owner-only file permissions. Stopping or disabling the plugin does
 not erase these files. Debug logging is disabled in the plugin configuration.
