@@ -13,7 +13,7 @@ import {
 import { z } from 'zod';
 
 import { BwSessionPool } from '../bw/bwPool.js';
-import { readBwEnv } from '../bw/bwSession.js';
+import { type BwSessionManager, readBwEnv } from '../bw/bwSession.js';
 import { KeychainSdk } from '../sdk/keychainSdk.js';
 
 test('Claude plugin launcher applies default restrictions and explicit reveal opt-in', {
@@ -66,10 +66,12 @@ test('Claude plugin launcher applies default restrictions and explicit reveal op
     username: 'sample-user',
     password: 'test-only-password',
   };
+  let seedManager: BwSessionManager | undefined;
 
   try {
     const pool = new BwSessionPool({ rootDir: join(rootDir, 'seed-profile') });
-    const sdk = new KeychainSdk(await pool.getOrCreate(credentials));
+    seedManager = await pool.getOrCreate(credentials);
+    const sdk = new KeychainSdk(seedManager);
     const item = z
       .object({ id: z.string() })
       .parse(await sdk.createLogin(source));
@@ -174,6 +176,11 @@ test('Claude plugin launcher applies default restrictions and explicit reveal op
       await sdk.deleteItem({ id: item.id, permanent: true });
     }
   } finally {
-    await rm(rootDir, { recursive: true, force: true });
+    try {
+      // Stop and await the seed profile's keepalive before deleting its files.
+      await seedManager?.revoke();
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
   }
 });
