@@ -25,4 +25,4 @@ export KEYCHAIN_NOREVEAL="$NOREVEAL"
 export MCP_APP_NAME=warden-mcp TOOL_PREFIX=keychain
 export KEYCHAIN_DEBUG_BW=false KEYCHAIN_DEBUG_HTTP=false
 
-exec npx -y @icoretech/warden-mcp@0.2.73 --stdio
+exec npx -y @icoretech/warden-mcp@0.2.74 --stdio
