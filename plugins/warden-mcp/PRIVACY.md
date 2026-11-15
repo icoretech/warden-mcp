@@ -2,7 +2,7 @@
 
 Effective November 15, 2026. This notice covers the local Claude Code plugin
 maintained in [warden-mcp](https://github.com/icoretech/warden-mcp), using the
-pinned `@icoretech/warden-mcp@0.2.73` package and its bundled Bitwarden CLI. It does
+package selected in the [launcher](.mcp.json) and its bundled Bitwarden CLI. It does
 not replace the policies of your vault operator, Anthropic, npm, or another
 service you choose to use.
 

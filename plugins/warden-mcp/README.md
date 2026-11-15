@@ -3,7 +3,8 @@
 Connect Claude Code to a vault you control through the official Bitwarden CLI.
 Search items, inspect folders and collections, and retrieve credentials or manage
 vault content when you enable the corresponding permissions. This plugin runs
-the pinned `@icoretech/warden-mcp@0.2.73` package locally over stdio.
+the `@icoretech/warden-mcp` release selected in the [launcher](.mcp.json) locally
+over stdio.
 
 This is an independent integration maintained by
 [iCoreTech](https://github.com/icoretech/warden-mcp), not an official Bitwarden or
@@ -13,10 +14,10 @@ tested against a hosted Bitwarden account.
 
 ## Setup
 
-You need Claude Code with plugin configuration support, Node.js 22.23.5,
-npm 10.9.10, and a vault account with a personal API client ID, client secret,
-and master password. Use a dedicated account with only the vault data the
-assistant needs.
+You need Claude Code with plugin configuration support, a
+[supported Node.js and npm installation](https://github.com/icoretech/warden-mcp#runtime-requirements),
+and a vault account with a personal API client ID, client secret, and master
+password. Use a dedicated account with only the vault data the assistant needs.
 
 To load this plugin from a source checkout, record its absolute path from the
 repository root, then launch Claude from a separate project directory:
