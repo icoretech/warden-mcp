@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/icoretech/warden-mcp/compare/claude-plugin-v0.2.0...claude-plugin-v0.2.1) (2026-11-15)
+
+
+### Dependencies
+
+* update Claude plugin runtime to 0.2.74 ([0c312b0](https://github.com/icoretech/warden-mcp/commit/0c312b083d467a91ed6409900953e163b793aa6f))
+
 ## [0.2.0](https://github.com/icoretech/warden-mcp/releases/tag/claude-plugin-v0.2.0) (2026-11-15)
 
 ### Bug Fixes
