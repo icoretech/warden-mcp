@@ -15,9 +15,6 @@
     "github-actions",
     "npm"
   ],
-  "dependencyDashboard": {
-    "enabled": true
-  },
   "labels": [
     "dependencies"
   ],
