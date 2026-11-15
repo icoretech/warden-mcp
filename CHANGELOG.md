@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.74](https://github.com/icoretech/warden-mcp/compare/v0.2.73...v0.2.74) (2026-11-15)
+
+
+### Bug Fixes
+
+* automate independent Claude plugin releases ([ba165f0](https://github.com/icoretech/warden-mcp/commit/ba165f0f4168c03f41df9d1d2b2a2cb158bed534))
+
 ## [0.2.73](https://github.com/icoretech/warden-mcp/compare/v0.2.72...v0.2.73) (2026-11-14)
 
 
