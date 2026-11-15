@@ -44,13 +44,16 @@ automation.
   `plugins/warden-mcp`. Release Please updates its `version.txt`; the JSON
   extra-file updater keeps `.claude-plugin/plugin.json` at the same version.
   Keep both entries in `.release-please-manifest.json` managed by Release Please.
+  Exclude generated changelogs and disable manifest formatting so the JSON
+  updater's output passes the next CI run without a manual formatting commit.
 - Plugin releases use component tags `claude-plugin-v<version>` and their own
   changelog. Preserve the root server's existing tag format and exclude the
   plugin directory from the root package's release scope.
 - Preserve the exact-commit CI and current-main checks in the release workflow.
   Its unprefixed release outputs belong to the root server package and gate npm
   and Docker publication. Plugin path-prefixed outputs must not trigger those
-  publication jobs.
+  publication jobs. After either component releases, keep GitHub's Latest label
+  on the highest stable root server tag.
 - `plugins/warden-mcp/start.sh` is the source of truth for the plugin's exact
   published npm runtime pin. Renovate reads it through the npm datasource and
   updates it only after a package version is available. Keep standalone runtime
@@ -64,6 +67,11 @@ automation.
   read-only/no-reveal defaults, explicit reveal opt-in, and fixture cleanup.
   Launch the MCP child outside the source checkout so `npx` cannot select the
   private local package; source-only tests and manifest checks are insufficient.
+
+- Before onboarding another release component, inspect real history for empty
+  commits with `Release-As` trailers: they can apply to every package until its
+  first tag establishes a history boundary. Verify the generated version and
+  initial changelog links before publishing.
 
 ## Release Notes
 

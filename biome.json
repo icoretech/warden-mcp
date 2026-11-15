@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!CHANGELOG.md"],
+    "includes": ["**", "!**/CHANGELOG.md"],
     "ignoreUnknown": false
   },
   "formatter": {
@@ -57,7 +57,10 @@
   },
   "overrides": [
     {
-      "includes": ["package.json"],
+      "includes": [
+        "package.json",
+        "plugins/warden-mcp/.claude-plugin/plugin.json"
+      ],
       "formatter": {
         "enabled": false
       }
