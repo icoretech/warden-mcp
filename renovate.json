@@ -1,13 +1,26 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
-  "ignorePresets": [":semanticPrefixFixDepsChoreOthers"],
+  "extends": [
+    "config:recommended"
+  ],
+  "ignorePresets": [
+    ":semanticPrefixFixDepsChoreOthers"
+  ],
   "semanticCommits": "enabled",
   "semanticCommitType": "deps",
   "semanticCommitScope": "",
-  "enabledManagers": ["custom.regex", "docker-compose", "github-actions", "npm"],
-  "dependencyDashboard": true,
-  "labels": ["dependencies"],
+  "enabledManagers": [
+    "custom.regex",
+    "docker-compose",
+    "github-actions",
+    "npm"
+  ],
+  "dependencyDashboard": {
+    "enabled": true
+  },
+  "labels": [
+    "dependencies"
+  ],
   "ignoreTests": false,
   "platformAutomerge": false,
   "prHourlyLimit": 0,
@@ -22,8 +35,12 @@
     {
       "customType": "regex",
       "description": "Track the local Node.js runtime",
-      "managerFilePatterns": ["/^mise\\.toml$/"],
-      "matchStrings": ["node = \"(?<currentValue>[^\"]+)\""],
+      "managerFilePatterns": [
+        "/^mise\\.toml$/"
+      ],
+      "matchStrings": [
+        "node = \"(?<currentValue>[^\"]+)\""
+      ],
       "depNameTemplate": "node",
       "datasourceTemplate": "node-version",
       "versioningTemplate": "node"
@@ -31,15 +48,21 @@
     {
       "customType": "regex",
       "description": "Track the npm CLI used only for trusted publishing",
-      "managerFilePatterns": ["/^\\.github/workflows/release-please\\.yml$/"],
-      "matchStrings": ["NPM_PUBLISH_VERSION: \"(?<currentValue>[^\"]+)\""],
+      "managerFilePatterns": [
+        "/^\\.github/workflows/release-please\\.yml$/"
+      ],
+      "matchStrings": [
+        "NPM_PUBLISH_VERSION: \"(?<currentValue>[^\"]+)\""
+      ],
       "depNameTemplate": "npm",
       "datasourceTemplate": "npm",
       "versioningTemplate": "npm"
     },
     {
       "customType": "regex",
-      "managerFilePatterns": ["/^biome\\.json$/"],
+      "managerFilePatterns": [
+        "/^biome\\.json$/"
+      ],
       "matchStrings": [
         "\"\\$schema\"\\s*:\\s*\"https://biomejs\\.dev/schemas/(?<currentValue>[^/]+)/schema\\.json\""
       ],
@@ -50,7 +73,9 @@
     {
       "customType": "regex",
       "description": "Track the Playwright bootstrap image from the npm package version",
-      "managerFilePatterns": ["/^Dockerfile\\.bootstrap$/"],
+      "managerFilePatterns": [
+        "/^Dockerfile\\.bootstrap$/"
+      ],
       "matchStrings": [
         "FROM\\s+mcr\\.microsoft\\.com/playwright:v(?<currentValue>\\d+\\.\\d+\\.\\d+)-jammy"
       ],
@@ -58,20 +83,40 @@
       "datasourceTemplate": "npm",
       "versioningTemplate": "npm",
       "autoReplaceStringTemplate": "FROM mcr.microsoft.com/playwright:v{{{newValue}}}-jammy"
+    },
+    {
+      "customType": "regex",
+      "description": "Track the published runtime used by the Claude plugin",
+      "managerFilePatterns": [
+        "/^plugins/warden-mcp/start\\.sh$/"
+      ],
+      "matchStrings": [
+        "exec npx -y @icoretech/warden-mcp@(?<currentValue>\\d+\\.\\d+\\.\\d+) --stdio"
+      ],
+      "depNameTemplate": "@icoretech/warden-mcp",
+      "datasourceTemplate": "npm",
+      "versioningTemplate": "npm"
     }
   ],
   "packageRules": [
     {
       "description": "Keep Biome package and schema updates together",
-      "matchManagers": ["npm", "custom.regex"],
-      "matchPackageNames": ["@biomejs/biome"],
+      "matchManagers": [
+        "npm",
+        "custom.regex"
+      ],
+      "matchPackageNames": [
+        "@biomejs/biome"
+      ],
       "rangeStrategy": "pin",
       "groupName": "biome tooling",
       "groupSlug": "biome-tooling"
     },
     {
       "description": "Group TypeScript-related tooling",
-      "matchManagers": ["npm"],
+      "matchManagers": [
+        "npm"
+      ],
       "matchPackageNames": [
         "/^typescript$/",
         "/^tsx$/",
@@ -83,42 +128,69 @@
     },
     {
       "description": "Keep Playwright package and compose image updates together",
-      "matchManagers": ["custom.regex", "npm"],
-      "matchPackageNames": ["playwright"],
+      "matchManagers": [
+        "custom.regex",
+        "npm"
+      ],
+      "matchPackageNames": [
+        "playwright"
+      ],
       "groupName": "playwright tooling",
       "groupSlug": "playwright-tooling"
     },
     {
       "description": "Make Vaultwarden server image updates releasable",
-      "matchManagers": ["docker-compose"],
-      "matchPackageNames": ["vaultwarden/server"],
+      "matchManagers": [
+        "docker-compose"
+      ],
+      "matchPackageNames": [
+        "vaultwarden/server"
+      ],
       "commitMessageAction": "update",
       "commitMessageTopic": "vaultwarden/server docker tag",
       "commitMessageExtra": "to {{prettyNewVersion}}"
     },
     {
       "description": "Prevent Docker-only Playwright image updates",
-      "matchManagers": ["docker-compose"],
-      "matchDatasources": ["docker"],
-      "matchPackageNames": ["mcr.microsoft.com/playwright"],
+      "matchManagers": [
+        "docker-compose"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "mcr.microsoft.com/playwright"
+      ],
       "enabled": false
     },
     {
       "description": "Group GitHub Actions updates",
-      "matchManagers": ["github-actions"],
+      "matchManagers": [
+        "github-actions"
+      ],
       "groupName": "github actions",
       "groupSlug": "github-actions"
     },
     {
       "description": "Automerge non-major updates after checks pass",
-      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest"
+      ],
       "automerge": true,
       "automergeType": "pr"
     },
     {
       "description": "Keep the Node.js engine and local runtime on major 22",
-      "matchManagers": ["npm", "custom.regex"],
-      "matchPackageNames": ["node"],
+      "matchManagers": [
+        "npm",
+        "custom.regex"
+      ],
+      "matchPackageNames": [
+        "node"
+      ],
       "allowedVersions": ">=22 <23",
       "groupName": "node runtime",
       "groupSlug": "node-runtime",
@@ -126,8 +198,12 @@
     },
     {
       "description": "Keep workflow Node.js runtimes on major 22",
-      "matchManagers": ["github-actions"],
-      "matchPackageNames": ["actions/node-versions"],
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchPackageNames": [
+        "actions/node-versions"
+      ],
       "allowedVersions": ">=22 <23",
       "groupName": "node runtime",
       "groupSlug": "node-runtime",
@@ -135,17 +211,41 @@
     },
     {
       "description": "Match Node.js type declarations to the runtime major",
-      "matchManagers": ["npm"],
-      "matchPackageNames": ["@types/node"],
+      "matchManagers": [
+        "npm"
+      ],
+      "matchPackageNames": [
+        "@types/node"
+      ],
       "allowedVersions": ">=22 <23"
     },
     {
       "description": "Keep the npm engine on the Node.js 22-compatible release line",
-      "matchManagers": ["npm"],
-      "matchDepTypes": ["engines"],
-      "matchPackageNames": ["npm"],
+      "matchManagers": [
+        "npm"
+      ],
+      "matchDepTypes": [
+        "engines"
+      ],
+      "matchPackageNames": [
+        "npm"
+      ],
       "allowedVersions": ">=10.9.9 <10.10.0",
       "automerge": false
+    },
+    {
+      "description": "Keep plugin runtime updates separate from server dependency releases",
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchFileNames": [
+        "plugins/warden-mcp/start.sh"
+      ],
+      "matchPackageNames": [
+        "@icoretech/warden-mcp"
+      ],
+      "groupName": "claude plugin runtime",
+      "groupSlug": "claude-plugin-runtime"
     }
   ]
 }

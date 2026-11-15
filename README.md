@@ -61,7 +61,7 @@ Most local hosts should use stdio. The examples below use API-key auth; replace
 
 The repository also includes a local Claude Code plugin with a pinned package
 version, configuration prompts, and read-only/no-reveal defaults. See the
-[plugin setup and privacy notice](plugins/warden-mcp/README.md). It runs over
+[plugin setup and privacy notice](https://github.com/icoretech/warden-mcp/blob/main/plugins/warden-mcp/README.md). It runs over
 stdio and does not provide an OAuth-based remote connector.
 
 For a separate manual MCP setup without the plugin, use the command below.
@@ -407,7 +407,7 @@ Useful commands:
 | `make down`                | stop the local compose stack                        |
 
 For a quick live MCP smoke against local Vaultwarden, see
-[agent-instructions/testing.md](agent-instructions/testing.md).
+[agent-instructions/testing.md](https://github.com/icoretech/warden-mcp/blob/main/agent-instructions/testing.md).
 
 ## Compatibility
 
@@ -434,10 +434,10 @@ against a local Vaultwarden instance before a CLI bump should ship.
 
 - npm package: [`@icoretech/warden-mcp`](https://www.npmjs.com/package/@icoretech/warden-mcp)
 - Docker image: [`ghcr.io/icoretech/warden-mcp`](https://ghcr.io/icoretech/warden-mcp)
-- Changelog: [CHANGELOG.md](CHANGELOG.md)
-- Security policy: [SECURITY.md](SECURITY.md)
-- Threat model: [THREAT_MODEL.md](THREAT_MODEL.md)
-- Repository guidance: [AGENTS.md](AGENTS.md)
+- Changelog: [CHANGELOG.md](https://github.com/icoretech/warden-mcp/blob/main/CHANGELOG.md)
+- Security policy: [SECURITY.md](https://github.com/icoretech/warden-mcp/blob/main/SECURITY.md)
+- Threat model: [THREAT_MODEL.md](https://github.com/icoretech/warden-mcp/blob/main/THREAT_MODEL.md)
+- Repository guidance: [AGENTS.md](https://github.com/icoretech/warden-mcp/blob/main/AGENTS.md)
 
 ## Contributing
 

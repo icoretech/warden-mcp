@@ -38,6 +38,33 @@ automation.
 - Automatic releases wait for successful push CI on the exact source commit and
   refuse to merge a release if `main` has advanced beyond that commit
 
+## Claude Plugin Releases
+
+- The Claude plugin has an independent Release Please `simple` package under
+  `plugins/warden-mcp`. Release Please updates its `version.txt`; the JSON
+  extra-file updater keeps `.claude-plugin/plugin.json` at the same version.
+  Keep both entries in `.release-please-manifest.json` managed by Release Please.
+- Plugin releases use component tags `claude-plugin-v<version>` and their own
+  changelog. Preserve the root server's existing tag format and exclude the
+  plugin directory from the root package's release scope.
+- Preserve the exact-commit CI and current-main checks in the release workflow.
+  Its unprefixed release outputs belong to the root server package and gate npm
+  and Docker publication. Plugin path-prefixed outputs must not trigger those
+  publication jobs.
+- `plugins/warden-mcp/start.sh` is the source of truth for the plugin's exact
+  published npm runtime pin. Renovate reads it through the npm datasource and
+  updates it only after a package version is available. Keep standalone runtime
+  pin updates inside the plugin directory so adopting a server release cannot
+  create another server release loop.
+- Do not copy the plugin or runtime version into prose. Link to the plugin's
+  version file, manifest, launcher, or canonical runtime requirements instead.
+- Runtime adoption requires the actual published-package contract in
+  `src/integration/claude-plugin.integration.test.ts`, using the compose-backed
+  personal API-key fixture. Preserve real authentication, seeded-item access,
+  read-only/no-reveal defaults, explicit reveal opt-in, and fixture cleanup.
+  Launch the MCP child outside the source checkout so `npx` cannot select the
+  private local package; source-only tests and manifest checks are insufficient.
+
 ## Release Notes
 
 - Document any intentional support-boundary changes in the README

@@ -119,6 +119,27 @@ test vault; do not reuse them for a real account or commit them. The
 documents further fixture checks. Stop the local services with `docker compose
 down` from the repository root when review is complete.
 
+## Updates
+
+The plugin and the npm server have separate release versions. Release Please
+maintains the plugin's [version file](version.txt), the version in its
+[manifest](.claude-plugin/plugin.json), and its changelog, with release tags named
+`claude-plugin-v<version>`. Plugin-only changes do not create a server release or
+publish npm and Docker artifacts.
+
+The [launcher](start.sh) selects an exact npm package version. Renovate proposes
+updates after that version is published to npm; those changes stay within this
+plugin directory and receive a plugin release. This keeps server publication
+and plugin adoption separate. The server's existing CI and publication gates
+continue to apply to server releases.
+
+Before adopting a new runtime, run the
+[published-package integration test](https://github.com/icoretech/warden-mcp/blob/main/src/integration/claude-plugin.integration.test.ts)
+against the local API-key fixture. It launches the actual plugin outside the
+source checkout and checks authentication, vault access, default restrictions,
+and explicit reveal opt-in against the published npm package. A source build or
+manifest-only check does not replace that verification.
+
 Report bugs or configuration questions in the
 [issue tracker](https://github.com/icoretech/warden-mcp/issues). Report security
 issues through [private vulnerability reporting](https://github.com/icoretech/warden-mcp/security/advisories/new).

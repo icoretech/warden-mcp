@@ -21,6 +21,8 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+    # Unprefixed outputs belong to the root server package. Plugin releases use
+    # path-prefixed outputs and must not publish npm or Docker artifacts.
     outputs:
       release_created: ${{ steps.release.outputs.release_created == 'true' || steps.release_after_merge.outputs.release_created == 'true' }}
       tag_name: ${{ steps.release_after_merge.outputs.tag_name || steps.release.outputs.tag_name }}
