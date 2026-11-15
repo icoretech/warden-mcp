@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 24 24" role="img" aria-labelledby="warden-title">
+  <title id="warden-title">warden-mcp vault</title>
+  <rect x="1" y="1" width="22" height="22" rx="5" fill="#182C32"/>
+  <path d="M8 5h8l3 3v8l-3 3H8l-3-3V8z" fill="#B8E5DA"/>
+  <path d="M12 7.5a2.5 2.5 0 0 0-1.25 4.67L10 16h4l-.75-3.83A2.5 2.5 0 0 0 12 7.5Z" fill="#182C32"/>
+</svg>

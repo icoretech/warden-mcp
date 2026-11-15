@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "warden": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@icoretech/warden-mcp@0.2.73", "--stdio"],
+      "env": {
+        "BW_HOST": "${user_config.vault_url}",
+        "BW_CLIENTID": "${user_config.client_id}",
+        "BW_CLIENTSECRET": "${user_config.client_secret}",
+        "BW_PASSWORD": "${user_config.master_password}",
+        "KEYCHAIN_BW_HOME_ROOT": "${CLAUDE_PLUGIN_DATA}/bw-profiles",
+        "MCP_APP_NAME": "warden-mcp",
+        "TOOL_PREFIX": "keychain",
+        "READONLY": "${user_config.read_only}",
+        "KEYCHAIN_READONLY": "${user_config.read_only}",
+        "NOREVEAL": "${user_config.no_reveal}",
+        "KEYCHAIN_NOREVEAL": "${user_config.no_reveal}",
+        "KEYCHAIN_DEBUG_BW": "false",
+        "KEYCHAIN_DEBUG_HTTP": "false"
+      }
+    }
+  }
+}

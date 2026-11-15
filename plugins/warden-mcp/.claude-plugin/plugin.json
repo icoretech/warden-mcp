@@ -1,0 +1,58 @@
+{
+  "name": "warden-mcp",
+  "version": "0.1.0",
+  "description": "Search and manage a Vaultwarden or Bitwarden vault through a local MCP server, with read-only and secret-reveal controls.",
+  "author": {
+    "name": "iCoreTech",
+    "url": "https://github.com/icoretech"
+  },
+  "homepage": "https://github.com/icoretech/warden-mcp",
+  "repository": "https://github.com/icoretech/warden-mcp",
+  "license": "MIT",
+  "keywords": ["vaultwarden", "bitwarden", "credentials", "mcp"],
+  "icon": "./icon.svg",
+  "documentationUrl": "https://github.com/icoretech/warden-mcp/blob/main/plugins/warden-mcp/README.md",
+  "supportUrl": "https://github.com/icoretech/warden-mcp/issues",
+  "privacyPolicyUrl": "https://github.com/icoretech/warden-mcp/blob/main/plugins/warden-mcp/PRIVACY.md",
+  "mcpServers": "./.mcp.json",
+  "userConfig": {
+    "vault_url": {
+      "type": "string",
+      "title": "Vault URL",
+      "description": "HTTPS origin of the Vaultwarden or Bitwarden server you use.",
+      "required": true
+    },
+    "client_id": {
+      "type": "string",
+      "title": "API client ID",
+      "description": "Personal API client ID from your vault account.",
+      "required": true
+    },
+    "client_secret": {
+      "type": "string",
+      "title": "API client secret",
+      "description": "Personal API client secret from your vault account.",
+      "required": true,
+      "sensitive": true
+    },
+    "master_password": {
+      "type": "string",
+      "title": "Master password",
+      "description": "Unlocks your vault locally through the Bitwarden CLI.",
+      "required": true,
+      "sensitive": true
+    },
+    "read_only": {
+      "type": "boolean",
+      "title": "Read-only access",
+      "description": "Hide mutating tools and reject vault changes.",
+      "default": true
+    },
+    "no_reveal": {
+      "type": "boolean",
+      "title": "Keep secret fields redacted",
+      "description": "Block revealing supported secret fields. Attachment and Send contents can still be returned.",
+      "default": true
+    }
+  }
+}

@@ -59,6 +59,15 @@ Most local hosts should use stdio. The examples below use API-key auth; replace
 
 ### Claude Code
 
+The repository also includes a local Claude Code plugin with a pinned package
+version, configuration prompts, and read-only/no-reveal defaults. See the
+[plugin setup and privacy notice](plugins/warden-mcp/README.md). It runs over
+stdio and does not provide an OAuth-based remote connector.
+
+For a separate manual MCP setup without the plugin, use the command below.
+Unlike the plugin defaults, this configuration permits writes and accepts
+explicit `reveal: true` requests for supported secret fields.
+
 ```bash
 claude mcp add-json warden '{"command":"npx","args":["-y","@icoretech/warden-mcp@latest","--stdio"],"env":{"BW_HOST":"https://vaultwarden.example.com","BW_CLIENTID":"user.xxxxx","BW_CLIENTSECRET":"xxxxx","BW_PASSWORD":"your-master-password"}}'
 ```
