@@ -1,5 +1,8 @@
 # warden-mcp
 
+![Skip pasting passwords into chat. Your AI agent can fetch the login from
+Bitwarden or Vaultwarden.](.github/assets/skip-pasting-passwords.webp)
+
 **Vaultwarden / Bitwarden MCP server for credential-aware AI agents.**
 
 [![npm version](https://img.shields.io/npm/v/%40icoretech%2Fwarden-mcp?logo=npm)](https://www.npmjs.com/package/@icoretech/warden-mcp)
