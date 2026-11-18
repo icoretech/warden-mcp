@@ -181,6 +181,9 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
 
+      - name: Set up npm
+        run: npm install --global "npm@$(node -p 'require("./package.json").engines.npm')"
+
       - run: npm ci
 
       - run: npm run build

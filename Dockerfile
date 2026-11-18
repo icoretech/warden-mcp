@@ -1,4 +1,8 @@
-FROM node:22-bookworm-slim AS builder
+FROM node:22-bookworm-slim AS node-runtime
+RUN --mount=type=bind,source=package.json,target=/tmp/warden-package.json \
+  npm install --global "npm@$(node -p 'require("/tmp/warden-package.json").engines.npm')"
+
+FROM node-runtime AS builder
 WORKDIR /app
 COPY package.json package-lock.json* tsconfig.json biome.json ./
 COPY bin ./bin
@@ -7,7 +11,7 @@ RUN npm ci
 RUN npm run build
 RUN npm prune --omit=dev
 
-FROM node:22-bookworm-slim
+FROM node-runtime
 # Use the `node` user that already exists in the base image (uid/gid 1000).
 RUN mkdir -p /app /data \
   && chown -R node:node /app /data
