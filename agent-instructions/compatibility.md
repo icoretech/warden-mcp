@@ -51,11 +51,21 @@ automation.
 - Plugin releases use component tags `claude-plugin-v<version>` and their own
   changelog. Preserve the root server's existing tag format and exclude the
   plugin directory from the root package's release scope.
+- Keep the root Release Please `package-name` empty. For a server-only release,
+  the grouped PR carries a bare version on a branch with no component suffix.
+  An empty name lets the Node strategy recognize that PR after merge. The npm
+  package name is defined separately in `package.json`.
 - Preserve the exact-commit CI and current-main checks in the release workflow.
   Its unprefixed release outputs belong to the root server package and gate npm
   and Docker publication. Plugin path-prefixed outputs must not trigger those
   publication jobs. After either component releases, keep GitHub's Latest label
   on the highest stable root server tag.
+- When a run recovers a previously merged server release, it publishes that
+  version first and leaves any newer release PR open. After confirming npm
+  and both Docker architectures for the recovered tag, rerun the full push
+  workflow if its source is still the tip of `main`. If `main` has advanced,
+  use the release run for the newer push. Inspect the GitHub tag, npm version
+  and Docker image digest before retrying a partially completed publication.
 - `plugins/warden-mcp/start.sh` is the source of truth for the plugin's exact
   published npm runtime pin. Renovate reads it through the npm datasource and
   updates it only after a package version is available. Keep standalone runtime

@@ -37,6 +37,18 @@ jobs:
       - name: Unit tests
         run: node --test "dist/**/*.test.js"
 
+      - name: Test server and plugin release tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          action=$(yq -er '.jobs."release-please".steps[] | select(.id == "release") | .uses' .github/workflows/release-please.yml)
+          version=$(gh api --method GET repos/googleapis/release-please-action/contents/package-lock.json \
+            -f "ref=${action##*@}" -H 'Accept: application/vnd.github.raw+json' \
+            --jq '.packages["node_modules/release-please"].version')
+          npm install --prefix "${RUNNER_TEMP}/release-contract" --no-save --package-lock=false --ignore-scripts --no-audit --no-fund "release-please@${version}"
+          NODE_PATH="${RUNNER_TEMP}/release-contract/node_modules" node --test .github/tests/release-tags.test.cjs
+
       - name: Lint workflows
         uses: docker://rhysd/actionlint:latest
         with:
