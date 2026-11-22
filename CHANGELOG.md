@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.76](https://github.com/icoretech/warden-mcp/compare/v0.2.75...v0.2.76) (2026-11-22)
+
+
+### Bug Fixes
+
+* **release:** match server-only release PRs and publish recovered tags in order ([2e8d3ec](https://github.com/icoretech/warden-mcp/commit/2e8d3ec51ba330ebf27b26f6f9357c593e597258))
+
+
+### Dependencies
+
+* update dependency @bitwarden/cli to v2026.11.0 ([#270](https://github.com/icoretech/warden-mcp/issues/270)) ([ddc9368](https://github.com/icoretech/warden-mcp/commit/ddc93684a01cde6b03a062fb8a8e8247d9481cf1))
+* update dependency npm to v12.2.3 ([#269](https://github.com/icoretech/warden-mcp/issues/269)) ([d2cd71e](https://github.com/icoretech/warden-mcp/commit/d2cd71eb6fe4dbce5f7e0d23e53ac3b4119ae6b5))
+* update encodeurl, graceful-fs, hono and tldts-core ([5cfa18b](https://github.com/icoretech/warden-mcp/commit/5cfa18b39bb467a8c81f398cb608df3f9f1d8f15))
+* update npm to ~10.9.11 ([#251](https://github.com/icoretech/warden-mcp/issues/251)) ([39c4f0c](https://github.com/icoretech/warden-mcp/commit/39c4f0ceef1dea0056ef391b0ceb46ff804e8df0))
+
 ## [0.2.75](https://github.com/icoretech/warden-mcp/compare/v0.2.74...v0.2.75) (2026-11-16)
 
 
