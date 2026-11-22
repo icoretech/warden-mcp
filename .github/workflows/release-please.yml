@@ -6,9 +6,16 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: Existing release tag to publish to npm
+        description: Existing server release tag
         required: true
         type: string
+      publish_target:
+        description: Artifact to publish
+        type: choice
+        default: npm
+        options:
+          - npm
+          - docker
 
 permissions: {}
 
@@ -26,8 +33,6 @@ jobs:
     outputs:
       release_created: ${{ steps.release.outputs.release_created == 'true' || steps.release_after_merge.outputs.release_created == 'true' }}
       tag_name: ${{ steps.release_after_merge.outputs.tag_name || steps.release.outputs.tag_name }}
-      version: ${{ steps.release_after_merge.outputs.version || steps.release.outputs.version }}
-      major_minor: ${{ steps.release_after_merge.outputs.major || steps.release.outputs.major }}.${{ steps.release_after_merge.outputs.minor || steps.release.outputs.minor }}
     steps:
       - name: Require successful CI for this commit
         timeout-minutes: 20
@@ -205,7 +210,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     needs: release-please
-    if: ${{ always() && (github.event_name == 'workflow_dispatch' || (needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true')) }}
+    if: ${{ always() && ((github.event_name == 'workflow_dispatch' && inputs.publish_target != 'docker') || (needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true')) }}
     permissions:
       contents: read
       id-token: write
@@ -264,14 +269,50 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
+    if: ${{ always() && ((github.event_name == 'workflow_dispatch' && inputs.publish_target == 'docker') || (needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true')) }}
+    concurrency:
+      group: publish-server-image
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v7
+        id: checkout
         with:
-          ref: ${{ needs.release-please.outputs.tag_name }}
+          ref: ${{ format('refs/tags/{0}', inputs.tag_name || needs.release-please.outputs.tag_name) }}
+
+      - name: Resolve server image tags
+        id: image
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ inputs.tag_name || needs.release-please.outputs.tag_name }}
+          CHECKOUT_SHA: ${{ steps.checkout.outputs.commit }}
+        run: |
+          set -euo pipefail
+
+          [[ "${TAG_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          version="${TAG_NAME#v}"
+          jq -e --arg version "${version}" '.version == $version' package.json >/dev/null
+          latest="$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/releases?per_page=100" |
+            jq -er '[.[][] | select(.draft == false and .prerelease == false and (.tag_name | test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))) | .tag_name]
+              | max_by(ltrimstr("v") | split(".") | map(tonumber)) | select(. != null)')"
+          promote=false
+          if [[ "${TAG_NAME}" == "${latest}" ]]; then promote=true; fi
+          if [[ "${GITHUB_EVENT_NAME}" == workflow_dispatch ]]; then
+            main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+            [[ "${GITHUB_REF}" == refs/heads/main && "${GITHUB_SHA}" == "${main_sha}" && "${promote}" == true ]] || {
+              echo "::error::Dispatch Docker publication from current main for the latest stable server release (${latest})"
+              exit 1
+            }
+            ancestor="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${CHECKOUT_SHA}...${main_sha}" --jq '.merge_base_commit.sha')"
+            [[ "${ancestor}" == "${CHECKOUT_SHA}" ]] || { echo "::error::Release tag is outside main history"; exit 1; }
+          fi
+          {
+            echo "version=${version}"
+            echo "major_minor=${version%.*}"
+            echo "promote=${promote}"
+          } >> "${GITHUB_OUTPUT}"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -293,9 +334,9 @@ jobs:
             org.opencontainers.image.title=Warden MCP
             org.opencontainers.image.vendor=iCoreTech, Inc.
           tags: |
-            type=raw,value=${{ needs.release-please.outputs.version }}
-            type=raw,value=${{ needs.release-please.outputs.major_minor }}
-            type=raw,value=latest
+            type=raw,value=${{ steps.image.outputs.version }}
+            type=raw,value=${{ steps.image.outputs.major_minor }},enable=${{ steps.image.outputs.promote }}
+            type=raw,value=latest,enable=${{ steps.image.outputs.promote }}
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v4

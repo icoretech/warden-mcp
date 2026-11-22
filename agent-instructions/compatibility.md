@@ -66,6 +66,12 @@ automation.
   workflow if its source is still the tip of `main`. If `main` has advanced,
   use the release run for the newer push. Inspect the GitHub tag, npm version
   and Docker image digest before retrying a partially completed publication.
+- To recover a missing image for the highest stable server release, dispatch
+  `release-please.yml` from current `main` with its existing `tag_name` and
+  `publish_target=docker`. The default dispatch target is npm. If GitHub
+  refuses to create a historical release with the workflow token, verify the
+  merged release PR, create the release at that exact SHA with its original
+  notes, and verify both registries before clearing the PR's pending label.
 - `plugins/warden-mcp/start.sh` is the source of truth for the plugin's exact
   published npm runtime pin. Renovate reads it through the npm datasource and
   updates it only after a package version is available. Keep standalone runtime
