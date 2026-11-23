@@ -54,7 +54,7 @@
   "overrides": {
     "form-data": "4.0.6",
     "multer": "2.5.0",
-    "node-forge": "1.4.3",
+    "node-forge": "1.4.4",
     "tmp": "0.2.7"
   },
   "devDependencies": {
