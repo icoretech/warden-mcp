@@ -1,6 +1,6 @@
 {
   "name": "warden-mcp",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Search and manage a Vaultwarden or Bitwarden vault through a local MCP server, with read-only and secret-reveal controls.",
   "author": {
     "name": "iCoreTech",
