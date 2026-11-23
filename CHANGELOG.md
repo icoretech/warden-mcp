@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.77](https://github.com/icoretech/warden-mcp/compare/v0.2.76...v0.2.77) (2026-11-23)
+
+
+### Dependencies
+
+* update dependency node-forge to v1.4.4 ([#274](https://github.com/icoretech/warden-mcp/issues/274)) ([0ee794f](https://github.com/icoretech/warden-mcp/commit/0ee794f268f5e631d4e5da162551d68bec1c79f7))
+
 ## [0.2.76](https://github.com/icoretech/warden-mcp/compare/v0.2.75...v0.2.76) (2026-11-22)
 
 
