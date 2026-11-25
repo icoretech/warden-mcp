@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.78](https://github.com/icoretech/warden-mcp/compare/v0.2.77...v0.2.78) (2026-11-25)
+
+
+### Dependencies
+
+* update dependency @biomejs/biome to v2.6.9 ([#279](https://github.com/icoretech/warden-mcp/issues/279)) ([a77f228](https://github.com/icoretech/warden-mcp/commit/a77f2285d670fe705448bab3fe3d40c64953c47d))
+* update dependency @bitwarden/cli to v2026.11.1 ([#280](https://github.com/icoretech/warden-mcp/issues/280)) ([3ed60c7](https://github.com/icoretech/warden-mcp/commit/3ed60c758e57dc69b5c00ca799d864530a09b564))
+
 ## [0.2.77](https://github.com/icoretech/warden-mcp/compare/v0.2.76...v0.2.77) (2026-11-23)
 
 
