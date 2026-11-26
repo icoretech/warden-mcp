@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.79](https://github.com/icoretech/warden-mcp/compare/v0.2.78...v0.2.79) (2026-11-26)
+
+
+### Dependencies
+
+* update dependency @types/node to ^22.20.7 ([#283](https://github.com/icoretech/warden-mcp/issues/283)) ([58bf5b7](https://github.com/icoretech/warden-mcp/commit/58bf5b767a8970d28326f23e2e281fecec0dc183))
+
 ## [0.2.78](https://github.com/icoretech/warden-mcp/compare/v0.2.77...v0.2.78) (2026-11-25)
 
 
