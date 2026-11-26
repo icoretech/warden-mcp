@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/icoretech/warden-mcp/compare/claude-plugin-v0.2.3...claude-plugin-v0.2.4) (2026-11-26)
+
+
+### Dependencies
+
+* update dependency @icoretech/warden-mcp to v0.2.78 ([#282](https://github.com/icoretech/warden-mcp/issues/282)) ([c0b241f](https://github.com/icoretech/warden-mcp/commit/c0b241f61fcec53c8768fbd73cd9987f13035254))
+
 ## [0.2.3](https://github.com/icoretech/warden-mcp/compare/claude-plugin-v0.2.2...claude-plugin-v0.2.3) (2026-11-24)
 
 
