@@ -315,25 +315,25 @@ metadata is appropriate for the client.
 
 ## Configuration
 
-| Variable                             | Default               | Purpose                                           |
-| ------------------------------------ | --------------------- | ------------------------------------------------- |
-| `PORT`                               | `3005`                | HTTP listen port                                  |
-| `WARDEN_MCP_HOST`                    | all interfaces        | HTTP bind host                                    |
-| `WARDEN_MCP_STDIO`                   | `false`               | force stdio mode without `--stdio`                |
-| `MCP_APP_NAME`                       | `keychain-mcp`        | advertised MCP server name                        |
-| `TOOL_PREFIX`                        | `keychain`            | public tool namespace                             |
-| `TOOL_SEPARATOR`                     | `_`                   | public tool separator; set `.` for legacy clients |
-| `KEYCHAIN_BW_HOME_ROOT`              | `${HOME}/bw-profiles` | root for per-profile `bw` state                   |
-| `KEYCHAIN_ALLOW_ENV_FALLBACK`        | `false`               | allow HTTP calls to inherit server `BW_*` env     |
-| `KEYCHAIN_SYNC_ON_WRITE`             | `true`                | run `bw sync` before write operations             |
-| `READONLY` / `KEYCHAIN_READONLY`     | `false`               | hide and reject mutating tools                    |
+| Variable                             | Default               | Purpose                                                      |
+| ------------------------------------ | --------------------- | ------------------------------------------------------------ |
+| `PORT`                               | `3005`                | HTTP listen port                                             |
+| `WARDEN_MCP_HOST`                    | all interfaces        | HTTP bind host                                               |
+| `WARDEN_MCP_STDIO`                   | `false`               | force stdio mode without `--stdio`                           |
+| `MCP_APP_NAME`                       | `keychain-mcp`        | advertised MCP server name                                   |
+| `TOOL_PREFIX`                        | `keychain`            | public tool namespace                                        |
+| `TOOL_SEPARATOR`                     | `_`                   | public tool separator; set `.` for legacy clients            |
+| `KEYCHAIN_BW_HOME_ROOT`              | `${HOME}/bw-profiles` | root for per-profile `bw` state                              |
+| `KEYCHAIN_ALLOW_ENV_FALLBACK`        | `false`               | allow HTTP calls to inherit server `BW_*` env                |
+| `KEYCHAIN_SYNC_ON_WRITE`             | `true`                | run `bw sync` before write operations                        |
+| `READONLY` / `KEYCHAIN_READONLY`     | `false`               | hide and reject mutating tools                               |
 | `NOREVEAL` / `KEYCHAIN_NOREVEAL`     | `false`               | suppress reveals and block attachment and Send content reads |
-| `KEYCHAIN_TEXT_COMPAT_MODE`          | unset                 | set `structured_json` for text-only clients       |
-| `KEYCHAIN_SESSION_MAX_COUNT`         | `32`                  | max tracked HTTP sessions                         |
-| `KEYCHAIN_SESSION_TTL_MS`            | `900000`              | inactive session TTL                              |
-| `KEYCHAIN_SESSION_SWEEP_INTERVAL_MS` | `60000`               | session cleanup interval                          |
-| `KEYCHAIN_MAX_HEAP_USED_MB`          | `1536`                | memory fuse; set `0` to disable                   |
-| `KEYCHAIN_METRICS_LOG_INTERVAL_MS`   | `0`                   | periodic metrics logging; `0` disables            |
+| `KEYCHAIN_TEXT_COMPAT_MODE`          | unset                 | set `structured_json` for text-only clients                  |
+| `KEYCHAIN_SESSION_MAX_COUNT`         | `32`                  | max tracked HTTP sessions                                    |
+| `KEYCHAIN_SESSION_TTL_MS`            | `900000`              | inactive session TTL                                         |
+| `KEYCHAIN_SESSION_SWEEP_INTERVAL_MS` | `60000`               | session cleanup interval                                     |
+| `KEYCHAIN_MAX_HEAP_USED_MB`          | `1536`                | memory fuse; set `0` to disable                              |
+| `KEYCHAIN_METRICS_LOG_INTERVAL_MS`   | `0`                   | periodic metrics logging; `0` disables                       |
 
 `KEYCHAIN_TEXT_COMPAT_MODE=structured_json` mirrors supported
 `structuredContent` into plain text. That helps MCP clients that only pass

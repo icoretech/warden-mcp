@@ -89,13 +89,13 @@ MCP tools are callable by any connected MCP host. When the host is an LLM agent,
 
 ### Mitigated
 
-| Scenario                               | Mitigation                                                       | Residual risk                                                                                                  |
-| -------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| **Env credential bypass in HTTP mode** | Disabled by default; requires `KEYCHAIN_ALLOW_ENV_FALLBACK=true` | Operators who enable it on shared networks expose their vault                                                  |
-| **CLI option injection**               | `--` terminators before all user positional args                 | None — `bw` treats everything after `--` as data                                                               |
+| Scenario                               | Mitigation                                                                      | Residual risk                                                                                                             |
+| -------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **Env credential bypass in HTTP mode** | Disabled by default; requires `KEYCHAIN_ALLOW_ENV_FALLBACK=true`                | Operators who enable it on shared networks expose their vault                                                             |
+| **CLI option injection**               | `--` terminators before all user positional args                                | None — `bw` treats everything after `--` as data                                                                          |
 | **Prompt-injection exfiltration**      | Enable `NOREVEAL` to suppress secret fields, attachment bytes, and Send content | The client can still read metadata such as item names, usernames, and URIs. Limit the vault account's access accordingly. |
-| **Secret leakage in error messages**   | `parseBwJson` includes byte count only, not raw output           | None                                                                                                           |
-| **SSRF via receive URL**               | `receive()` rejects non-HTTPS URLs                               | `bw` still makes the outbound request; HTTPS-only limits but doesn't eliminate SSRF to internal HTTPS services |
+| **Secret leakage in error messages**   | `parseBwJson` includes byte count only, not raw output                          | None                                                                                                                      |
+| **SSRF via receive URL**               | `receive()` rejects non-HTTPS URLs                                              | `bw` still makes the outbound request; HTTPS-only limits but doesn't eliminate SSRF to internal HTTPS services            |
 
 ### Accepted / by design
 
