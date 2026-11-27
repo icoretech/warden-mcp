@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.7](https://github.com/icoretech/warden-mcp/compare/claude-plugin-v0.2.6...claude-plugin-v0.2.7) (2026-11-27)
+
+
+### Bug Fixes
+
+* run the Claude plugin with the no-reveal fix in warden-mcp 0.2.81 ([4e6115b](https://github.com/icoretech/warden-mcp/commit/4e6115b5576b3fd396569012228adb674df66af7))
+
 ## [0.2.6](https://github.com/icoretech/warden-mcp/compare/claude-plugin-v0.2.5...claude-plugin-v0.2.6) (2026-11-27)
 
 
