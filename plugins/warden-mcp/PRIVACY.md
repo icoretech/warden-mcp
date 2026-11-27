@@ -1,6 +1,6 @@
 # warden-mcp plugin privacy notice
 
-Effective November 15, 2026. This notice covers the local Claude Code plugin
+Effective November 27, 2026. This notice covers the local Claude Code plugin
 maintained in [warden-mcp](https://github.com/icoretech/warden-mcp), using the
 package selected in the [launcher](start.sh) and its bundled Bitwarden CLI. It does
 not replace the policies of your vault operator, Anthropic, npm, or another
@@ -40,9 +40,9 @@ has already been returned to a client.
   file writes use the CLI's encryption and service APIs. The vault service may
   use separate storage endpoints for attachments and Sends and may record
   organization audit events.
-- Send receipt contacts the HTTPS URL supplied in the tool call, which can be a
-  different host from the configured vault. The supplied Send password and
-  access link are processed by the CLI for that operation.
+- With `no_reveal` disabled, receiving a shared Send contacts the HTTPS URL
+  supplied in the tool call, which can be a different host from the configured
+  vault. The CLI processes the supplied Send password and access link.
 - `keychain_get_exposed` uses the CLI's Pwned Passwords range lookup. It sends the
   first five hexadecimal characters of a password's SHA-1 hash to
   `api.pwnedpasswords.com`, then compares the returned hash suffixes locally.
@@ -81,15 +81,16 @@ logs retained by the host are governed by the host's retention settings.
 
 ## Controls and limits
 
-`read_only` defaults to `true` and blocks mutating MCP tools. `no_reveal` defaults
-to `true` and suppresses supported secret fields even if a tool asks to reveal
-them. When no-reveal is disabled, the affected tools still require `reveal: true`.
+`read_only` defaults to `true` and blocks mutating MCP tools. `no_reveal`
+also defaults to `true`. It suppresses supported secret fields even when the
+client requests them, blocks attachment downloads and Send content reads, and
+limits owned Send results to selected metadata. These restrictions apply to
+both text and structured results, including the results of enabled writes.
 
-These controls do not restrict access to a selected subset of vault items.
-Names, usernames, URIs, and other metadata remain visible. Attachment and Send
-tools can return plaintext or file bytes without a reveal flag, including in
-read-only mode. Use a dedicated vault account with limited access, and review
-tool requests before authorizing them in your client.
+Disabling `no_reveal` allows attachment and Send content to reach the client,
+including in read-only mode. Passwords and TOTP codes still require an explicit
+`reveal: true`. Item names, usernames, URIs, and other metadata are visible in
+either mode. Use a dedicated account to limit which vault items Claude can access.
 
 For privacy questions about this plugin, use the
 [project issue tracker](https://github.com/icoretech/warden-mcp/issues) without

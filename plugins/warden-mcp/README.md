@@ -33,14 +33,14 @@ of the checkout's private local package.
 
 Complete the plugin's configuration prompts:
 
-| Setting           | Value                                                          |
-| ----------------- | -------------------------------------------------------------- |
-| `vault_url`       | Your vault's HTTPS origin, such as `https://vault.example.com` |
-| `client_id`       | Your personal API client ID                                    |
-| `client_secret`   | Your personal API client secret; marked sensitive              |
-| `master_password` | Your vault master password; marked sensitive                   |
-| `read_only`       | Defaults to `true`; hides and rejects mutating tools           |
-| `no_reveal`       | Defaults to `true`; keeps supported secret fields redacted     |
+| Setting           | Value                                                                                    |
+| ----------------- | ---------------------------------------------------------------------------------------- |
+| `vault_url`       | Your vault's HTTPS origin, such as `https://vault.example.com`                           |
+| `client_id`       | Your personal API client ID                                                              |
+| `client_secret`   | Your personal API client secret; marked sensitive                                        |
+| `master_password` | Your vault master password; marked sensitive                                             |
+| `read_only`       | Defaults to `true`; hides and rejects mutating tools                                     |
+| `no_reveal`       | Defaults to `true`. Blocks secret reveals, attachment downloads, and Send content reads. |
 
 Enter credentials through plugin configuration, not a conversation or a tracked
 file. The host supplies them to the local server as environment variables. The
@@ -53,14 +53,15 @@ plugin does not provide a remotely hosted connector or an OAuth login service.
 - "List the folders and organization collections available in my vault."
 - "Find the sample-app login and show its metadata with secret fields redacted."
 
-For credential retrieval, disable `no_reveal` only when appropriate and explicitly
-request the password or TOTP code; secret-returning tools require `reveal: true`.
-To create, edit, move, restore, or delete vault content, disable `read_only` first.
+With the default settings, Claude can list owned Sends and read metadata such
+as their IDs and names. Attachment downloads, requests for Send text, and
+receiving shared Sends are blocked. Item names, usernames, URIs, and other
+metadata remain visible to Claude and its model provider.
 
-**No-reveal is not a blanket content filter.** Attachment downloads and Send
-tools can return file bytes or text without a reveal flag. Item names, usernames,
-URIs, and other metadata are also visible. Only connect vault data you are
-willing to share with the MCP client and its model provider.
+Disable `no_reveal` to allow attachment downloads or Send content reads.
+Password and TOTP reads also require `reveal: true`. Disable `read_only`
+separately to allow writes. When writes are enabled and no-reveal is on,
+Send results still omit content and sharing links.
 
 ## Data and storage
 

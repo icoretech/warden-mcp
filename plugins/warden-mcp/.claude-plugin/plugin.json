@@ -56,7 +56,7 @@
     "no_reveal": {
       "type": "boolean",
       "title": "Keep secret fields redacted",
-      "description": "Block revealing supported secret fields. Attachment and Send contents can still be returned.",
+      "description": "Keep supported secret fields redacted, block attachment downloads and Send content reads, and limit owned Send results to metadata.",
       "default": true
     }
   }
