@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.80](https://github.com/icoretech/warden-mcp/compare/v0.2.79...v0.2.80) (2026-11-27)
+
+
+### Dependencies
+
+* update locked Hono, Express router, and authentication dependencies ([3a9eb26](https://github.com/icoretech/warden-mcp/commit/3a9eb26fa61c074dfe40f80353bb3bfde29b5527))
+
 ## [0.2.79](https://github.com/icoretech/warden-mcp/compare/v0.2.78...v0.2.79) (2026-11-26)
 
 
