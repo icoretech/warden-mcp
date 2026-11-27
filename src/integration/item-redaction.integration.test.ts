@@ -15,6 +15,7 @@ import { BwSessionPool } from '../bw/bwPool.js';
 import { readBwEnv } from '../bw/bwSession.js';
 import { KeychainSdk } from '../sdk/keychainSdk.js';
 import { REDACTED } from '../sdk/redact.js';
+import { assertNoRevealSendReads } from './send-redaction.fixture.js';
 
 type Item = Record<string, unknown>;
 
@@ -140,6 +141,17 @@ test('mcp stdio: native SSH keys and notes respect reveal and NOREVEAL against V
         assert.ok(
           !tools.tools.some((tool) => tool.name === 'keychain_create_login'),
         );
+
+        if (guard === 'NOREVEAL') {
+          await t.test(
+            'returns only Send metadata and denies attachment and Send content',
+            async () => {
+              const loginId = items.find((item) => item.type === 1)?.id;
+              assert.ok(typeof loginId === 'string');
+              await assertNoRevealSendReads(client, sdk, loginId);
+            },
+          );
+        }
 
         for (const source of items) {
           await t.test(`${guard}: ${source.name}`, async () => {
