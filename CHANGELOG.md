@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.81](https://github.com/icoretech/warden-mcp/compare/v0.2.80...v0.2.81) (2026-11-27)
+
+
+### Bug Fixes
+
+* enforce no-reveal on attachment and Send responses ([03f7df8](https://github.com/icoretech/warden-mcp/commit/03f7df86b65c3e162f16fd5e54672aca9c76fc58))
+
 ## [0.2.80](https://github.com/icoretech/warden-mcp/compare/v0.2.79...v0.2.80) (2026-11-27)
 
 
