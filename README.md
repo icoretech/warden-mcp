@@ -134,8 +134,8 @@ Common locations:
 
 - **Agent login flows** - fetch usernames, passwords, and TOTP codes during real
   browser automation without storing secrets in the agent prompt
-- **Safe by default** - secret fields stay redacted unless a tool supports
-  `reveal: true` and the client explicitly asks for it
+- **Item redaction** - password, TOTP, and item-note reads require an explicit
+  `reveal: true` to return their values
 - **Vault administration** - create, update, move, restore, and delete common
   Bitwarden item types, folders, organization collections, attachments, and Sends
 - **Shared HTTP mode** - one long-running service can front multiple vault hosts
@@ -293,7 +293,8 @@ you expose it.
 - **Use read-only mode when writes are not needed** - `READONLY=true` or
   `KEYCHAIN_READONLY=true` hides mutating tools and rejects direct write calls
 - **Use no-reveal mode for untrusted agent contexts** - `NOREVEAL=true` or
-  `KEYCHAIN_NOREVEAL=true` forces all secret-returning tools to stay redacted
+  `KEYCHAIN_NOREVEAL=true` overrides explicit reveals, blocks attachment
+  downloads and Send content reads, and limits owned Send results to metadata
 - **Keep debug logs off in production** - do not enable `KEYCHAIN_DEBUG_BW` or
   `KEYCHAIN_DEBUG_HTTP` unless actively troubleshooting
 - **Restrict profile storage** - protect `KEYCHAIN_BW_HOME_ROOT`, which stores
@@ -306,8 +307,11 @@ passwords, TOTP seeds/codes, card numbers and codes, identity
 SSNs/passport/license numbers, hidden custom fields, native SSH private keys
 and those stored through the secure-note convention, signed attachment URLs,
 and password history entries. Public SSH keys and fingerprints remain visible.
-Returning notes or private keys requires `reveal: true`; `NOREVEAL` and
-`KEYCHAIN_NOREVEAL` force them to stay redacted.
+Returning notes or private keys requires `reveal: true` with no-reveal disabled.
+No-reveal applies to both MCP text and structured results, including Send
+results returned by writes. Clients can still see item and Send names,
+usernames, URIs, and other metadata. Choose a vault account whose visible
+metadata is appropriate for the client.
 
 ## Configuration
 
@@ -323,7 +327,7 @@ Returning notes or private keys requires `reveal: true`; `NOREVEAL` and
 | `KEYCHAIN_ALLOW_ENV_FALLBACK`        | `false`               | allow HTTP calls to inherit server `BW_*` env     |
 | `KEYCHAIN_SYNC_ON_WRITE`             | `true`                | run `bw sync` before write operations             |
 | `READONLY` / `KEYCHAIN_READONLY`     | `false`               | hide and reject mutating tools                    |
-| `NOREVEAL` / `KEYCHAIN_NOREVEAL`     | `false`               | force `reveal: false` server-side                 |
+| `NOREVEAL` / `KEYCHAIN_NOREVEAL`     | `false`               | suppress reveals and block attachment and Send content reads |
 | `KEYCHAIN_TEXT_COMPAT_MODE`          | unset                 | set `structured_json` for text-only clients       |
 | `KEYCHAIN_SESSION_MAX_COUNT`         | `32`                  | max tracked HTTP sessions                         |
 | `KEYCHAIN_SESSION_TTL_MS`            | `900000`              | inactive session TTL                              |
@@ -374,11 +378,13 @@ Notes:
 - `keychain_delete_items` supports bulk soft-delete or hard-delete by id
 - `keychain_get_item` exposes safe attachment metadata, including `id`,
   `fileName`, and size, while redacting signed download URLs
-- `keychain_get_attachment` accepts an attachment id or an unambiguous filename
-  and returns `{ filename, bytes, contentBase64 }`
-- `keychain_send_get` returns owned Send metadata and text content; use
-  `keychain_receive` with a Send `accessUrl` to receive shared Sends or download
-  file Send bytes
+- With no-reveal off, `keychain_get_attachment` accepts an attachment id or an
+  unambiguous filename and returns `{ filename, bytes, contentBase64 }`.
+  `keychain_send_get` can return owned Send text, and `keychain_receive` can
+  return shared Send text or files.
+- With no-reveal on, `keychain_send_list` and `keychain_send_get` return only
+  selected metadata such as the Send ID and name. Attachment downloads,
+  requests for Send text, and all `keychain_receive` calls are blocked.
 - Ambiguous login lookups return `AMBIGUOUS_LOOKUP` with visible candidate ids;
   retry with the exact item id
 

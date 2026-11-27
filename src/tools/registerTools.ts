@@ -10,6 +10,17 @@ import {
 import type { UpdatePatch } from '../sdk/patch.js';
 import type { UriInput, UriMatch } from '../sdk/types.js';
 
+// Only explicitly supported metadata may cross the MCP boundary in no-reveal mode.
+const sendMetadata = z
+  .object({
+    id: z.string().optional(),
+    name: z.string().optional(),
+    type: z.literal([0, 1, 'Text', 'File', 'text', 'file']).optional(),
+  })
+  .nullable()
+  .catch(null);
+const sendMetadataList = z.array(sendMetadata).catch([]);
+
 export interface RegisterToolsDeps {
   getSdk: (authInfo?: AuthInfo) => Promise<KeychainSdk>;
   toolPrefix: string;
@@ -80,13 +91,17 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
   const textCompatMode =
     process.env.KEYCHAIN_TEXT_COMPAT_MODE?.trim().toLowerCase();
 
-  function readonlyBlocked() {
-    const structuredContent = { ok: false, error: 'READONLY' };
+  function blockedByPolicy(policy: 'READONLY' | 'NOREVEAL') {
+    const structuredContent = { ok: false, error: policy };
     return {
       structuredContent,
-      content: toolTextContent(structuredContent, 'Blocked: READONLY=true'),
+      content: toolTextContent(structuredContent, `Blocked: ${policy}=true`),
       isError: true,
     };
+  }
+
+  function readonlyBlocked() {
+    return blockedByPolicy('READONLY');
   }
 
   /** Strip reveal from input when NOREVEAL is set. */
@@ -227,11 +242,13 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
         .filter((attachment): attachment is string => attachment !== null);
       if (attachments.length > 0) {
         parts.push(`attachments=${quoteText(attachments.join(', '))}`);
-        parts.push(
-          `attachmentDownload=${quoteText(
-            `${publicPrefix}get_attachment with this item id plus an attachment id or exact filename; if an expected file is missing, run ${publicPrefix}sync and ${publicPrefix}get_item again first`,
-          )}`,
-        );
+        if (!isNoReveal) {
+          parts.push(
+            `attachmentDownload=${quoteText(
+              `${publicPrefix}get_attachment with this item id plus an attachment id or exact filename; if an expected file is missing, run ${publicPrefix}sync and ${publicPrefix}get_item again first`,
+            )}`,
+          );
+        }
       }
     }
     if (typeof rec.favorite === 'boolean')
@@ -324,6 +341,16 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     return [
       { type: 'text' as const, text: `${label}: ${stringifyScalar(value)}` },
     ];
+  }
+
+  function sendResponse(label: 'sends' | 'send' | 'result', raw: unknown) {
+    const schema = label === 'sends' ? sendMetadataList : sendMetadata;
+    const value = isNoReveal ? schema.parse(raw) : raw;
+    const structuredContent = { [label]: value };
+    return {
+      structuredContent,
+      content: toolScalarContent(structuredContent, label, value),
+    };
   }
 
   function ambiguousLookupResult(error: AmbiguousLoginLookupError) {
@@ -1251,7 +1278,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     `${deps.toolPrefix}.get_item`,
     {
       title: 'Get Item',
-      description: `Get the full vault item by stable item id. Secret fields (including item notes and SSH private keys) and signed attachment URLs are redacted by default; pass reveal=true only when the caller is allowed to receive secrets, and NOREVEAL can still force redaction. When attachments are present, use ${publicPrefix}get_attachment with this item id plus the listed attachment id or filename to download file bytes. If an expected recently-added attachment is missing, run ${publicPrefix}sync and call ${publicPrefix}get_item again before retrying.`,
+      description: `Get the full vault item by stable item id. Secret fields (including item notes and SSH private keys) and signed attachment URLs are redacted by default; pass reveal=true only when the caller is allowed to receive secrets, and NOREVEAL can still force redaction. When attachments are present and NOREVEAL is off, use ${publicPrefix}get_attachment with this item id plus the listed attachment id or filename to download file bytes. If an expected recently-added attachment is missing, run ${publicPrefix}sync and call ${publicPrefix}get_item again before retrying.`,
       annotations: { readOnlyHint: true },
       inputSchema: {
         id: stableObjectIdSchema,
@@ -1649,7 +1676,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     `${deps.toolPrefix}.get_attachment`,
     {
       title: 'Get Attachment',
-      description: `Download an attachment from a parent item and return raw bytes as contentBase64. Pass itemId plus an attachment id, or an unambiguous filename selector resolved from the item metadata before calling bw get attachment. The response includes filename, byte count, and base64 content for local decoding. If the expected attachment filename is missing from ${publicPrefix}get_item metadata, run ${publicPrefix}sync and ${publicPrefix}get_item again before retrying.`,
+      description: `Download an attachment from a parent item and return raw bytes as contentBase64. NOREVEAL blocks downloads. Pass itemId plus an attachment id, or an unambiguous filename selector resolved from the item metadata before calling bw get attachment. The response includes filename, byte count, and base64 content for local decoding. If the expected attachment filename is missing from ${publicPrefix}get_item metadata, run ${publicPrefix}sync and ${publicPrefix}get_item again before retrying.`,
       annotations: { readOnlyHint: true },
       inputSchema: {
         itemId: itemIdSchema,
@@ -1658,6 +1685,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       _meta: toolMeta,
     },
     async (input, extra) => {
+      if (isNoReveal) return blockedByPolicy('NOREVEAL');
       const sdk = await deps.getSdk(extra.authInfo);
       const attachment = await sdk.getAttachment({
         ...input,
@@ -1683,19 +1711,14 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Send List',
       description:
-        'List all the Sends owned by you (bw send list). This is read-only and does not mutate the vault.',
+        'List all the Sends owned by you (bw send list). NOREVEAL returns only Send IDs, names and types. This is read-only and does not mutate the vault.',
       annotations: { readOnlyHint: true, openWorldHint: true },
       inputSchema: {},
       _meta: toolMeta,
     },
     async (_input, extra) => {
       const sdk = await deps.getSdk(extra.authInfo);
-      const sends = await sdk.sendList();
-      const structuredContent = { sends };
-      return {
-        structuredContent,
-        content: toolScalarContent(structuredContent, 'sends', sends),
-      };
+      return sendResponse('sends', await sdk.sendList());
     },
   );
 
@@ -1731,7 +1754,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Send Get',
       description:
-        'Get Sends owned by you. Use text=true to return text content; file Sends return metadata including accessUrl. To download file Send bytes, call receive with that accessUrl and downloadFile=true.',
+        'Get Sends owned by you. Use text=true to return text content; file Sends return metadata including accessUrl. NOREVEAL returns only Send IDs, names and types and blocks text reads. To download file Send bytes, call receive with that accessUrl and downloadFile=true.',
       annotations: { readOnlyHint: true, openWorldHint: true },
       inputSchema: {
         id: stableObjectIdSchema,
@@ -1743,13 +1766,9 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       _meta: toolMeta,
     },
     async (input, extra) => {
+      if (isNoReveal && input.text) return blockedByPolicy('NOREVEAL');
       const sdk = await deps.getSdk(extra.authInfo);
-      const result = await sdk.sendGet(input);
-      const structuredContent = { result };
-      return {
-        structuredContent,
-        content: toolScalarContent(structuredContent, 'result', result),
-      };
+      return sendResponse('result', await sdk.sendGet(input));
     },
   );
 
@@ -1822,12 +1841,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       if (isReadOnly) return readonlyBlocked();
       const sdk = await deps.getSdk(extra.authInfo);
-      const send = await sdk.sendCreate(input);
-      const structuredContent = { send };
-      return {
-        structuredContent,
-        content: toolScalarContent(structuredContent, 'send', send),
-      };
+      return sendResponse('send', await sdk.sendCreate(input));
     },
   );
 
@@ -1878,12 +1892,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       if (isReadOnly) return readonlyBlocked();
       const sdk = await deps.getSdk(extra.authInfo);
-      const send = await sdk.sendCreateEncoded(input);
-      const structuredContent = { send };
-      return {
-        structuredContent,
-        content: toolScalarContent(structuredContent, 'send', send),
-      };
+      return sendResponse('send', await sdk.sendCreateEncoded(input));
     },
   );
 
@@ -1922,12 +1931,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       if (isReadOnly) return readonlyBlocked();
       const sdk = await deps.getSdk(extra.authInfo);
-      const send = await sdk.sendEdit(input);
-      const structuredContent = { send };
-      return {
-        structuredContent,
-        content: toolScalarContent(structuredContent, 'send', send),
-      };
+      return sendResponse('send', await sdk.sendEdit(input));
     },
   );
 
@@ -1950,12 +1954,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       if (isReadOnly) return readonlyBlocked();
       const sdk = await deps.getSdk(extra.authInfo);
-      const result = await sdk.sendRemovePassword(input);
-      const structuredContent = { result };
-      return {
-        structuredContent,
-        content: toolScalarContent(structuredContent, 'result', result),
-      };
+      return sendResponse('result', await sdk.sendRemovePassword(input));
     },
   );
 
@@ -1978,7 +1977,8 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     async (input, extra) => {
       if (isReadOnly) return readonlyBlocked();
       const sdk = await deps.getSdk(extra.authInfo);
-      const result = await sdk.sendDelete(input);
+      const raw = await sdk.sendDelete(input);
+      const result = isNoReveal ? sendMetadata.parse(raw) : raw;
       const structuredContent = { result, id: input.id };
       return {
         structuredContent,
@@ -1992,7 +1992,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
     {
       title: 'Receive',
       description:
-        'Receive a Bitwarden Send from an HTTPS url. Provide password when the Send is protected; obj=true returns the parsed JSON object, downloadFile=true downloads file bytes as base64, and the default returns received text. This reads a shared Send and does not create or modify vault items.',
+        'Receive a Bitwarden Send from an HTTPS url. NOREVEAL blocks receipt in every format. Provide password when the Send is protected; obj=true returns the parsed JSON object, downloadFile=true downloads file bytes as base64, and the default returns received text. This reads a shared Send and does not create or modify vault items.',
       annotations: { readOnlyHint: true, openWorldHint: true },
       inputSchema: {
         url: z.string().describe('HTTPS Bitwarden Send URL to receive.'),
@@ -2016,6 +2016,7 @@ export function registerTools(server: McpServer, deps: RegisterToolsDeps) {
       _meta: toolMeta,
     },
     async (input, extra) => {
+      if (isNoReveal) return blockedByPolicy('NOREVEAL');
       const sdk = await deps.getSdk(extra.authInfo);
       const result = await sdk.receive(input);
       const structuredContent = { result };

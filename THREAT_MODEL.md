@@ -1,6 +1,6 @@
 # Threat Model
 
-> Last updated: 2026-03-21 — reflects codebase at v0.1.8+
+> Last updated November 27, 2026.
 
 ## 1. Overview
 
@@ -14,7 +14,7 @@ Auxiliary endpoints: `GET /healthz` (liveness probe), `GET /metricsz` (operation
 The server registers ~50 MCP tools covering item CRUD, attachments, folders, organizations/collections, Bitwarden Send, and credential/TOTP retrieval. Security defaults are conservative:
 
 - Item reads are **redacted** unless the caller passes `reveal: true`.
-- `NOREVEAL=true` forces all `reveal` parameters to `false` server-side, regardless of what the client requests — a hard kill switch for prompt-injection exfiltration.
+- `NOREVEAL=true` overrides explicit reveals, denies attachment downloads and Send content reads, and limits owned Send results to selected metadata. Clients can still see user-entered text in names and other metadata.
 - `READONLY=true` blocks all mutating tools at the MCP layer.
 - CLI arguments use `--` end-of-options terminators before all user-controlled positional values.
 - JSON parse errors do not include raw CLI output (which may contain unredacted secrets).
@@ -58,7 +58,7 @@ MCP tools are callable by any connected MCP host. When the host is an LLM agent,
 | `BW_HOST`, `BW_PASSWORD`, `BW_CLIENTID`, `BW_CLIENTSECRET`, `BW_USER`                | Bitwarden credentials for stdio mode                               |
 | `BW_BIN`                                                                             | Path to `bw` binary (same trust as PATH)                           |
 | `READONLY` / `KEYCHAIN_READONLY`                                                     | Hide and disable all mutating tools                                |
-| `NOREVEAL` / `KEYCHAIN_NOREVEAL`                                                     | Force all `reveal` to false server-side                            |
+| `NOREVEAL` / `KEYCHAIN_NOREVEAL`                                                     | Suppress reveals and block attachment and Send content reads       |
 | `KEYCHAIN_ALLOW_ENV_FALLBACK`                                                        | Allow HTTP mode to fall back to env credentials (default: `false`) |
 | `KEYCHAIN_SESSION_MAX_COUNT`, `KEYCHAIN_SESSION_TTL_MS`, `KEYCHAIN_MAX_HEAP_USED_MB` | Resource limits                                                    |
 | `KEYCHAIN_DEBUG_HTTP`, `KEYCHAIN_DEBUG_BW`                                           | Debug logging (redacts session tokens and long args)               |
@@ -72,8 +72,8 @@ MCP tools are callable by any connected MCP host. When the host is an LLM agent,
 | `receive` URL validation         | `src/sdk/keychainSdk.ts`                        | `receive()` rejects non-HTTPS URLs before passing to `bw`                                                                                                                |
 | `--` end-of-options              | `src/sdk/keychainSdk.ts`                        | All user-controlled positional args in `sendCreate`, `sendCreateEncoded`, `sendEdit`, `receive` are preceded by `--`                                                     |
 | Safe-by-default redaction        | `src/sdk/redact.ts`                             | Item notes, native and secure-note SSH private keys, passwords, TOTP, card numbers, SSN, hidden fields, attachment URLs, password history redacted unless `reveal: true` |
-| READONLY mode                    | `src/tools/registerTools.ts`                    | Hides create/edit/delete/move/restore/attachment tools from the advertised MCP catalog and rejects direct write calls                                                    |
-| NOREVEAL mode                    | `src/tools/registerTools.ts`                    | Forces all `reveal` to `false`, preventing prompt-injection exfiltration                                                                                                 |
+| READONLY mode                    | `src/tools/registerTools.ts`                    | Hides mutating tools from the advertised MCP catalog and rejects direct write calls                                                                                      |
+| NOREVEAL mode                    | `src/tools/registerTools.ts`                    | Denies attachment downloads and Send receipt. Limits owned Send read and write results to selected metadata in both structured and text output.                          |
 | Env fallback disabled by default | `src/bw/bwHeaders.ts`, `src/transports/http.ts` | HTTP mode requires `X-BW-*` headers; env fallback requires explicit `KEYCHAIN_ALLOW_ENV_FALLBACK=true`                                                                   |
 | Error message sanitization       | `src/sdk/keychainSdk.ts`, `src/bw/bwSession.ts` | JSON parse errors include byte count only, never raw CLI output                                                                                                          |
 | CLI debug log redaction          | `src/bw/bwCli.ts`                               | Session tokens and args >80 chars are redacted in debug logs                                                                                                             |
@@ -93,7 +93,7 @@ MCP tools are callable by any connected MCP host. When the host is an LLM agent,
 | -------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | **Env credential bypass in HTTP mode** | Disabled by default; requires `KEYCHAIN_ALLOW_ENV_FALLBACK=true` | Operators who enable it on shared networks expose their vault                                                  |
 | **CLI option injection**               | `--` terminators before all user positional args                 | None — `bw` treats everything after `--` as data                                                               |
-| **Prompt-injection exfiltration**      | `NOREVEAL=true` forces `reveal: false` server-side               | Operators must enable it; without it, an LLM can be tricked into revealing secrets                             |
+| **Prompt-injection exfiltration**      | Enable `NOREVEAL` to suppress secret fields, attachment bytes, and Send content | The client can still read metadata such as item names, usernames, and URIs. Limit the vault account's access accordingly. |
 | **Secret leakage in error messages**   | `parseBwJson` includes byte count only, not raw output           | None                                                                                                           |
 | **SSRF via receive URL**               | `receive()` rejects non-HTTPS URLs                               | `bw` still makes the outbound request; HTTPS-only limits but doesn't eliminate SSRF to internal HTTPS services |
 
